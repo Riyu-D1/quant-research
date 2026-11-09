@@ -9,6 +9,10 @@ data/
 mlruns/
 third_party/qlib/
 runs/
+build/
+fetch.log
+probe.out
+spotcheck.out
 
 # Secrets — never commit
 .env

@@ -1,0 +1,193 @@
+name: us-alpaca-data
+
+# Manual-dispatch pipeline: builds the US qlib dump from Alpaca Market Data
+# and publishes it as a workflow artifact + a PR with coverage/probe results.
+#
+# Secrets live in the GitHub Environment named `ALPACA_API_KEY`
+# (ALPACA_API_KEY + ALPACA_API_SECRET). Setting `environment:` on the job is
+# what makes them visible. Secret values are never printed.
+#
+# Stops (nonzero exit, no retry, no paid plan) if:
+#   * the API rejects the keys (401/403 auth)                    -> exit 2
+#   * zero delisted watch names return bars (coverage absent)    -> exit 3
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Universe/data start (Alpaca SIP begins 2016)"
+        required: false
+        default: "2016-01-01"
+      end_date:
+        description: "End date (blank = yesterday)"
+        required: false
+        default: ""
+      feed:
+        description: "Alpaca feed: auto = sip then iex fallback"
+        required: false
+        default: "auto"
+        type: choice
+        options: [auto, sip, iex]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-us-dump:
+    runs-on: ubuntu-latest
+    environment: ALPACA_API_KEY   # environment name (contains both secrets)
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+      START: ${{ inputs.start_date || '2016-01-01' }}
+      END: ${{ inputs.end_date }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+
+      - name: Install deps
+        run: uv sync --frozen --no-dev
+
+      - name: Build point-in-time S&P 500 universe
+        run: |
+          END_ARG="${END:-$(date -d yesterday +%F)}"
+          uv run python scripts/alpaca_us_data.py universe \
+            --start "$START" --end "$END_ARG" \
+            --out build/universe_sp500.csv
+          echo "END_ARG=$END_ARG" >> "$GITHUB_ENV"
+
+      - name: Download Alpaca daily bars (adjusted + raw close)
+        id: fetch
+        run: |
+          set +e
+          uv run python scripts/alpaca_us_data.py fetch \
+            --universe-csv build/universe_sp500.csv \
+            --csv-dir data/us_alpaca_csv \
+            --start "$START" --end "$END_ARG" \
+            --feed "${{ inputs.feed }}" \
+            --coverage-json results/us_alpaca_coverage.json 2>&1 | tee fetch.log
+          code=${PIPESTATUS[0]}
+          echo "fetch_exit=$code" >> "$GITHUB_OUTPUT"
+          # exit codes: 2=keys rejected, 3=no delisted coverage -> stop here
+          [ "$code" -eq 0 ]
+
+      - name: Convert CSVs to qlib dump
+        run: |
+          uv run python scripts/us_data_to_qlib.py \
+            --input-dir data/us_alpaca_csv \
+            --output-dir data/qlib/us_alpaca --universe sp500
+          uv run python scripts/alpaca_us_data.py finalize \
+            --qlib-dir data/qlib/us_alpaca \
+            --csv-dir data/us_alpaca_csv \
+            --universe-csv build/universe_sp500.csv --universe sp500
+
+      - name: Momentum probe (Jan-Jun 2019)
+        run: |
+          uv run python scripts/momentum_probe.py \
+            --data-dir data/qlib/us_alpaca --instruments sp500.txt \
+            --start 2019-01-01 --end 2019-07-01 | tee probe.out
+          echo "PROBE=$(tail -1 probe.out)" >> "$GITHUB_ENV"
+
+      - name: Spot-check adjusted closes vs second source
+        run: |
+          uv run python scripts/spot_check_prices.py \
+            --csv-dir data/us_alpaca_csv \
+            --tickers AAPL MSFT MON TWX CELG | tee spotcheck.out || true
+
+      - name: Upload qlib dump artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: us-qlib-dump
+          path: data/qlib/us_alpaca
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload coverage + check artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: us-alpaca-report
+          path: |
+            results/us_alpaca_coverage.json
+            fetch.log
+            probe.out
+            spotcheck.out
+            build/universe_sp500.csv
+          if-no-files-found: ignore
+
+      - name: Summarize coverage
+        if: always()
+        run: |
+          uv run python - <<'EOF'
+          import json, pathlib
+          p = pathlib.Path("results/us_alpaca_coverage.json")
+          if p.exists():
+              c = json.loads(p.read_text())
+              print(f"feed={c['feed']} range={c['start']}..{c['end']} "
+                    f"symbols_with_bars={c['with_bars']}/{c['universe_symbols']}")
+              print("delisted found:", ", ".join(c['delisted_found']) or "NONE")
+              print("delisted missing:", ", ".join(c['delisted_missing']) or "none")
+          EOF
+
+      - name: Append EXPERIMENTS.md + open PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FETCH_EXIT: ${{ steps.fetch.outputs.fetch_exit }}
+        run: |
+          set -e
+          uv run python - <<'EOF'
+          import datetime as dt, json, os, pathlib, re
+          rep = pathlib.Path("results/us_alpaca_coverage.json")
+          c = json.loads(rep.read_text()) if rep.exists() else {}
+          pp = pathlib.Path("probe.out")
+          probe = pp.read_text().strip().splitlines()[-1] if pp.exists() \
+              else "probe did not run"
+          m = re.search(r"mom5 IC ([-\d.]+)", probe)
+          ic = m.group(1) if m else "—"
+          date = dt.date.today().isoformat()
+          exp = pathlib.Path("EXPERIMENTS.md")
+          text = exp.read_text()
+          n = max([int(x) for x in re.findall(r"EX-(\d+)", text)] or [0]) + 1
+          if c.get("delisted_found"):
+              cov = (f"{c['with_bars']}/{c['universe_symbols']} syms, "
+                     f"delisted: {len(c['delisted_found'])} found "
+                     f"({', '.join(c['delisted_found'])}), "
+                     f"missing {', '.join(c['delisted_missing']) or 'none'}")
+              verdict = (f"Alpaca {c['feed']} dump built; coverage gate passed; "
+                         f"mom5 IC {ic} (low IC expected — gate is coverage "
+                         f"+ corporate actions, not alpha)")
+          else:
+              cov = "delisted coverage absent" if c else "fetch failed"
+              verdict = (f"STOPPED per policy: {cov}; "
+                         f"see workflow log artifacts")
+          row = (f"| EX-{n:03d} | {date} | 1 | Alpaca→qlib US dump "
+                 f"(us-alpaca-data workflow) | sp500 PIT | {ic} | — | — | — "
+                 f"| — | — | — | {verdict}; {cov} |\n")
+          marker = "## Running total of hypotheses tested"
+          text = text.replace(marker, row + "\n" + marker)
+          exp.write_text(text)
+          pathlib.Path("results/us_alpaca_report.md").write_text(
+              f"# US Alpaca dump — {date}\n\n"
+              f"- fetch exit: {os.environ.get('FETCH_EXIT', '?')}\n"
+              f"- probe: {probe}\n"
+              f"- coverage: `{json.dumps(c.get('delisted_found', []))}`\n"
+              f"- full coverage JSON: results/us_alpaca_coverage.json\n")
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BR="us-data/run-${{ github.run_id }}"
+          git checkout -b "$BR"
+          git add EXPERIMENTS.md results/us_alpaca_report.md
+          git add results/us_alpaca_coverage.json 2>/dev/null || true
+          git commit -m "us-alpaca-data run ${{ github.run_id }}: coverage + probe results"
+          git push origin "$BR"
+          gh pr create --base master --head "$BR" \
+            --title "US Alpaca dump — run ${{ github.run_id }}" \
+            --body "Automated run of the us-alpaca-data workflow.\n\n- probe: ${PROBE:-n/a}\n- artifacts: us-qlib-dump + us-alpaca-report on the workflow run\n- fetch exit code: ${FETCH_EXIT}\n\nGenerated by GitHub Actions."

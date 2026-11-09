@@ -24,7 +24,7 @@ VENV_PY = REPO / ".venv" / "bin" / "python"
 PY = str(VENV_PY if VENV_PY.exists() else Path(sys.executable))
 
 CN = REPO / "data/qlib/cn_data"
-US = REPO / "data/qlib/us_data"
+US = REPO / "data/qlib/us_alpaca"   # Alpaca-built dump (us-alpaca-data workflow artifact)
 
 # name -> (config, provider_dir, experiment, notes)
 REGISTRY = {
@@ -34,10 +34,11 @@ REGISTRY = {
     "doubleensemble_cn":("configs/benchmarks/doubleensemble_alpha158_cn.yaml", CN, "benchmarks", "Alpha158 csi300"),
     "transformer_cn":   ("configs/benchmarks/transformer_alpha158_cn.yaml", CN, "benchmarks", "Alpha158 csi300"),
     "hist_cn":          ("configs/benchmarks/hist_alpha360_cn.yaml", CN, "benchmarks", "Alpha360 csi300"),
-    "lightgbm_us":      ("configs/benchmarks/lightgbm_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500"),
-    "xgboost_us":       ("configs/benchmarks/xgboost_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500"),
-    "doubleensemble_us":("configs/benchmarks/doubleensemble_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500"),
-    "transformer_us":   ("configs/benchmarks/transformer_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500"),
+    "lightgbm_us":      ("configs/benchmarks/lightgbm_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500 PIT"),
+    "xgboost_us":       ("configs/benchmarks/xgboost_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500 PIT"),
+    "doubleensemble_us":("configs/benchmarks/doubleensemble_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500 PIT"),
+    "transformer_us":   ("configs/benchmarks/transformer_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500 PIT"),
+    "hist_us":          ("configs/benchmarks/hist_alpha360_us.yaml", US, "benchmarks_us", "Alpha360 sp500 PIT"),
     # Phase 2 experiments (do not run until baselines complete)
     "lgb_combined_cn":  ("configs/experiments/lightgbm_alpha158_360_cn.yaml", CN, "phase2", "Alpha158+Alpha360 concat"),
     "lgb_tuned_cn":     ("scripts/tune_lgbm.py", CN, "phase2", "Optuna-tuned LightGBM"),
@@ -49,6 +50,16 @@ REGISTRY = {
 def ensure_data(provider: Path) -> None:
     if (provider / "calendars/day.txt").exists():
         return
+    if provider == US:
+        sys.exit(
+            f"[gpu-run] US dump missing at {provider}.\n"
+            "  It is built by the `us-alpaca-data` GitHub Actions workflow\n"
+            "  (Actions -> us-alpaca-data -> Run workflow) and stored as the\n"
+            "  `us-qlib-dump` artifact. Fetch + unpack it with:\n"
+            "    gh run download -R Riyu-D1/quant-research -n us-qlib-dump \\\n"
+            "        -D data/qlib/us_alpaca\n"
+            "  (on Kaggle/Colab the notebook cell does this via GH_TOKEN —\n"
+            "   no Alpaca keys needed)")
     region = "us" if "us" in provider.name else "cn"
     print(f"[gpu-run] downloading qlib {region} data -> {provider}")
     provider.mkdir(parents=True, exist_ok=True)
@@ -56,10 +67,24 @@ def ensure_data(provider: Path) -> None:
                     "--region", region], cwd=REPO, check=True)
 
 
+def ensure_us_concepts() -> None:
+    """HIST needs stock_index/stock2concept matching the dump's universe."""
+    assets = REPO / "configs/benchmarks/assets"
+    if (assets / "qlib_sp500_stock_index.npy").exists() and \
+            (assets / "qlib_sp500_stock2concept.npy").exists():
+        return
+    print("[gpu-run] building sp500 concept assets for HIST")
+    subprocess.run([PY, "scripts/build_us_concepts.py", "--instruments",
+                    str(US / "instruments" / "sp500.txt"),
+                    "--out-dir", str(assets)], cwd=REPO, check=True)
+
+
 def run_one(name: str) -> Path:
     entry = REGISTRY[name]
     config, provider, experiment, _ = entry
     ensure_data(provider)
+    if name == "hist_us":
+        ensure_us_concepts()
     out = REPO / "results/runs" / f"{name}.json"
     cmd = config if config.startswith("scripts/") else \
         f"scripts/run_benchmark.py --config {config} --provider-uri {provider} " \

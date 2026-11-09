@@ -2,6 +2,9 @@ SHELL := /bin/bash
 DATA_DIR := $(CURDIR)/data/qlib
 CN_DATA := $(DATA_DIR)/cn_data
 US_DATA := $(DATA_DIR)/us_data
+# Alpaca-built US dump (artifact `us-qlib-dump` from the us-alpaca-data
+# workflow; unpack into data/qlib/us_alpaca — see CLOUD.md / docs/US_DATA.md)
+US_ALPACA := $(DATA_DIR)/us_alpaca
 # PROFILE=cpu uses configs/benchmarks/cpu/ (thread-10 / GPU -1 variants for the
 # local Intel Mac). Default (empty) uses configs/benchmarks/ (upstream, GPU on).
 PROFILE ?=
@@ -50,16 +53,16 @@ bench-cn-hist:
 bench-cn: bench-cn-lightgbm bench-cn-xgboost bench-cn-doubleensemble bench-cn-transformer bench-cn-hist
 
 bench-us-lightgbm:
-	uv run python scripts/run_benchmark.py --config $(CFG)/lightgbm_alpha158_us.yaml --provider-uri $(US_DATA) --out results/runs/lightgbm_alpha158_us.json
+	uv run python scripts/run_benchmark.py --config $(CFG)/lightgbm_alpha158_us.yaml --provider-uri $(US_ALPACA) --out results/runs/lightgbm_alpha158_us.json
 
 bench-us-xgboost:
-	uv run python scripts/run_benchmark.py --config $(CFG)/xgboost_alpha158_us.yaml --provider-uri $(US_DATA) --out results/runs/xgboost_alpha158_us.json
+	uv run python scripts/run_benchmark.py --config $(CFG)/xgboost_alpha158_us.yaml --provider-uri $(US_ALPACA) --out results/runs/xgboost_alpha158_us.json
 
 bench-us-doubleensemble:
-	uv run python scripts/run_benchmark.py --config $(CFG)/doubleensemble_alpha158_us.yaml --provider-uri $(US_DATA) --out results/runs/doubleensemble_alpha158_us.json
+	uv run python scripts/run_benchmark.py --config $(CFG)/doubleensemble_alpha158_us.yaml --provider-uri $(US_ALPACA) --out results/runs/doubleensemble_alpha158_us.json
 
 bench-us-transformer:
-	uv run python scripts/run_benchmark.py --config $(CFG)/transformer_alpha158_us.yaml --provider-uri $(US_DATA) --out results/runs/transformer_alpha158_us.json
+	uv run python scripts/run_benchmark.py --config $(CFG)/transformer_alpha158_us.yaml --provider-uri $(US_ALPACA) --out results/runs/transformer_alpha158_us.json
 
 bench-us: bench-us-lightgbm bench-us-xgboost bench-us-doubleensemble bench-us-transformer
 

@@ -22,6 +22,10 @@ dependencies = [
     "mlflow>=2.9,<3",
     "optuna>=3.6,<4",
     "cvxpy>=1.5,<2",
+    "requests>=2.32,<3",
+    # lxml backs pandas.read_html for the S&P 500 constituent scrape
+    # (scripts/alpaca_us_data.py universe)
+    "lxml>=5.3,<7",
 ]
 
 [dependency-groups]

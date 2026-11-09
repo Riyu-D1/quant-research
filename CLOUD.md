@@ -9,8 +9,29 @@ each finished run to `EXPERIMENTS.md`.
 
 ```
 python scripts/gpu_run.py --list            # all registered model names
-make gpu-run MODELS="transformer_cn hist_cn"
+make gpu-run MODELS="transformer_cn hist_cn transformer_us"
 ```
+
+## US data — the Alpaca dump (required for `*_us` models)
+
+US models read `data/qlib/us_alpaca` — a point-in-time S&P 500 universe built
+from Alpaca Market Data (adjusted OHLCV incl. delisted names), NOT the qlib
+community `us_data` dump. It is produced by the **`us-alpaca-data` GitHub
+Actions workflow** (Actions → us-alpaca-data → Run workflow) and published as
+the workflow artifact **`us-qlib-dump`** (Alpaca keys never leave the
+`ALPACA_API_KEY` GitHub Environment — nothing to put in the notebook).
+
+Get it onto your GPU box **either** way:
+
+* **Notebook (Kaggle/Colab):** the fetch cell in `qlib_gpu_run.ipynb`
+  auto-downloads the newest `us-qlib-dump` artifact via the GitHub API using
+  your `GH_TOKEN` secret whenever a `*_us` model is selected.
+* **Manual (any box with `gh` authenticated):**
+  `gh run download -R Riyu-D1/quant-research -n us-qlib-dump -D data/qlib/us_alpaca`
+
+`hist_us` additionally needs `qlib_sp500_stock_index.npy` /
+`qlib_sp500_stock2concept.npy` — `gpu_run.py` builds them from the dump's
+`instruments/sp500.txt` via `scripts/build_us_concepts.py` on first use.
 
 ## Option A — Kaggle (default, free)
 
@@ -60,7 +81,8 @@ one consistent runtime.)
 | transformer_cn | ~10–15 min | ~60–120 min (200 epochs max, early stop 20) | **~1.5–2.5 h** |
 | hist_cn (Alpha360) | ~10–20 min | ~90–180 min | **~2–3.5 h** |
 
-US variants run on sp500 (larger universe): add ~50–100% to data init.
+US variants (`*_us`) run on the Alpaca sp500 PIT universe (~750 symbols,
+2016–2026): add ~50–100% to data init; `hist_us` (Alpha360) is the heaviest.
 GBDTs are CPU-bound — GPU only helps Transformer/HIST.
 
 ## CPU profile for the local Mac
