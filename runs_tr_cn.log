@@ -39,4 +39,9 @@ See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stab
 [56706:MainThread](2026-11-09 16:46:55,598) INFO - qlib.TransformerModel - [pytorch_transformer_ts.py:169] - training...
 [56706:MainThread](2026-11-09 16:46:55,599) INFO - qlib.TransformerModel - [pytorch_transformer_ts.py:173] - Epoch0:
 [56706:MainThread](2026-11-09 16:46:55,601) INFO - qlib.TransformerModel - [pytorch_transformer_ts.py:174] - training...
-probe Mon  9 Nov 2026 16:54:18 GMT
+/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/joblib/externals/loky/backend/resource_tracker.py:444: UserWarning: resource_tracker: There appear to be 2 leaked folder objects to clean up at shutdown: {'/var/folders/9p/8hzcb7413kd8m79rs_33gv3r0000gn/T/joblib_memmapping_folder_56706_6297b9f7b80c44b6a647002e3a1ba08e_c414b9f84f904f07a161e926a7ea942f': 1, '/var/folders/9p/8hzcb7413kd8m79rs_33gv3r0000gn/T/joblib_memmapping_folder_56706_63770b2af9d545bdaf4dfaaf5f2d1523_765a75d7f03142c3aeeebf59bf4f4187': 1}
+  warnings.warn(
+/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/joblib/externals/loky/backend/resource_tracker.py:468: UserWarning: resource_tracker: /var/folders/9p/8hzcb7413kd8m79rs_33gv3r0000gn/T/joblib_memmapping_folder_56706_6297b9f7b80c44b6a647002e3a1ba08e_c414b9f84f904f07a161e926a7ea942f: FileNotFoundError(2, 'No such file or directory')
+  warnings.warn('resource_tracker: %s: %r' % (name, e))
+/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/joblib/externals/loky/backend/resource_tracker.py:468: UserWarning: resource_tracker: /var/folders/9p/8hzcb7413kd8m79rs_33gv3r0000gn/T/joblib_memmapping_folder_56706_63770b2af9d545bdaf4dfaaf5f2d1523_765a75d7f03142c3aeeebf59bf4f4187: FileNotFoundError(2, 'No such file or directory')
+  warnings.warn('resource_tracker: %s: %r' % (name, e))
