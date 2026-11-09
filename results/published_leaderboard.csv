@@ -1,0 +1,6 @@
+model,dataset,region,ic,icir,rank_ic,rank_icir,annualized_return,information_ratio,max_drawdown
+LightGBM,Alpha158,csi300,0.0448,0.3660,0.0469,0.3877,0.0901,1.0164,-0.1038
+XGBoost,Alpha158,csi300,0.0498,0.3779,0.0505,0.4131,0.0780,0.9070,-0.1168
+DoubleEnsemble,Alpha158,csi300,0.0521,0.4223,0.0502,0.4117,0.1158,1.3432,-0.0920
+Transformer,Alpha158,csi300,0.0264,0.2053,0.0407,0.3273,0.0273,0.3970,-0.1101
+HIST,Alpha360,csi300,0.0522,0.3530,0.0667,0.4576,0.0987,1.3726,-0.0681

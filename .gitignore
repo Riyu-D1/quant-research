@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Data & experiment artifacts (large / machine-specific)
+data/
+mlruns/
+third_party/qlib/
+runs/
+
+# Secrets — never commit
+.env
+.env.*
+*.pem
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
