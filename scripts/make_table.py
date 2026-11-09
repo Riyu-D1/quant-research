@@ -38,7 +38,10 @@ def main() -> None:
     args = p.parse_args()
 
     pub = pd.read_csv(args.published)
-    pub_key = {f"{r.model}|{r.dataset}|{r.region}": r for r in pub.itertuples()}
+    pub_key = {f"{r.model}|{r.dataset}|{r.region}".lower(): r for r in pub.itertuples()}
+
+    # filename suffix -> universe name used in published_leaderboard.csv
+    region_map = {"cn": "csi300", "us": "sp500"}
 
     rows = []
     for f in sorted(args.runs.glob("*.json")):
@@ -51,10 +54,12 @@ def main() -> None:
         model = "_".join(parts[:-2])
         rec = {"run": stem, "model": model, "dataset": dataset, "region": region,
                "train_min": run.get("train_minutes"),
+               "backtest_days": run.get("backtest_days"),
                "turnover": run.get("turnover")}
         for col, suffix in WANT:
             rec[col] = get_metric(m, suffix)
-        rec["published"] = pub_key.get(f"{model.capitalize()}|{dataset}|{region}")
+        universe = region_map.get(region, region)
+        rec["published"] = pub_key.get(f"{model}|{dataset}|{universe}".lower())
         rows.append(rec)
 
     lines = ["# Leaderboard — our runs vs published qlib benchmarks",
@@ -65,7 +70,7 @@ def main() -> None:
              ""]
     for r in rows:
         pub = r["published"]
-        lines.append(f"## {r['run']}  ({r['train_min']} min, {r['backtest_days' if 'backtest_days' in r else 'n/a']} days)")
+        lines.append(f"## {r['run']}  ({r['train_min']} min, {r['backtest_days']} days)")
         hdr = "| metric | ours | published |"
         lines += [hdr, "|---|---|---|"]
         pub_vals = {} if pub is None else pub._asdict()

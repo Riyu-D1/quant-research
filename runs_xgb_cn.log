@@ -1,0 +1,6 @@
+[86703:MainThread](2026-11-09 13:20:26,000) INFO - qlib.Initialization - [config.py:452] - default_conf: client.
+[86703:MainThread](2026-11-09 13:20:26,006) INFO - qlib.Initialization - [__init__.py:75] - qlib successfully initialized based on client settings.
+[86703:MainThread](2026-11-09 13:20:26,007) INFO - qlib.Initialization - [__init__.py:77] - data_path={'__DEFAULT_FREQ': PosixPath('/Users/deepakdiwan/quant-research/data/qlib/cn_data')}
+[86703:MainThread](2026-11-09 13:20:26,022) INFO - qlib.workflow - [exp.py:258] - Experiment 163758328377123687 starts running ...
+[86703:MainThread](2026-11-09 13:20:26,417) INFO - qlib.workflow - [recorder.py:345] - Recorder e932fad7f26643668b56d4b2452928d5 starts running under Experiment 163758328377123687 ...
+ModuleNotFoundError. CatBoostModel are skipped. (optional: maybe installing CatBoostModel can fix it.)
