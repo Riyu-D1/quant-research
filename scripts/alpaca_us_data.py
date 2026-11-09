@@ -210,18 +210,23 @@ def cmd_fetch(args) -> int:
     end = args.end or (dt.date.today() - dt.timedelta(days=1)).isoformat()
 
     # Split symbols by whether they left the index before `end`: ex-members
-    # must be queried with asof pinned to their exit date, else a recycled
-    # ticker resolves to a different, current entity.
+    # are queried with asof pinned INSIDE their membership window (30d before
+    # the exit) — pinning at the exit date itself can already resolve to the
+    # recycled ticker (MON showed the post-Monsanto entity that way).
+    def minus_30d(d: str) -> str:
+        return (dt.date.fromisoformat(d) - dt.timedelta(days=30)).isoformat()
+
     last_out = uni.groupby("symbol")["out_date"].max()
+    first_in = uni.groupby("symbol")["in_date"].min()
     current_syms = sorted(set(last_out[last_out >= end].index) | set(EXTRA_SYMBOLS))
-    past_by_out: dict[str, list[str]] = {}
+    past_by_asof: dict[str, list[str]] = {}
     for sym, out_d in last_out[last_out < end].items():
-        past_by_out.setdefault(out_d, []).append(sym)
+        past_by_asof.setdefault(minus_30d(out_d), []).append(sym)
     watch = {s: d for s, (d, _n) in DELISTED_WATCH.items()
              if s not in set(pit_syms)}
 
     client = Alpaca(feed=args.feed)
-    n_past = sum(len(v) for v in past_by_out.values())
+    n_past = sum(len(v) for v in past_by_asof.values())
     print(f"[fetch] {len(current_syms)} listed + {n_past} ex-member symbols "
           f"(asof-grouped) + {len(watch)} watch names, "
           f"{args.start}..{end}, feed={client.feed}")
@@ -250,19 +255,48 @@ def cmd_fetch(args) -> int:
     merge(adj, fetch_group(current_syms, "all"))
     if args.raw_close:
         merge(raw, fetch_group(current_syms, "raw"))
-    # ex-members, asof = index-exit date (batched by exit date)
-    for out_d, syms in sorted(past_by_out.items()):
-        merge(adj, fetch_group(syms, "all", asof=out_d))
+    # ex-members, asof pinned 30d inside the membership window
+    for asof_d, syms in sorted(past_by_asof.items()):
+        merge(adj, fetch_group(syms, "all", asof=asof_d))
         if args.raw_close:
-            merge(raw, fetch_group(syms, "raw", asof=out_d))
+            merge(raw, fetch_group(syms, "raw", asof=asof_d))
     # delisted watch names not already covered by the universe
     for sym, delist in watch.items():
         try:
-            merge(adj, fetch_group([sym], "all", asof=delist))
+            merge(adj, fetch_group([sym], "all", asof=minus_30d(delist)))
             if args.raw_close:
-                merge(raw, fetch_group([sym], "raw", asof=delist))
+                merge(raw, fetch_group([sym], "raw", asof=minus_30d(delist)))
         except SubscriptionError as e:
             print(f"[fetch] {sym}: feed rejected ({e}) — skipped")
+
+    # Clamp ex-member/watch bars to the entity's last membership day — a dead
+    # company cannot trade after delisting, so later bars are the recycled
+    # ticker (a different entity that reuses the symbol).
+    bar_cap = {s: min(o, end) for s, o in last_out[last_out < end].items()}
+    bar_cap.update({s: min(delist, end)
+                    for s, (delist, _n) in DELISTED_WATCH.items()})
+    for sym, cap in bar_cap.items():
+        if sym in adj:
+            adj[sym] = {d: b for d, b in adj[sym].items() if d <= cap}
+        if sym in raw:
+            raw[sym] = {d: b for d, b in raw[sym].items() if d <= cap}
+
+    # Second chance: empty universe symbols retry with asof = 30d after their
+    # first membership date (covers mapping gaps like BCR/CCEP/DOW).
+    retry = [s for s in last_out.index if not adj.get(s)]
+    if retry:
+        print(f"[fetch] second-chance asof retry for {len(retry)} empty "
+              f"symbols: {retry}")
+        for s in retry:
+            merge(adj, fetch_group([s], "all", asof=first_in[s]))
+            if args.raw_close:
+                merge(raw, fetch_group([s], "raw", asof=first_in[s]))
+            # re-apply the cap for ex-members
+            if s in bar_cap:
+                adj[s] = {d: b for d, b in adj.get(s, {}).items()
+                          if d <= bar_cap[s]}
+                raw[s] = {d: b for d, b in raw.get(s, {}).items()
+                          if d <= bar_cap[s]}
 
     args.csv_dir.mkdir(parents=True, exist_ok=True)
     coverage = {}
