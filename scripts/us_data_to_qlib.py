@@ -61,19 +61,28 @@ def main() -> None:
     inst_rows = []
     for sym, df in frames.items():
         sub = df.reindex(cal)
+        first = sub["close"].first_valid_index()
+        if first is None:
+            continue
+        # qlib .bin layout: first float32 is the start index into the
+        # calendar; values then cover calendar[start..] (no leading pad).
+        start_idx = day_idx[first]
+        sub = sub.loc[first:]
         sdir = root / "features" / sym
         sdir.mkdir(exist_ok=True)
+        head = np.array([start_idx], dtype=np.float32)
         for fld in FIELDS:
             vals = sub[fld].astype(np.float32).values if fld in sub else \
-                np.full(len(cal), np.nan, dtype=np.float32)
-            vals.tofile(sdir / f"{fld}.day.bin")
+                np.full(len(sub), np.nan, dtype=np.float32)
+            np.concatenate([head, vals]).tofile(sdir / f"{fld}.day.bin")
         # factor: adjust for splits via adj close if present, else 1.0
         if "adj close" in df.columns or "adjclose" in df.columns:
             ac = df.get("adj close", df.get("adjclose"))
-            factor = (ac / df["close"]).reindex(cal).ffill().fillna(1.0)
+            factor = (ac / df["close"]).reindex(cal).loc[first:].ffill().fillna(1.0)
         else:
-            factor = pd.Series(1.0, index=cal)
-        factor.astype(np.float32).values.tofile(sdir / "factor.day.bin")
+            factor = pd.Series(1.0, index=sub.index)
+        np.concatenate([head, factor.astype(np.float32).values]).tofile(
+            sdir / "factor.day.bin")
         present = df.index[(df.index >= cal[0]) & (df.index <= cal[-1])]
         if len(present):
             inst_rows.append(f"{sym.upper()}\t{present.min()}\t{present.max()}")

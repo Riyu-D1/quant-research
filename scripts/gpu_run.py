@@ -58,7 +58,7 @@ def ensure_data(provider: Path) -> None:
 
 def run_one(name: str) -> Path:
     entry = REGISTRY[name]
-    config, provider, experiment, notes = entry
+    config, provider, experiment, _ = entry
     ensure_data(provider)
     out = REPO / "results/runs" / f"{name}.json"
     cmd = config if config.startswith("scripts/") else \
@@ -86,7 +86,7 @@ def append_experiments(results: dict[str, Path]) -> None:
             continue
         d = json.loads(out.read_text())
         m = d.get("metrics", {})
-        def g(k): return f"{m[k]:.4f}" if isinstance(m.get(k), (int, float)) else "—"
+        def g(k, m=m): return f"{m[k]:.4f}" if isinstance(m.get(k), (int, float)) else "—"
         n += 1
         notes = REGISTRY[name][3]
         rows.append(
@@ -112,13 +112,14 @@ def main() -> None:
         for k, v in REGISTRY.items():
             print(f"  {k:20s} {v[0]}")
         return
-    unknown = [m for m in args.models if m not in REGISTRY]
+    models = [m for a in args.models for m in re.split(r"[\s,]+", a) if m]
+    unknown = [m for m in models if m not in REGISTRY]
     if unknown:
         sys.exit(f"unknown model(s) {unknown}; run --list")
 
     results = {}
     failures = []
-    for name in args.models:
+    for name in models:
         try:
             results[name] = run_one(name)
         except subprocess.CalledProcessError as e:

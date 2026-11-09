@@ -1,5 +1,7 @@
-# Quant research GPU environment: CUDA 12.1 runtime + pinned Python 3.11 (uv.lock)
-# PyPI linux x86_64 wheels for torch 2.2-2.6 are built for CUDA 12.1 — matching base.
+# Quant research GPU environment: CUDA 12.x runtime + pinned Python 3.11 (uv.lock)
+# The locked torch (2.6.0) PyPI wheel bundles its CUDA 12.4 runtime via the
+# nvidia-*-cu12 pip packages, so the base image only needs a 12.x driver API —
+# any recent nvidia/cuda runtime tag works; host driver must be >= 550.
 # No macOS OpenMP workarounds: linux wheels ship a single consistent runtime.
 FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 

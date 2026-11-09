@@ -2,36 +2,60 @@
 
 ## Why we're looking
 
-The qlib community `us_data` dump (Yahoo-derived) carries almost no next-day
-alpha: raw 5-day momentum IC ≈ **0.004** vs **0.058** on the CN dump (same
-probe, `scripts/momentum_probe.py`, Jan–Jun 2019 window). All three GBDT
-benchmarks score IC 0.002–0.007 on it. The dump also cannot reproduce a
-survivorship-free universe: `instruments/sp500.txt` has date-windowed
-constituents but the features only cover symbols still listed at dump time
-(Yahoo drops delisted tickers), so names that left the index by delisting are
-missing entirely.
+The qlib community `us_data` dump (Yahoo-derived) was suspected of carrying
+almost no next-day alpha after the GBDT benchmarks scored IC 0.002–0.007.
+**Update 2026-11-09:** the probe that produced the "US 0.004 vs CN 0.058"
+comparison was misaligned (see "Probe bug" below). Corrected numbers show raw
+daily momentum is weak in *both* markets; the US-vs-CN gap is much smaller
+than believed and may not be a data defect at all.
 
-## Free candidates (no paid tiers; all need review before use)
+## Probe bug (found & fixed 2026-11-09)
 
-| Source | Delisted coverage | Cost | Access | Notes |
+qlib `.bin` files start with a float32 `start_index` into the calendar, then
+values for `calendar[start + k]`. `momentum_probe.py` read the header as a
+price and dropped every instrument whose series didn't span the full
+calendar, so cross-sections mixed different real dates. After fixing the
+alignment (and a NaN leak into `ics20`):
+
+| universe (Jan–Jun 2019) | mom5 IC | mom20 IC | n |
+|---|---|---|---|
+| qlib cn_data csi300 | **0.0068** | 0.0238 | 683 |
+| qlib us_data sp500 | **0.0098** | 0.0128 | 660 |
+| qlib us_data all | −0.0038 | 0.0067 | 3000 |
+| ohlcvault us_data S&P500∩ | 0.0043 | 0.0033 | 445 |
+| ohlcvault cn csi300∩ | −0.0078 | — | 673 |
+
+Same probe, same window, two independent vendors: raw 5-day momentum has
+~±0.01 IC everywhere at daily horizon. The old "0.004 vs 0.058" asymmetry was
+mostly the bug. The CN GBDT ICs (~0.05) are still real — that edge comes
+from the 158-feature/model stack, not from a data asymmetry the probe sees.
+
+## Source status
+
+| Source | Delisted coverage | Cost | Access | Status 2026-11-09 |
 |---|---|---|---|---|
-| **Stooq** | Partial — keeps many dead tickers, but coverage of older delistings is incomplete | Free, no key | per-symbol CSV download | Best truly-free option; must verify dead-symbol coverage empirically |
-| **Alpaca Market Data** | Weak — API mainly serves listed symbols; delisted history is unreliable | Free tier exists | account + API key required (ask user first) | Free tier EOD bars; IEX-only intraday |
-| **Tiingo** | Claims delisted retention, free tier: 50 req/hr, 500/day — too slow for a full universe | Free tier | account + key (ask first) | ~30y EOD; rate-limited for bulk builds |
-| **Polygon/Massive** | Delisted only on paid tiers | Free tier unusable (5 req/min, 2y) | — | skip |
-| **SimFin** | Bulk CSV incl. inactive companies | Free bulk | account required (ask first) | Fundamentals+prices; ~10y history |
-| **Alpha Vantage** | No meaningful delisted set | 25 req/day free | — | unusable for a universe |
+| **Stooq** | Partial (dead tickers kept) | Free | was keyless CSV | **DEAD for scripted access** — JS proof-of-work on all pages since ~May 2026; `q/d/l/` returns `Access denied`/`Odmowa dostępu` even after solving the PoW (`scripts/stooq_download.py` implements it — verified working, endpoint still refuses); `q/l/` 404; bulk `d_us_txt.zip` 404/captcha. pandas-datareader removed its Stooq reader in v0.11.0. Now requires an API key → treat as account-gated. |
+| **ohlcvault** | **None for US** — own metadata: Nasdaq SymDir listed-only, `complete:false` | Free | keyless static CDN (`data.ohlcvault.com`), monthly `.json.gz` shards 1972→ | Works (probed 2019-01..07). US: 3168–3301 syms/month; LEH/BSC/WYE/MON/TWX/CELG/RSH all absent. Prices verified vs real AAPL closes. Unadjusted only, `source: akshare_sina`. Listed-only ⇒ fails the delisted requirement; usable as a stopgap universe if we accept survivorship bias. |
+| **Alpaca Market Data** | Weak — delisted unreliable | Free tier | account + key required | needs user approval |
+| **Tiingo** | Claims delisted retention; free tier 50 req/hr, 500/day — too slow for a full universe | Free tier | account + key required | needs user approval |
+| **Polygon/Massive** | Delisted only on paid tiers | — | — | skip |
+| **SimFin** | Bulk CSV incl. inactive companies | Free bulk | account required | needs user approval |
+| **Alpha Vantage** | No meaningful delisted set | 25 req/day | — | unusable |
 
 ## Verdict
 
-1. **Stooq** is the only zero-account, zero-cost source — converter ready:
-   `scripts/us_data_to_qlib.py` ingests its `<sym>.us.csv` files.
-   Downloading a large universe means fetching thousands of per-symbol URLs;
-   acceptable (no key) but verify delisted coverage first with a handful of
-   known dead names (e.g. Lehman LEH, Bear Stearns BSC, Enron-era names won't
-   exist — Stooq's history depth varies).
-2. If Stooq coverage proves insufficient, next-best is **Alpaca** or **Tiingo**
-   free tiers — both need an account. Ask the user before creating one.
-3. The raw momentum IC probe (`momentum_probe.py`) doubles as the acceptance
-   test for any new US dump: target mom5 IC ≥ ~0.03 cross-sectionally before
-   trusting downstream results.
+1. **Stooq is no longer a free, keyless source.** No account was created; do
+   not sign up without approval.
+2. **The delisted-name requirement is unmet by every zero-account source
+   found.** Next real candidates are Alpaca or Tiingo free tiers — both need
+   an account. Ask the user.
+3. **Reframe:** the corrected probe says the old us_data dump is *not*
+   obviously defective — raw daily momentum IC is ~±0.01 on two independent
+   sources in both markets. Before paying effort/money for a new US dump,
+   consider that the US Phase-1 task (Alpha158, daily, sp500,
+   TopkDropoutStrategy) may simply be thin-alpha by design; a different
+   label/horizon/universe may matter more than a different vendor.
+4. If a new dump is still wanted: `scripts/us_data_to_qlib.py` now writes the
+   correct qlib `.bin` layout (start-index header), and the probe is the
+   acceptance test — target mom5 IC ≥ ~0.03 on a clean universe (neither
+   tested source reaches it on sp500; the old 0.058 CN bar was inflated).

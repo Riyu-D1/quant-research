@@ -27,8 +27,17 @@ def mom_ic(root: Path, inst_file: str, start: str, end: str, max_syms: int):
         f = root / "features" / s / "close.day.bin"
         if f.exists():
             a = np.fromfile(f, dtype=np.float32)
-            if len(a) >= len(cal):
-                closes[s] = a[: len(cal)]
+            if len(a) < 2:
+                continue
+            # qlib .bin layout: first float32 is the start index into the
+            # calendar, the rest are values for calendar[start + k].
+            start = int(a[0])
+            series = a[1:]
+            full = np.full(len(cal), np.nan, dtype=np.float32)
+            end = min(start + len(series), len(cal))
+            if end > start:
+                full[start:end] = series[: end - start]
+                closes[s] = full
 
     ics5, ics20 = [], []
     for d in test_days:
@@ -45,6 +54,7 @@ def mom_ic(root: Path, inst_file: str, start: str, end: str, max_syms: int):
             i20 = pd.Series(m20).corr(pd.Series(lab))
             if np.isfinite(i5):
                 ics5.append(i5)
+            if np.isfinite(i20):
                 ics20.append(i20)
     return np.mean(ics5), np.mean(ics20), len(closes), len(ics5)
 

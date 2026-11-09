@@ -15,6 +15,9 @@ baseline for the same dataset/features once Phase 2 starts.
 | EX-006 | 2026-11-09 | 1 | DoubleEnsemble Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0070 | 0.0600 | 0.0079 | -0.0048 | -0.0376 | -0.2229 | 0.1190 | near-zero signal — confirms US dump limitation |
 | EX-007 | 2026-11-09 | 1 | Raw 5d/20d momentum IC probe (scripts/momentum_probe.py, Jan–Jun 2019) | sp500 vs csi300 | 0.004 vs 0.058 | — | — | — | — | — | — | us_data dump carries ~no next-day alpha; data property, not model/pipeline |
 | EX-008 | 2026-11-09 | 1 | Transformer Alpha158 CSI300 — local CPU attempt | csi300 | — | — | — | — | — | — | — | KILLED before completion (user: training moves to cloud GPU); multiple macOS OpenMP SIGSEGVs fixed en route (see PROVENANCE) |
+| EX-009 | 2026-11-09 | 1 | Stooq US daily download attempt (per docs/US_DATA.md plan) | — | — | — | — | — | — | — | — | FAILED — Stooq now gates all CSV endpoints (JS PoW + `Access denied` post-verify; bulk zips 404). Solver implemented in scripts/stooq_download.py; no account created |
+| EX-010 | 2026-11-09 | 1 | momentum_probe.py bin-format bug fix: .bin[0] is a start_index header, series are offset — old probe silently dropped ~80% of instruments and misaligned the rest | — | — | — | — | — | — | — | — | Corrected: CN csi300 mom5 IC 0.0068 (was reported 0.058); US sp500 0.0098 (was 0.004). CN-US "signal gap" was largely a measurement artifact |
+| EX-011 | 2026-11-09 | 1 | ohlcvault (keyless CDN, akshare_sina source) US dump probed as Stooq alternative | sp500∩listed | 0.0043 | — | 0.0033 | — | — | — | — | Real prices verified (AAPL exact). IC fails ≥0.03 bar; US is listed-only (no LEH/BSC/WYE/MON/TWX/CELG/RSH) → fails delisted test. Per plan: stop, ask before Alpaca/Tiingo accounts |
 
 ## Running total of hypotheses tested
 

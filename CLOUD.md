@@ -32,13 +32,23 @@ make gpu-run MODELS="transformer_cn hist_cn"
 
 ```
 docker build -f Dockerfile.gpu -t quant-research:gpu .
-docker run --gpus all --rm -it -v $PWD:/work quant-research:gpu bash
+docker run --gpus all --rm -it \
+    -v $PWD/data:/app/data \
+    -v $PWD/results:/app/results \
+    -v $PWD/mlruns:/app/mlruns \
+    -v $PWD/EXPERIMENTS.md:/app/EXPERIMENTS.md \
+    quant-research:gpu bash
 cd /app && python scripts/gpu_run.py --models transformer_cn hist_cn
 ```
 
-(Needs the NVIDIA container toolkit on the host. `Dockerfile.gpu` is CUDA 12.1
-runtime; the Linux torch wheel from `uv.lock` is built for cu121. The macOS
-OpenMP patches are NOT needed — Linux wheels ship one consistent runtime.)
+The mounts persist the qlib dump, `results/runs/*.json`, mlflow recorders and
+the EXPERIMENTS.md log back to the host — without them `--rm` throws the run
+away. Do NOT mount `$PWD` over `/app`: it would shadow the image's `.venv`.
+
+(Needs the NVIDIA container toolkit on the host. `Dockerfile.gpu` is a CUDA 12.x
+runtime; the locked torch 2.6.0 wheel bundles CUDA 12.4 libs — host driver
+>= 550 required. The macOS OpenMP patches are NOT needed — Linux wheels ship
+one consistent runtime.)
 
 ## Estimated runtime per model (single T4/P100, csi300 Alpha158, 2008–2020)
 
