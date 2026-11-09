@@ -20,6 +20,8 @@ baseline for the same dataset/features once Phase 2 starts.
 | EX-011 | 2026-11-09 | 1 | ohlcvault (keyless CDN, akshare_sina source) US dump probed as Stooq alternative | sp500∩listed | 0.0043 | — | 0.0033 | — | — | — | — | Real prices verified (AAPL exact). IC fails ≥0.03 bar; US is listed-only (no LEH/BSC/WYE/MON/TWX/CELG/RSH) → fails delisted test. Per plan: stop, ask before Alpaca/Tiingo accounts |
 | EX-012 | 2026-11-09 | 1 | Alpaca→qlib US pipeline: `us-alpaca-data` GH Action (env `ALPACA_API_KEY`) — PIT sp500 universe (fja05680/sp500), adjusted SIP bars 2016→, asof-pinned delisted queries, `us-qlib-dump` artifact; US configs rebased to SPY/2016–2026; `hist_us` registered | sp500 PIT | — | — | — | — | — | — | — | Built, not yet run — coverage + mom5 IC logged by the workflow on first dispatch |
 
+| EX-013 | 2026-11-09 | 1 | Alpaca→qlib US dump (us-alpaca-data workflow) | sp500 PIT | 0.0079 | — | — | — | — | — | — | Alpaca sip dump built; coverage gate passed; mom5 IC 0.0079 (low IC expected — gate is coverage + corporate actions, not alpha); 743/746 syms, delisted: 13 found (MON, TWX, CA, ESRX, LLL, CELG, AGN, RTN, XLNX, ATVI, SGEN, SIVB, FRC), missing LEH, BSC, WYE, RSH |
+
 ## Running total of hypotheses tested
 
 0 (baseline reproduction does not count as a hypothesis).
