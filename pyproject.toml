@@ -17,6 +17,9 @@ dependencies = [
     "matplotlib>=3.8,<4",
     "tabulate>=0.9",
     "scikit-learn>=1.4,<1.7",
+    # qlib 0.9.x expects the mlflow 2.x file-store tracking backend;
+    # mlflow 3 puts it in maintenance mode and rejects it
+    "mlflow>=2.9,<3",
 ]
 
 [dependency-groups]

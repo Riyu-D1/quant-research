@@ -45,6 +45,20 @@ bench-cn-hist:
 
 bench-cn: bench-cn-lightgbm bench-cn-xgboost bench-cn-doubleensemble bench-cn-transformer bench-cn-hist
 
+bench-us-lightgbm:
+	uv run python scripts/run_benchmark.py --config configs/benchmarks/lightgbm_alpha158_us.yaml --provider-uri $(US_DATA) --out results/runs/lightgbm_alpha158_us.json
+
+bench-us-xgboost:
+	uv run python scripts/run_benchmark.py --config configs/benchmarks/xgboost_alpha158_us.yaml --provider-uri $(US_DATA) --out results/runs/xgboost_alpha158_us.json
+
+bench-us-doubleensemble:
+	uv run python scripts/run_benchmark.py --config configs/benchmarks/doubleensemble_alpha158_us.yaml --provider-uri $(US_DATA) --out results/runs/doubleensemble_alpha158_us.json
+
+bench-us-transformer:
+	uv run python scripts/run_benchmark.py --config configs/benchmarks/transformer_alpha158_us.yaml --provider-uri $(US_DATA) --out results/runs/transformer_alpha158_us.json
+
+bench-us: bench-us-lightgbm bench-us-xgboost bench-us-doubleensemble bench-us-transformer
+
 table:
 	uv run python scripts/make_table.py --runs results/runs --published results/published_leaderboard.csv --out results/LEADERBOARD.md
 

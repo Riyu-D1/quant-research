@@ -67,7 +67,7 @@ def main() -> None:
     elapsed_min = (time.time() - t0) / 60
 
     # report file name depends on analysis_freq; standard benchmark uses 1day
-    report_name = "report_normal_1day.pkl"
+    report_name = "portfolio_analysis/report_normal_1day.pkl"
     try:
         results = extract_results(recorder, report_name)
     except Exception:
