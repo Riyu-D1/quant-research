@@ -12,6 +12,7 @@ baseline for the same dataset/features once Phase 2 starts.
 | EX-003 | 2026-11-09 | 1 | DoubleEnsemble Alpha158 CSI300 reproduction (published IC 0.0521 / ICIR 0.4223 / RankIC 0.0502 / IR 1.3432 / MDD -0.0920) | csi300 | 0.0506 | 0.4145 | 0.0495 | 0.1085 | 1.2773 | -0.0631 | 0.1936 | reproduced; close to published |
 | EX-004 | 2026-11-09 | 1 | LightGBM Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0066 | 0.0634 | 0.0047 | -0.0035 | -0.0286 | -0.2610 | — | near-zero signal — investigating US data |
 | EX-005 | 2026-11-09 | 1 | XGBoost Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0022 | 0.0183 | 0.0028 | 0.0017 | 0.0123 | -0.3117 | 0.1781 | near-zero signal — consistent w/ EX-004 |
+| EX-006 | 2026-11-09 | 1 | DoubleEnsemble Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0070 | 0.0600 | 0.0079 | -0.0048 | -0.0376 | -0.2229 | 0.1190 | near-zero signal — confirms US dump limitation |
 
 ## Running total of hypotheses tested
 
