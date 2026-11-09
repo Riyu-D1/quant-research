@@ -84,3 +84,20 @@ US configs now benchmark **SPY** (Alpaca has no ^GSPC index) and use
 2016–2026 windows (train →2021, valid 2022, test 2023→). `gpu_run.py` names:
 `lightgbm_us xgboost_us doubleensemble_us transformer_us hist_us` on
 `data/qlib/us_alpaca`.
+
+### Run results (2026-11-09, two dispatches)
+
+- feed=sip worked on the free plan (historical SIP; `end` must be ≥15 min
+  old). 744/746 universe symbols with bars, 2016-01→2026-11.
+- Delisted 13/17: MON TWX CA ESRX LLL CELG AGN RTN XLNX ATVI SGEN SIVB FRC.
+  Absent: LEH BSC WYE RSH — all delisted before 2016, below the SIP floor.
+- **Recycled-ticker fix (run 2):** pinning `asof` at the index-exit date
+  already resolved to the post-Monsanto MON entity; asof is now pinned 30d
+  inside the window AND ex-member bars are capped at the exit date.
+  MON verified: 2016-01-04→2018-06-06, last close ~127.95 (real Monsanto).
+- Empty universe symbols: CCEP, WYND (Alpaca mapping gaps on listed names).
+- Verified adjusted closes: AAPL/MSFT exact vs Nasdaq on latest day; daily
+  returns vs the Yahoo-derived community dump agree to ~1bp mean / ≥99%
+  sign agreement on AAPL/MSFT/JNJ/XOM.
+- mom5 IC 0.0086 (200-sym probe) / 0.0003 (full universe) — consistent with
+  the corrected-probe expectation (~±0.01); the gate is coverage, not alpha.
