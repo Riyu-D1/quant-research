@@ -8,6 +8,10 @@ baseline for the same dataset/features once Phase 2 starts.
 |----|------|-------|--------|---------|----|------|---------|----------|----|--------|----------|---------|
 | EX-000 | 2026-11-09 | 1 | Repo scaffold, py3.11 + uv, pinned deps | — | — | — | — | — | — | — | — | setup |
 | EX-001 | 2026-11-09 | 1 | LightGBM Alpha158 CSI300 reproduction (published IC 0.0448 / IR 1.0164 / MDD -0.1038) | csi300 | 0.0468 | 0.3816 | 0.0490 | 0.0807 | 0.9145 | -0.0861 | 0.1911 | reproduced, close to published (v2 data) |
+| EX-002 | 2026-11-09 | 1 | XGBoost Alpha158 CSI300 reproduction (published IC 0.0498 / ICIR 0.3779 / RankIC 0.0505 / IR 0.9070 / MDD -0.1168) | csi300 | 0.0500 | 0.3752 | 0.0484 | 0.0620 | 0.7459 | -0.1149 | 0.1867 | reproduced; IC/ICIR near-exact, excess return lower |
+| EX-003 | 2026-11-09 | 1 | DoubleEnsemble Alpha158 CSI300 reproduction (published IC 0.0521 / ICIR 0.4223 / RankIC 0.0502 / IR 1.3432 / MDD -0.0920) | csi300 | 0.0506 | 0.4145 | 0.0495 | 0.1085 | 1.2773 | -0.0631 | 0.1936 | reproduced; close to published |
+| EX-004 | 2026-11-09 | 1 | LightGBM Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0066 | 0.0634 | 0.0047 | -0.0035 | -0.0286 | -0.2610 | — | near-zero signal — investigating US data |
+| EX-005 | 2026-11-09 | 1 | XGBoost Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0022 | 0.0183 | 0.0028 | 0.0017 | 0.0123 | -0.3117 | 0.1781 | near-zero signal — consistent w/ EX-004 |
 
 ## Running total of hypotheses tested
 

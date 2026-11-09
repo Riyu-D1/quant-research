@@ -1,0 +1,42 @@
+[56706:MainThread](2026-11-09 16:41:25,039) INFO - qlib.Initialization - [config.py:452] - default_conf: client.
+[56706:MainThread](2026-11-09 16:41:25,053) INFO - qlib.Initialization - [__init__.py:75] - qlib successfully initialized based on client settings.
+[56706:MainThread](2026-11-09 16:41:25,054) INFO - qlib.Initialization - [__init__.py:77] - data_path={'__DEFAULT_FREQ': PosixPath('/Users/deepakdiwan/quant-research/data/qlib/cn_data')}
+[56706:MainThread](2026-11-09 16:41:25,084) INFO - qlib.workflow - [exp.py:258] - Experiment 163758328377123687 starts running ...
+[56706:MainThread](2026-11-09 16:41:25,800) INFO - qlib.workflow - [recorder.py:345] - Recorder 05a8e883b0a942e5bbafdc62722f282b starts running under Experiment 163758328377123687 ...
+[56706:MainThread](2026-11-09 16:41:35,733) INFO - qlib.TransformerModel - [pytorch_transformer_ts.py:61] - Naive Transformer:
+batch_size : 8192
+device : cpu
+/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.self_attn.batch_first was not True(use batch_first for better inference performance)
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+ModuleNotFoundError. CatBoostModel are skipped. (optional: maybe installing CatBoostModel can fix it.)
+[56706:MainThread](2026-11-09 16:46:28,201) INFO - qlib.timer - [log.py:127] - Time cost: 276.094s | Loading data Done
+[56706:MainThread](2026-11-09 16:46:34,707) INFO - qlib.timer - [log.py:127] - Time cost: 0.308s | FilterCol Done
+/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/data/dataset/processor.py:296: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  df[self.cols] = X
+[56706:MainThread](2026-11-09 16:46:38,514) INFO - qlib.timer - [log.py:127] - Time cost: 3.804s | RobustZScoreNorm Done
+/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/data/dataset/processor.py:192: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  df[self.fields_group] = df[self.fields_group].fillna(self.fill_value)
+[56706:MainThread](2026-11-09 16:46:39,623) INFO - qlib.timer - [log.py:127] - Time cost: 1.108s | Fillna Done
+[56706:MainThread](2026-11-09 16:46:40,917) INFO - qlib.timer - [log.py:127] - Time cost: 0.371s | DropnaLabel Done
+/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/data/dataset/processor.py:358: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  df[cols] = t
+[56706:MainThread](2026-11-09 16:46:42,847) INFO - qlib.timer - [log.py:127] - Time cost: 1.929s | CSRankNorm Done
+[56706:MainThread](2026-11-09 16:46:42,866) INFO - qlib.timer - [log.py:127] - Time cost: 14.662s | fit & process data Done
+[56706:MainThread](2026-11-09 16:46:42,873) INFO - qlib.timer - [log.py:127] - Time cost: 290.778s | Init data Done
+[56706:MainThread](2026-11-09 16:46:43,112) WARNING - qlib.utils - [__init__.py:849] - The parameter `reweighter` with value `None` is ignored.
+[56706:MainThread](2026-11-09 16:46:55,598) INFO - qlib.TransformerModel - [pytorch_transformer_ts.py:169] - training...
+[56706:MainThread](2026-11-09 16:46:55,599) INFO - qlib.TransformerModel - [pytorch_transformer_ts.py:173] - Epoch0:
+[56706:MainThread](2026-11-09 16:46:55,601) INFO - qlib.TransformerModel - [pytorch_transformer_ts.py:174] - training...
+probe Mon  9 Nov 2026 16:54:18 GMT
