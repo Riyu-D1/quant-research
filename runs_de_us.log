@@ -1,262 +1,0 @@
-[8314:MainThread](2026-11-09 14:08:03,704) INFO - qlib.Initialization - [config.py:452] - default_conf: client.
-[8314:MainThread](2026-11-09 14:08:03,723) INFO - qlib.Initialization - [__init__.py:75] - qlib successfully initialized based on client settings.
-[8314:MainThread](2026-11-09 14:08:03,724) INFO - qlib.Initialization - [__init__.py:77] - data_path={'__DEFAULT_FREQ': PosixPath('/Users/deepakdiwan/quant-research/data/qlib/us_data')}
-[8314:MainThread](2026-11-09 14:08:03,743) INFO - qlib.workflow - [exp.py:258] - Experiment 935395278088143878 starts running ...
-[8314:MainThread](2026-11-09 14:08:04,488) INFO - qlib.workflow - [recorder.py:345] - Recorder 4b2acd0b858a4b5aad41327dcb9cabd2 starts running under Experiment 935395278088143878 ...
-[8314:MainThread](2026-11-09 14:08:13,841) INFO - qlib.DEnsembleModel - [double_ensemble.py:57] - Double Ensemble Model...
-ModuleNotFoundError. CatBoostModel are skipped. (optional: maybe installing CatBoostModel can fix it.)
-[8314:MainThread](2026-11-09 14:11:55,583) INFO - qlib.timer - [log.py:127] - Time cost: 221.735s | Loading data Done
-[8314:MainThread](2026-11-09 14:12:12,835) INFO - qlib.timer - [log.py:127] - Time cost: 6.414s | DropnaLabel Done
-[8314:MainThread](2026-11-09 14:12:51,298) INFO - qlib.timer - [log.py:127] - Time cost: 38.462s | CSZScoreNorm Done
-[8314:MainThread](2026-11-09 14:12:51,766) INFO - qlib.timer - [log.py:127] - Time cost: 56.181s | fit & process data Done
-[8314:MainThread](2026-11-09 14:12:51,767) INFO - qlib.timer - [log.py:127] - Time cost: 277.920s | Init data Done
-[8314:MainThread](2026-11-09 14:12:51,768) WARNING - qlib.utils - [__init__.py:849] - The parameter `reweighter` with value `None` is ignored.
-[8314:MainThread](2026-11-09 14:13:09,059) INFO - qlib.DEnsembleModel - [double_ensemble.py:81] - Training sub-model: (1/3)
-[8314:MainThread](2026-11-09 14:16:39,388) INFO - qlib.DEnsembleModel - [double_ensemble.py:88] - Retrieving loss curve and loss values...
-[8314:MainThread](2026-11-09 14:17:16,367) INFO - qlib.DEnsembleModel - [double_ensemble.py:98] - Sample re-weighting...
-[8314:MainThread](2026-11-09 14:18:18,071) INFO - qlib.DEnsembleModel - [double_ensemble.py:102] - Feature selection...
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/contrib/model/double_ensemble.py:207: FutureWarning: A value is trying to be set on a copy of a DataFrame or Series through chained assignment using an inplace method.
-The behavior will change in pandas 3.0. This inplace method will never work because the intermediate object on which we are setting values always behaves as a copy.
-
-For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' or df[col] = df[col].method(value) instead, to perform the operation inplace on the original object.
-
-
-  g["g_value"].replace(np.nan, 0, inplace=True)
-[8314:MainThread](2026-11-09 14:38:28,940) INFO - qlib.DEnsembleModel - [double_ensemble.py:81] - Training sub-model: (2/3)
-[8314:MainThread](2026-11-09 15:51:52,999) INFO - qlib.DEnsembleModel - [double_ensemble.py:88] - Retrieving loss curve and loss values...
-[8314:MainThread](2026-11-09 15:52:45,142) INFO - qlib.DEnsembleModel - [double_ensemble.py:98] - Sample re-weighting...
-[8314:MainThread](2026-11-09 15:53:01,627) INFO - qlib.DEnsembleModel - [double_ensemble.py:102] - Feature selection...
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/contrib/model/double_ensemble.py:207: FutureWarning: A value is trying to be set on a copy of a DataFrame or Series through chained assignment using an inplace method.
-The behavior will change in pandas 3.0. This inplace method will never work because the intermediate object on which we are setting values always behaves as a copy.
-
-For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' or df[col] = df[col].method(value) instead, to perform the operation inplace on the original object.
-
-
-  g["g_value"].replace(np.nan, 0, inplace=True)
-[8314:MainThread](2026-11-09 16:07:55,412) INFO - qlib.DEnsembleModel - [double_ensemble.py:81] - Training sub-model: (3/3)
-[8314:MainThread](2026-11-09 16:08:19,338) INFO - qlib.fill_placeholder - [__init__.py:798] - <PRED> lookes like a placeholder, but it can't match to any given values
-Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
-Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
-Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
-See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
-[8314:MainThread](2026-11-09 16:08:26,293) INFO - qlib.workflow - [record_temp.py:198] - Signal record 'pred.pkl' has been saved as the artifact of the Experiment 935395278088143878
-[8314:MainThread](2026-11-09 16:08:28,446) INFO - qlib.backtest caller - [__init__.py:93] - Create new exchange
-[20]	train's l2: 0.988647	valid's l2: 0.997949
-[20]	train's l2: 1.35547	valid's l2: 1.00155
-[20]	train's l2: 1.28839	valid's l2: 1.00175
-'The following are prediction results of the DEnsembleModel model.'
-                          score
-datetime   instrument          
-2017-01-03 A           0.062685
-           AAL         0.079840
-           AAP         0.080695
-           AAPL       -0.003009
-           ABBV        0.051687
-{'IC': 0.006993960265217985,
- 'ICIR': 0.059981630533469055,
- 'Rank IC': 0.007940383540321495,
- 'Rank ICIR': 0.07008413854407551}
-[8314:MainThread](2026-11-09 16:09:00,248) WARNING - qlib.online operator - [exchange.py:219] - $close field data contains nan.
-[8314:MainThread](2026-11-09 16:09:00,251) WARNING - qlib.online operator - [exchange.py:219] - $close field data contains nan.
-[8314:MainThread](2026-11-09 16:10:31,251) WARNING - qlib.data - [data.py:665] - load calendar error: freq=day, future=True; return current calendar!
-[8314:MainThread](2026-11-09 16:10:31,252) WARNING - qlib.data - [data.py:668] - You can get future calendar by referring to the following document: https://github.com/microsoft/qlib/blob/main/scripts/data_collector/contrib/README.md
-[8314:MainThread](2026-11-09 16:10:31,284) WARNING - qlib.BaseExecutor - [executor.py:121] - `common_infra` is not set for <qlib.backtest.executor.SimulatorExecutor object at 0x136855e10>
-backtest loop:   0%|          | 0/901 [00:00<?, ?it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:   0%|          | 4/901 [00:00<00:29, 30.45it/s]backtest loop:   1%|          | 9/901 [00:00<00:27, 32.16it/s]backtest loop:   1%|▏         | 13/901 [00:00<00:28, 30.71it/s]backtest loop:   2%|▏         | 17/901 [00:00<00:26, 33.17it/s]backtest loop:   2%|▏         | 21/901 [00:00<00:28, 31.11it/s]backtest loop:   3%|▎         | 25/901 [00:00<00:29, 30.09it/s]backtest loop:   3%|▎         | 29/901 [00:00<00:29, 29.34it/s]backtest loop:   4%|▎         | 33/901 [00:01<00:31, 27.92it/s]backtest loop:   4%|▍         | 37/901 [00:01<00:31, 27.21it/s]backtest loop:   5%|▍         | 41/901 [00:01<00:29, 28.75it/s]backtest loop:   5%|▍         | 44/901 [00:01<00:32, 26.28it/s]backtest loop:   5%|▌         | 47/901 [00:01<00:33, 25.77it/s]backtest loop:   6%|▌         | 51/901 [00:01<00:29, 28.37it/s]backtest loop:   6%|▌         | 54/901 [00:01<00:32, 26.46it/s]backtest loop:   6%|▋         | 57/901 [00:02<00:32, 25.86it/s]backtest loop:   7%|▋         | 61/901 [00:02<00:28, 29.22it/s]backtest loop:   7%|▋         | 64/901 [00:02<00:30, 27.64it/s]backtest loop:   7%|▋         | 67/901 [00:02<00:31, 26.59it/s]backtest loop:   8%|▊         | 71/901 [00:02<00:31, 26.75it/s]backtest loop:   8%|▊         | 75/901 [00:02<00:28, 29.35it/s]backtest loop:   9%|▊         | 78/901 [00:02<00:30, 26.94it/s]backtest loop:   9%|▉         | 81/901 [00:02<00:31, 26.21it/s]backtest loop:   9%|▉         | 85/901 [00:03<00:28, 28.78it/s]backtest loop:  10%|▉         | 88/901 [00:03<00:29, 27.47it/s]backtest loop:  10%|█         | 91/901 [00:03<00:28, 27.93it/s]backtest loop:  11%|█         | 96/901 [00:03<00:27, 29.10it/s]backtest loop:  11%|█         | 100/901 [00:03<00:25, 31.65it/s]backtest loop:  12%|█▏        | 104/901 [00:03<00:26, 29.82it/s]backtest loop:  12%|█▏        | 108/901 [00:03<00:28, 28.06it/s]backtest loop:  12%|█▏        | 111/901 [00:03<00:28, 27.48it/s]backtest loop:  13%|█▎        | 115/901 [00:04<00:29, 27.08it/s]backtest loop:  13%|█▎        | 120/901 [00:04<00:27, 28.03it/s]backtest loop:  14%|█▍        | 124/901 [00:04<00:25, 30.45it/s]backtest loop:  14%|█▍        | 128/901 [00:04<00:29, 26.64it/s]backtest loop:  15%|█▍        | 131/901 [00:04<00:29, 25.72it/s]backtest loop:  15%|█▍        | 134/901 [00:04<00:30, 25.32it/s]backtest loop:  15%|█▌        | 137/901 [00:04<00:32, 23.86it/s]backtest loop:  16%|█▌        | 140/901 [00:05<00:30, 24.70it/s]backtest loop:  16%|█▌        | 144/901 [00:05<00:29, 26.06it/s]backtest loop:  17%|█▋        | 149/901 [00:05<00:27, 27.49it/s]backtest loop:  17%|█▋        | 153/901 [00:05<00:24, 30.35it/s]backtest loop:  17%|█▋        | 157/901 [00:05<00:25, 28.62it/s]backtest loop:  18%|█▊        | 160/901 [00:05<00:27, 26.53it/s]backtest loop:  18%|█▊        | 164/901 [00:05<00:27, 26.54it/s]backtest loop:  19%|█▊        | 168/901 [00:06<00:25, 28.96it/s]backtest loop:  19%|█▉        | 171/901 [00:06<00:25, 28.38it/s]backtest loop:  19%|█▉        | 174/901 [00:06<00:26, 27.32it/s]backtest loop:  20%|█▉        | 178/901 [00:06<00:25, 28.45it/s]backtest loop:  20%|██        | 183/901 [00:06<00:23, 30.61it/s]backtest loop:  21%|██        | 187/901 [00:06<00:21, 32.55it/s]backtest loop:  21%|██        | 191/901 [00:06<00:21, 32.56it/s]backtest loop:  22%|██▏       | 195/901 [00:06<00:21, 32.10it/s]backtest loop:  22%|██▏       | 199/901 [00:06<00:21, 32.30it/s]backtest loop:  23%|██▎       | 203/901 [00:07<00:22, 30.89it/s]backtest loop:  23%|██▎       | 208/901 [00:07<00:21, 31.69it/s]backtest loop:  24%|██▎       | 213/901 [00:07<00:21, 32.48it/s]backtest loop:  24%|██▍       | 218/901 [00:07<00:20, 32.76it/s]backtest loop:  25%|██▍       | 223/901 [00:07<00:20, 33.13it/s]backtest loop:  25%|██▌       | 227/901 [00:07<00:22, 29.98it/s]backtest loop:  26%|██▌       | 232/901 [00:08<00:21, 31.40it/s]backtest loop:  26%|██▋       | 237/901 [00:08<00:20, 32.35it/s]backtest loop:  27%|██▋       | 242/901 [00:08<00:19, 33.25it/s]backtest loop:  27%|██▋       | 247/901 [00:08<00:19, 33.65it/s]backtest loop:  28%|██▊       | 251/901 [00:08<00:19, 33.55it/s]backtest loop:  28%|██▊       | 255/901 [00:08<00:19, 33.36it/s]backtest loop:  29%|██▉       | 260/901 [00:08<00:19, 33.64it/s]backtest loop:  29%|██▉       | 264/901 [00:08<00:19, 32.70it/s]backtest loop:  30%|██▉       | 269/901 [00:09<00:18, 33.54it/s]backtest loop:  30%|███       | 274/901 [00:09<00:18, 33.69it/s]backtest loop:  31%|███       | 279/901 [00:09<00:18, 33.73it/s]backtest loop:  32%|███▏      | 284/901 [00:09<00:18, 33.68it/s]backtest loop:  32%|███▏      | 288/901 [00:09<00:18, 32.60it/s]backtest loop:  33%|███▎      | 293/901 [00:09<00:19, 31.86it/s]backtest loop:  33%|███▎      | 298/901 [00:10<00:18, 32.83it/s]backtest loop:  34%|███▎      | 303/901 [00:10<00:17, 33.54it/s]backtest loop:  34%|███▍      | 308/901 [00:10<00:17, 33.72it/s]backtest loop:  35%|███▍      | 312/901 [00:10<00:17, 33.09it/s]backtest loop:  35%|███▌      | 317/901 [00:10<00:17, 33.27it/s]backtest loop:  36%|███▌      | 321/901 [00:10<00:16, 34.78it/s]backtest loop:  36%|███▌      | 325/901 [00:10<00:16, 34.13it/s]backtest loop:  37%|███▋      | 329/901 [00:10<00:17, 33.28it/s]backtest loop:  37%|███▋      | 333/901 [00:11<00:17, 32.54it/s]backtest loop:  37%|███▋      | 337/901 [00:11<00:17, 31.94it/s]backtest loop:  38%|███▊      | 342/901 [00:11<00:17, 32.42it/s]backtest loop:  39%|███▊      | 347/901 [00:11<00:16, 33.53it/s]backtest loop:  39%|███▉      | 352/901 [00:11<00:16, 33.87it/s]backtest loop:  40%|███▉      | 356/901 [00:11<00:16, 33.55it/s]backtest loop:  40%|████      | 361/901 [00:11<00:15, 34.03it/s]backtest loop:  41%|████      | 366/901 [00:12<00:15, 35.31it/s]backtest loop:  41%|████      | 371/901 [00:12<00:14, 36.28it/s]backtest loop:  42%|████▏     | 376/901 [00:12<00:14, 37.31it/s]backtest loop:  42%|████▏     | 380/901 [00:12<00:14, 34.86it/s]backtest loop:  43%|████▎     | 385/901 [00:12<00:14, 36.80it/s]backtest loop:  43%|████▎     | 390/901 [00:12<00:13, 37.32it/s]backtest loop:  44%|████▍     | 395/901 [00:12<00:13, 38.08it/s]backtest loop:  44%|████▍     | 400/901 [00:12<00:13, 38.35it/s]backtest loop:  45%|████▍     | 405/901 [00:13<00:12, 38.92it/s]backtest loop:  46%|████▌     | 410/901 [00:13<00:12, 39.46it/s]backtest loop:  46%|████▌     | 415/901 [00:13<00:12, 39.15it/s]backtest loop:  47%|████▋     | 420/901 [00:13<00:12, 39.14it/s]backtest loop:  47%|████▋     | 424/901 [00:13<00:12, 38.43it/s]backtest loop:  48%|████▊     | 429/901 [00:13<00:12, 39.07it/s]backtest loop:  48%|████▊     | 434/901 [00:13<00:11, 39.02it/s]backtest loop:  49%|████▊     | 439/901 [00:13<00:11, 39.50it/s]backtest loop:  49%|████▉     | 444/901 [00:14<00:11, 39.99it/s]backtest loop:  50%|████▉     | 449/901 [00:14<00:11, 40.32it/s]backtest loop:  50%|█████     | 454/901 [00:14<00:11, 40.24it/s]backtest loop:  51%|█████     | 459/901 [00:14<00:10, 40.47it/s]backtest loop:  51%|█████▏    | 464/901 [00:14<00:10, 40.62it/s]backtest loop:  52%|█████▏    | 469/901 [00:14<00:10, 41.40it/s]backtest loop:  53%|█████▎    | 474/901 [00:14<00:10, 41.93it/s]backtest loop:  53%|█████▎    | 479/901 [00:14<00:10, 39.15it/s]backtest loop:  54%|█████▎    | 483/901 [00:14<00:10, 39.34it/s]backtest loop:  54%|█████▍    | 487/901 [00:15<00:11, 36.44it/s]backtest loop:  55%|█████▍    | 492/901 [00:15<00:10, 38.32it/s]backtest loop:  55%|█████▌    | 497/901 [00:15<00:10, 39.94it/s]backtest loop:  56%|█████▌    | 502/901 [00:15<00:11, 35.28it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  56%|█████▋    | 507/901 [00:15<00:10, 37.76it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  57%|█████▋    | 512/901 [00:15<00:09, 39.97it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  57%|█████▋    | 517/901 [00:15<00:09, 41.37it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  58%|█████▊    | 522/901 [00:15<00:08, 43.16it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  58%|█████▊    | 527/901 [00:16<00:08, 44.20it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  59%|█████▉    | 532/901 [00:16<00:08, 45.27it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  60%|█████▉    | 537/901 [00:16<00:07, 46.24it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  60%|██████    | 542/901 [00:16<00:07, 47.23it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  61%|██████    | 547/901 [00:16<00:07, 47.46it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  61%|██████▏   | 552/901 [00:16<00:07, 46.46it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  62%|██████▏   | 557/901 [00:16<00:08, 42.98it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  62%|██████▏   | 562/901 [00:16<00:07, 44.20it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  63%|██████▎   | 567/901 [00:16<00:07, 45.38it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  63%|██████▎   | 572/901 [00:17<00:07, 45.77it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  64%|██████▍   | 577/901 [00:17<00:07, 42.29it/s]/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-/Users/deepakdiwan/quant-research/.venv/lib/python3.11/site-packages/qlib/utils/index_data.py:492: RuntimeWarning: Mean of empty slice
-  return np.nanmean(self.data)
-backtest loop:  65%|██████▍   | 582/901 [00:17<00:07, 43.16it/s]backtest loop:  65%|██████▌   | 587/901 [00:17<00:07, 42.83it/s]backtest loop:  66%|██████▌   | 592/901 [00:17<00:07, 42.74it/s]backtest loop:  66%|██████▋   | 597/901 [00:17<00:07, 42.78it/s]backtest loop:  67%|██████▋   | 602/901 [00:17<00:07, 42.46it/s]backtest loop:  67%|██████▋   | 607/901 [00:17<00:07, 41.81it/s]backtest loop:  68%|██████▊   | 612/901 [00:18<00:06, 41.98it/s]backtest loop:  68%|██████▊   | 617/901 [00:18<00:06, 41.83it/s]backtest loop:  69%|██████▉   | 622/901 [00:18<00:06, 40.98it/s]backtest loop:  70%|██████▉   | 627/901 [00:18<00:06, 39.84it/s]backtest loop:  70%|███████   | 631/901 [00:18<00:07, 35.34it/s]backtest loop:  70%|███████   | 635/901 [00:18<00:07, 34.79it/s]backtest loop:  71%|███████   | 640/901 [00:18<00:07, 35.86it/s]backtest loop:  72%|███████▏  | 645/901 [00:18<00:06, 36.76it/s]backtest loop:  72%|███████▏  | 650/901 [00:19<00:06, 36.90it/s]backtest loop:  73%|███████▎  | 655/901 [00:19<00:06, 36.81it/s]backtest loop:  73%|███████▎  | 660/901 [00:19<00:06, 35.31it/s]backtest loop:  74%|███████▍  | 665/901 [00:19<00:06, 34.54it/s]backtest loop:  74%|███████▍  | 670/901 [00:19<00:06, 35.00it/s]backtest loop:  75%|███████▍  | 674/901 [00:19<00:06, 35.66it/s]backtest loop:  75%|███████▌  | 679/901 [00:19<00:06, 36.85it/s]backtest loop:  76%|███████▌  | 684/901 [00:20<00:05, 38.12it/s]backtest loop:  76%|███████▋  | 689/901 [00:20<00:05, 39.44it/s]backtest loop:  77%|███████▋  | 694/901 [00:20<00:05, 40.15it/s]backtest loop:  78%|███████▊  | 699/901 [00:20<00:04, 40.97it/s]backtest loop:  78%|███████▊  | 704/901 [00:20<00:04, 40.79it/s]backtest loop:  79%|███████▊  | 709/901 [00:20<00:04, 40.88it/s]backtest loop:  79%|███████▉  | 714/901 [00:20<00:04, 40.85it/s]backtest loop:  80%|███████▉  | 719/901 [00:20<00:04, 40.89it/s]backtest loop:  80%|████████  | 724/901 [00:20<00:04, 41.62it/s]backtest loop:  81%|████████  | 729/901 [00:21<00:04, 41.50it/s]backtest loop:  81%|████████▏ | 734/901 [00:21<00:04, 38.14it/s]backtest loop:  82%|████████▏ | 738/901 [00:21<00:04, 37.95it/s]backtest loop:  82%|████████▏ | 743/901 [00:21<00:04, 38.71it/s]backtest loop:  83%|████████▎ | 748/901 [00:21<00:03, 39.32it/s]backtest loop:  83%|████████▎ | 752/901 [00:21<00:04, 35.76it/s]backtest loop:  84%|████████▍ | 756/901 [00:21<00:04, 33.55it/s]backtest loop:  84%|████████▍ | 761/901 [00:21<00:03, 35.88it/s]backtest loop:  85%|████████▌ | 766/901 [00:22<00:03, 37.55it/s]backtest loop:  85%|████████▌ | 770/901 [00:22<00:03, 37.22it/s]backtest loop:  86%|████████▌ | 775/901 [00:22<00:03, 37.84it/s]backtest loop:  87%|████████▋ | 780/901 [00:22<00:03, 38.44it/s]backtest loop:  87%|████████▋ | 785/901 [00:22<00:02, 39.04it/s]backtest loop:  88%|████████▊ | 789/901 [00:22<00:02, 38.52it/s]backtest loop:  88%|████████▊ | 794/901 [00:22<00:02, 39.24it/s]backtest loop:  89%|████████▊ | 799/901 [00:22<00:02, 39.63it/s]backtest loop:  89%|████████▉ | 804/901 [00:23<00:02, 39.86it/s]backtest loop:  90%|████████▉ | 809/901 [00:23<00:02, 40.13it/s]backtest loop:  90%|█████████ | 814/901 [00:23<00:02, 39.39it/s]backtest loop:  91%|█████████ | 819/901 [00:23<00:02, 40.08it/s]backtest loop:  91%|█████████▏| 824/901 [00:23<00:01, 40.16it/s]backtest loop:  92%|█████████▏| 829/901 [00:23<00:01, 40.06it/s]backtest loop:  93%|█████████▎| 834/901 [00:23<00:01, 39.50it/s]backtest loop:  93%|█████████▎| 838/901 [00:23<00:01, 38.71it/s]backtest loop:  94%|█████████▎| 843/901 [00:24<00:01, 39.48it/s]backtest loop:  94%|█████████▍| 848/901 [00:24<00:01, 40.07it/s]backtest loop:  95%|█████████▍| 853/901 [00:24<00:01, 41.26it/s]backtest loop:  95%|█████████▌| 858/901 [00:24<00:01, 41.79it/s]backtest loop:  96%|█████████▌| 863/901 [00:24<00:00, 41.89it/s]backtest loop:  96%|█████████▋| 868/901 [00:24<00:00, 41.88it/s]backtest loop:  97%|█████████▋| 873/901 [00:24<00:00, 41.47it/s]backtest loop:  97%|█████████▋| 878/901 [00:24<00:00, 40.96it/s]backtest loop:  98%|█████████▊| 883/901 [00:25<00:00, 41.06it/s]backtest loop:  99%|█████████▊| 888/901 [00:25<00:00, 40.94it/s]backtest loop:  99%|█████████▉| 893/901 [00:25<00:00, 40.40it/s]backtest loop: 100%|█████████▉| 898/901 [00:25<00:00, 40.31it/s]backtest loop: 100%|██████████| 901/901 [00:25<00:00, 35.36it/s]
-[8314:MainThread](2026-11-09 16:10:56,890) INFO - qlib.workflow - [record_temp.py:515] - Portfolio analysis record 'port_analysis_1day.pkl' has been saved as the artifact of the Experiment 935395278088143878
-[8314:MainThread](2026-11-09 16:10:56,905) INFO - qlib.workflow - [record_temp.py:540] - Indicator analysis record 'indicator_analysis_1day.pkl' has been saved as the artifact of the Experiment 935395278088143878
-[8314:MainThread](2026-11-09 16:10:58,408) INFO - qlib.timer - [log.py:127] - Time cost: 0.000s | waiting `async_log` Done
-'The following are analysis results of benchmark return(1day).'
-                       risk
-mean               0.000508
-std                0.013132
-annualized_return  0.120839
-information_ratio  0.596487
-max_drawdown      -0.382494
-'The following are analysis results of the excess return without cost(1day).'
-                       risk
-mean               0.000039
-std                0.008245
-annualized_return  0.009369
-information_ratio  0.073657
-max_drawdown      -0.209110
-'The following are analysis results of the excess return with cost(1day).'
-                       risk
-mean              -0.000020
-std                0.008245
-annualized_return -0.004787
-information_ratio -0.037638
-max_drawdown      -0.222878
-'The following are analysis results of indicators(1day).'
-     value
-ffr    1.0
-pa     0.0
-pos    0.0
-
-=== saved results/runs/doubleensemble_alpha158_us.json (122.9 min) ===
-{
-  "1day.excess_return_without_cost.std": 0.008245258514423683,
-  "1day.pos": 0.0,
-  "1day.pa": 0.0,
-  "Rank IC": 0.007940383540321495,
-  "1day.ffr": 1.0,
-  "1day.excess_return_without_cost.information_ratio": 0.07365736289810752,
-  "1day.excess_return_with_cost.information_ratio": -0.03763840282419528,
-  "ICIR": 0.059981630533469055,
-  "1day.excess_return_without_cost.max_drawdown": -0.20910992790765176,
-  "1day.excess_return_with_cost.max_drawdown": -0.2228780881503584,
-  "1day.excess_return_without_cost.mean": 3.9366967728578575e-05,
-  "IC": 0.006993960265217985,
-  "1day.excess_return_with_cost.mean": -2.011474810664187e-05,
-  "1day.excess_return_with_cost.annualized_return": -0.004787310049380765,
-  "1day.excess_return_without_cost.annualized_return": 0.009369338319401701,
-  "Rank ICIR": 0.07008413854407551,
-  "1day.excess_return_with_cost.std": 0.008244643680290526
-}

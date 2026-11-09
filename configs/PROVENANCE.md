@@ -54,3 +54,17 @@ v1 dump; v2 differs (Yahoo-sourced), so exact-match reproduction is not expected
 
 US configs are derived (no upstream US benchmarks exist): same task structure
 with `market`/`benchmark` swapped for the US universe.
+
+## Config profiles (2026-11-09, GPU migration)
+
+`configs/benchmarks/*.yaml` now carry **upstream defaults**: threads 20 and
+`GPU: 0` (Transformer/HIST). The former local values (threads 10, `GPU: -1`)
+live unchanged in `configs/benchmarks/cpu/` for the Intel Mac — select with
+`make ... PROFILE=cpu`. On Linux/CUDA none of the macOS OpenMP patching below
+is needed (linux wheels ship one consistent runtime; torch auto-selects cuda).
+
+## Cloud assets
+
+`configs/benchmarks/assets/` is committed to the repo (incl. the 27 MB
+`stock2concept.npy`, ~1 MB packed — it's sparse) so clones get every HIST
+input without extra downloads.

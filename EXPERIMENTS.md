@@ -13,6 +13,8 @@ baseline for the same dataset/features once Phase 2 starts.
 | EX-004 | 2026-11-09 | 1 | LightGBM Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0066 | 0.0634 | 0.0047 | -0.0035 | -0.0286 | -0.2610 | — | near-zero signal — investigating US data |
 | EX-005 | 2026-11-09 | 1 | XGBoost Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0022 | 0.0183 | 0.0028 | 0.0017 | 0.0123 | -0.3117 | 0.1781 | near-zero signal — consistent w/ EX-004 |
 | EX-006 | 2026-11-09 | 1 | DoubleEnsemble Alpha158 S&P500 reproduction (no published ref) | sp500 | 0.0070 | 0.0600 | 0.0079 | -0.0048 | -0.0376 | -0.2229 | 0.1190 | near-zero signal — confirms US dump limitation |
+| EX-007 | 2026-11-09 | 1 | Raw 5d/20d momentum IC probe (scripts/momentum_probe.py, Jan–Jun 2019) | sp500 vs csi300 | 0.004 vs 0.058 | — | — | — | — | — | — | us_data dump carries ~no next-day alpha; data property, not model/pipeline |
+| EX-008 | 2026-11-09 | 1 | Transformer Alpha158 CSI300 — local CPU attempt | csi300 | — | — | — | — | — | — | — | KILLED before completion (user: training moves to cloud GPU); multiple macOS OpenMP SIGSEGVs fixed en route (see PROVENANCE) |
 
 ## Running total of hypotheses tested
 

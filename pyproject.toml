@@ -20,6 +20,8 @@ dependencies = [
     # qlib 0.9.x expects the mlflow 2.x file-store tracking backend;
     # mlflow 3 puts it in maintenance mode and rejects it
     "mlflow>=2.9,<3",
+    "optuna>=3.6,<4",
+    "cvxpy>=1.5,<2",
 ]
 
 [dependency-groups]

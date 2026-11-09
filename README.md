@@ -32,6 +32,15 @@ Phase 1 — baseline reproduction of the Qlib benchmarks. See
     make bench-cn                 # all CN models sequentially
     make table                    # rebuild results/LEADERBOARD.md
 
+## Cloud GPU
+
+Neural-model training runs on a cloud GPU — see **CLOUD.md** (Kaggle / Colab /
+Docker GPU VM; nothing is provisioned automatically).
+
+    make gpu-run MODELS="transformer_cn hist_cn"   # downloads data, runs, logs EXPERIMENTS.md
+    make gpu-run-list                              # all registered model names
+    make docker-gpu-build                          # CUDA image (Dockerfile.gpu)
+
 ## Docker
 
     make docker-build && make docker-shell

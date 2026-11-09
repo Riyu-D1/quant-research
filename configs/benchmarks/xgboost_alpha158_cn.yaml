@@ -39,7 +39,7 @@ task:
             max_depth: 8
             n_estimators: 647
             subsample: 0.8789
-            nthread: 10   # upstream: 20
+            nthread: 20
     dataset:
         class: DatasetH
         module_path: qlib.data.dataset

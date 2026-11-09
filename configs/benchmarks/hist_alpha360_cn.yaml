@@ -60,7 +60,7 @@ task:
             model_path: "configs/benchmarks/assets/model_lstm_csi300.pkl"
             stock2concept: "configs/benchmarks/assets/qlib_csi300_stock2concept.npy"
             stock_index: "configs/benchmarks/assets/qlib_csi300_stock_index.npy"  # object .npy for pyqlib 0.9.7
-            GPU: -1   # upstream: 0 — no CUDA on this machine
+            GPU: 0
     dataset:
         class: DatasetH
         module_path: qlib.data.dataset
