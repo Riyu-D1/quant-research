@@ -23,3 +23,6 @@ baseline for the same dataset/features once Phase 2 starts.
 ## Running total of hypotheses tested
 
 0 (baseline reproduction does not count as a hypothesis).
+| EX-013 | 2026-11-10 | — | transformer_cn (GPU run) | Alpha158 csi300 | 0.0317 | 0.2538 | 0.0435 | 0.0323 | 0.4738 | -0.0968 | 0.1841 | auto-logged by gpu_run |
+| EX-014 | 2026-11-10 | — | hist_cn (GPU run) | Alpha360 csi300 | 0.0528 | 0.3636 | 0.0651 | 0.0964 | 1.3604 | -0.0650 | 0.1598 | auto-logged by gpu_run |
+| EX-015 | 2026-11-10 | — | transformer_us (GPU run) | Alpha158 sp500 PIT | 0.0027 | 0.0228 | 0.0064 | -0.1053 | -1.1419 | -0.5225 | 0.0531 | auto-logged by gpu_run |
