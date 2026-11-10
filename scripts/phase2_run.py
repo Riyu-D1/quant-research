@@ -212,6 +212,9 @@ def main() -> None:
                           args.threads, args.market)
         n_trials += study["n_trials"]
         summary["tuning"] = study
+    prior_tune = wf.oof_dir(args.market) / TUNE_JSON
+    if prior_tune.exists() and args.tune_trials == 0:
+        n_trials += json.loads(prior_tune.read_text())["n_trials"]  # DSR accounting
 
     # ---- OOF training ------------------------------------------------------
     oof = run_folds(spec, models, folds, holdout_fold, args.threads,
