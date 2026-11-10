@@ -246,18 +246,30 @@ def main() -> None:
     strat = spec["strategies"]
     idx = next(iter(oof.values()))[1].index.get_level_values("datetime")
     oof_window = (str(idx.min().date()), str(idx.max().date()))
-    candidates = {}
+    cand_ckpt = wf.oof_dir(args.market) / "candidates.json"
+    candidates = (json.loads(cand_ckpt.read_text())
+                  if cand_ckpt.exists() and not args.force else {})
+    ens_names = set(ens_preds)
     for sname, skey in itertools.product(list(sig_metrics), list(strat)):
-        pred = ens_preds[sname] if sname in ens_preds else oof_preds[sname]
+        if f"{sname}@{skey}" in candidates:
+            continue  # resume: candidate already scored
+        if sname in ens_names:
+            pred = ens_preds[sname]
+        elif sname in oof_preds:
+            pred = oof_preds[sname]
+        else:
+            continue  # e.g. lgb_tuned added later — no pred this run
         try:
             r = wf.backtest_signal(pred, spec, strat[skey], oof_window)
         except Exception as e:  # noqa: BLE001  solver/backtest failure — log, keep going
             wf.log(f"backtest {sname}@{skey} FAILED: {e}")
             r = {"annualized_return": None, "information_ratio": None,
                  "max_drawdown": None, "turnover": None, "n_days": 0}
+        r.pop("daily_excess", None)
         candidates[f"{sname}@{skey}"] = {
             **r, **sig_metrics[sname]}
-        n_trials += 1
+        cand_ckpt.write_text(json.dumps(candidates, indent=2, default=str))
+    n_trials += len(candidates)  # count resumed candidates too
     summary["candidates"] = candidates
     summary["oof_window"] = oof_window
     valid = [c for c in candidates.items() if c[1]["information_ratio"] is not None]

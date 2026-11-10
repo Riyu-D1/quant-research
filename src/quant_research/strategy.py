@@ -55,7 +55,9 @@ class TurnoverPenalizedMVO(WeightStrategyBase):
                .loc[:pd.Timestamp(end)].tail(self.lookback))
         if len(ret.dropna(how="all")) < 20:
             return np.eye(len(codes))
-        cov = np.cov(ret.fillna(0).values.T)
+        cov = np.cov(np.nan_to_num(ret.values, nan=0.0).T)
+        cov = np.nan_to_num(cov, nan=0.0)
+        cov = (cov + cov.T) / 2
         return cov + 1e-4 * np.eye(len(codes))
 
     def generate_target_weight_position(self, score, current, trade_start_time, trade_end_time):
@@ -89,8 +91,8 @@ class TurnoverPenalizedMVO(WeightStrategyBase):
         try:
             prob.solve()
         except Exception:  # noqa: BLE001
-            prob.status = "fail"
-        if prob.status != "optimal" or w.value is None:
+            w.value = None
+        if w.value is None:
             eq = self.degree / len(cand)
             return {c: eq for c in cand}
         out = {c: max(0.0, float(v)) for c, v in zip(all_codes, w.value) if v > 1e-5}
