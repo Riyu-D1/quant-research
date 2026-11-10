@@ -76,12 +76,14 @@ class TurnoverPenalizedMVO(WeightStrategyBase):
         except Exception:  # noqa: BLE001
             sigma = np.eye(len(all_codes))
 
+        # Feasibility floor: sum(w)=degree needs cap >= degree/len(all_codes).
+        cap = max(self.max_weight, self.degree / len(all_codes) * 1.0001)
         w = cp.Variable(len(all_codes))
         t = cp.Variable(len(all_codes))
         prob = cp.Problem(
             cp.Maximize(a @ w - self.risk_lambda * cp.quad_form(w, sigma)
                         - self.turnover_lambda * cp.sum(t)),
-            [cp.sum(w) == self.degree, w >= 0, w <= self.max_weight,
+            [cp.sum(w) == self.degree, w >= 0, w <= cap,
              t >= w - w_prev, t >= w_prev - w],
         )
         try:
