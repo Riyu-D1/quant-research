@@ -30,3 +30,4 @@ configs/benchmarks/assets/qlib_sp500_stock2concept.npy
 
 # run logs
 *.log
+results/oof/**/*.tmp

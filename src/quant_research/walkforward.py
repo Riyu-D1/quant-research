@@ -312,8 +312,10 @@ def oof_dir(market: str) -> Path:
 def save_fold_pred(market: str, model: str, fold: str,
                    pred: pd.Series, label: pd.Series) -> Path:
     p = oof_dir(market) / f"{model}__{fold}.pkl"
-    with open(p, "wb") as f:
+    tmp = p.with_suffix(".tmp")
+    with open(tmp, "wb") as f:
         pickle.dump({"pred": pred, "label": label}, f)
+    tmp.replace(p)  # atomic — a mid-write checkpoint push can't grab a partial
     return p
 
 

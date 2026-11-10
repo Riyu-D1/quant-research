@@ -20,9 +20,9 @@ on:
         options: [cn, us, both]
         default: cn
       models:
-        description: "Comma list of CPU models (lgb,xgb,de,lgb360,lgb_tuned)"
+        description: "Comma list of CPU models (lgb,xgb,de; lgb360 too big for hosted runners — run on Kaggle)"
         required: false
-        default: "lgb,xgb,de,lgb360"
+        default: "lgb,xgb,de"
       tune_trials:
         description: "Optuna trials for LightGBM over the last folds (0=skip)"
         required: false
@@ -79,6 +79,18 @@ jobs:
 
       - name: Run Phase-2 pipeline (cn)
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase2/ensemble
+          ckpt() {  # push fold preds back to the branch every ~5min — survives
+            git fetch origin phase2/ensemble -q 2>/dev/null || true   # runner loss
+            git add results/oof/cn 2>/dev/null || true
+            git diff --cached --quiet && return 0
+            git commit -qm "oof checkpoint (cn, ${{ github.run_id }})" || return 0
+            git pull --rebase origin phase2/ensemble -q 2>/dev/null \
+              || { git rebase --abort -q 2>/dev/null; return 0; }
+            git push -q origin HEAD:phase2/ensemble 2>/dev/null || true
+          }
           HO=""
           if [ -n "${{ inputs.holdout_candidate }}" ]; then
             HO="--holdout ${{ inputs.holdout_candidate }}"
@@ -86,7 +98,12 @@ jobs:
           uv run python scripts/phase2_run.py --market cn \
             --models "${{ inputs.models }}" \
             --tune-trials "${{ inputs.tune_trials }}" \
-            --threads "${{ inputs.threads }}" $HO
+            --threads "${{ inputs.threads }}" $HO &
+          PIPE=$!
+          while kill -0 $PIPE 2>/dev/null; do sleep 300; ckpt; done
+          wait $PIPE; RC=$?
+          ckpt
+          exit $RC
 
       - name: Upload artifacts
         if: always()
@@ -147,6 +164,18 @@ jobs:
 
       - name: Run Phase-2 pipeline (us)
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase2/ensemble
+          ckpt() {
+            git fetch origin phase2/ensemble -q 2>/dev/null || true
+            git add results/oof/us 2>/dev/null || true
+            git diff --cached --quiet && return 0
+            git commit -qm "oof checkpoint (us, ${{ github.run_id }})" || return 0
+            git pull --rebase origin phase2/ensemble -q 2>/dev/null \
+              || { git rebase --abort -q 2>/dev/null; return 0; }
+            git push -q origin HEAD:phase2/ensemble 2>/dev/null || true
+          }
           HO=""
           if [ -n "${{ inputs.holdout_candidate }}" ]; then
             HO="--holdout ${{ inputs.holdout_candidate }}"
@@ -154,7 +183,12 @@ jobs:
           uv run python scripts/phase2_run.py --market us \
             --models "${{ inputs.models }}" \
             --tune-trials "${{ inputs.tune_trials }}" \
-            --threads "${{ inputs.threads }}" $HO
+            --threads "${{ inputs.threads }}" $HO &
+          PIPE=$!
+          while kill -0 $PIPE 2>/dev/null; do sleep 300; ckpt; done
+          wait $PIPE; RC=$?
+          ckpt
+          exit $RC
 
       - name: Upload artifacts
         if: always()
