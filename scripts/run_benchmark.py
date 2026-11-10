@@ -70,7 +70,7 @@ def main() -> None:
     report_name = "portfolio_analysis/report_normal_1day.pkl"
     try:
         results = extract_results(recorder, report_name)
-    except Exception:
+    except Exception:  # noqa: BLE001
         # fall back: list artifacts for debugging, metrics still saved
         results = {"metrics": dict(recorder.list_metrics()), "turnover": None,
                    "backtest_days": None,

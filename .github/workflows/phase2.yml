@@ -1,0 +1,186 @@
+name: phase2-walkforward
+
+# Phase-2 walk-forward pipeline on GitHub-hosted runners (no training on the
+# dev Mac; GPU models go through the Kaggle notebook instead).
+#
+# Validation runs (default) never touch the holdout. To score a candidate on
+# the holdout, dispatch again with `holdout_candidate` set, e.g.
+# "ridge_stack@topk" — the score is appended to results/holdout_log.jsonl.
+#
+# Results are committed back to the `phase2/ensemble` branch (each job owns
+# disjoint paths: results/oof/<market>/, results/phase2_<market>.json).
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Which market pipeline to run"
+        required: true
+        type: choice
+        options: [cn, us, both]
+        default: cn
+      models:
+        description: "Comma list of CPU models (lgb,xgb,de,lgb360,lgb_tuned)"
+        required: false
+        default: "lgb,xgb,de,lgb360"
+      tune_trials:
+        description: "Optuna trials for LightGBM over the last folds (0=skip)"
+        required: false
+        default: "25"
+      holdout_candidate:
+        description: 'Holdout candidate "signal@strategy" (blank = none)'
+        required: false
+        default: ""
+      threads:
+        description: "Threads for GBDTs"
+        required: false
+        default: "4"
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  run-cn:
+    if: inputs.market == 'cn' || inputs.market == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      MARKET: cn
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: uv sync --frozen --no-dev
+
+      - name: Restore qlib CN data (cached)
+        uses: actions/cache@v4
+        with:
+          path: data/qlib/cn_data
+          key: qlib-cn-data-v1
+
+      - name: Download qlib CN data (cache miss only)
+        run: |
+          if [ ! -f data/qlib/cn_data/calendars/day.txt ]; then
+            uv run python scripts/download_data.py \
+              --target-dir data/qlib/cn_data --region cn
+          fi
+
+      - name: Restore OOF checkpoints (resume on rerun)
+        uses: actions/cache@v4
+        with:
+          path: results/oof/cn
+          key: phase2-oof-cn-${{ github.run_id }}
+          restore-keys: phase2-oof-cn-
+
+      - name: Run Phase-2 pipeline (cn)
+        run: |
+          HO=""
+          if [ -n "${{ inputs.holdout_candidate }}" ]; then
+            HO="--holdout ${{ inputs.holdout_candidate }}"
+          fi
+          uv run python scripts/phase2_run.py --market cn \
+            --models "${{ inputs.models }}" \
+            --tune-trials "${{ inputs.tune_trials }}" \
+            --threads "${{ inputs.threads }}" $HO
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-cn-${{ github.run_id }}
+          path: |
+            results/oof/cn/
+            results/phase2_cn.json
+            results/holdout_log.jsonl
+          if-no-files-found: ignore
+
+      - name: Commit results back to phase2/ensemble
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase2/ensemble
+          git add results/oof/cn results/phase2_cn.json results/holdout_log.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "phase2 cn results — run ${{ github.run_id }}"
+          git fetch origin phase2/ensemble || true
+          for i in 1 2 3; do
+            git push origin "phase2/ensemble:phase2/ensemble" && break
+            git pull --rebase origin phase2/ensemble
+          done
+
+  run-us:
+    if: inputs.market == 'us' || inputs.market == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      MARKET: us
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: uv sync --frozen --no-dev
+
+      - name: Fetch Alpaca US qlib dump (workflow artifact)
+        run: |
+          gh run download -R ${{ github.repository }} -n us-qlib-dump \
+            -D data/qlib/us_alpaca
+          test -f data/qlib/us_alpaca/calendars/day.txt
+
+      - name: Restore OOF checkpoints (resume on rerun)
+        uses: actions/cache@v4
+        with:
+          path: results/oof/us
+          key: phase2-oof-us-${{ github.run_id }}
+          restore-keys: phase2-oof-us-
+
+      - name: Run Phase-2 pipeline (us)
+        run: |
+          HO=""
+          if [ -n "${{ inputs.holdout_candidate }}" ]; then
+            HO="--holdout ${{ inputs.holdout_candidate }}"
+          fi
+          uv run python scripts/phase2_run.py --market us \
+            --models "${{ inputs.models }}" \
+            --tune-trials "${{ inputs.tune_trials }}" \
+            --threads "${{ inputs.threads }}" $HO
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-us-${{ github.run_id }}
+          path: |
+            results/oof/us/
+            results/phase2_us.json
+            results/holdout_log.jsonl
+          if-no-files-found: ignore
+
+      - name: Commit results back to phase2/ensemble
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase2/ensemble
+          git add results/oof/us results/phase2_us.json results/holdout_log.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "phase2 us results — run ${{ github.run_id }}"
+          git fetch origin phase2/ensemble || true
+          for i in 1 2 3; do
+            git push origin "phase2/ensemble:phase2/ensemble" && break
+            git pull --rebase origin phase2/ensemble
+          done

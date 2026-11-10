@@ -1,6 +1,9 @@
 # Phase 2 (a): LightGBM on concatenated Alpha158 + Alpha360 features.
 # Handler is the stock Alpha158 handler (processors, CSRankNorm label) but its
 # data_loader is a NestedDataLoader joining both loaders' column sets.
+# NOTE: single-split reference config — the authoritative Phase-2 protocol
+# (walk-forward folds + untouched 2018-08→2020-08 holdout) is
+# walkforward_cn.yaml, run by scripts/phase2_run.py (model key `lgb360`).
 qlib_init:
     provider_uri: "~/.qlib/qlib_data/cn_data"   # overridden at runtime
     region: cn

@@ -39,11 +39,21 @@ REGISTRY = {
     "doubleensemble_us":("configs/benchmarks/doubleensemble_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500 PIT"),
     "transformer_us":   ("configs/benchmarks/transformer_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500 PIT"),
     "hist_us":          ("configs/benchmarks/hist_alpha360_us.yaml", US, "benchmarks_us", "Alpha360 sp500 PIT"),
-    # Phase 2 experiments (do not run until baselines complete)
-    "lgb_combined_cn":  ("configs/experiments/lightgbm_alpha158_360_cn.yaml", CN, "phase2", "Alpha158+Alpha360 concat"),
-    "lgb_tuned_cn":     ("scripts/tune_lgbm.py", CN, "phase2", "Optuna-tuned LightGBM"),
-    "stacked_cn":       ("scripts/stack_ensemble.py --config configs/experiments/stacked_ensemble_cn.yaml", CN, "phase2", "stacked ensemble"),
-    "mvo_cn":           ("configs/experiments/mvo_turnover_cn.yaml", CN, "phase2", "turnover-penalised MVO"),
+    # Phase 2 — walk-forward pipeline (scripts/phase2_run.py). The main entry
+    # runs OOF folds + tuning + ensemble + TopkDropout-vs-MVO comparison.
+    # Holdout scoring is a separate, deliberate step: append
+    # `--holdout <signal>@<strategy>` (e.g. via MODELS="phase2_cn" then edit).
+    "phase2_cn":        ("scripts/phase2_run.py --market cn --tune-trials 25", CN, "phase2", "walk-forward pipeline cn"),
+    "phase2_us":        ("scripts/phase2_run.py --market us --tune-trials 25", US, "phase2", "walk-forward pipeline us"),
+    "lgb_tuned_cn":     ("scripts/tune_lgbm.py --market cn --trials 25", CN, "phase2", "Optuna-tuned LightGBM"),
+    "lgb_tuned_us":     ("scripts/tune_lgbm.py --market us --trials 25", US, "phase2", "Optuna-tuned LightGBM"),
+    "stacked_cn":       ("scripts/stack_ensemble.py --market cn", CN, "phase2", "stacked ensemble"),
+    "stacked_us":       ("scripts/stack_ensemble.py --market us", US, "phase2", "stacked ensemble"),
+    # GPU OOF preds for the stacker (run on Kaggle; merge results/oof pkls)
+    "transformer_cn_wf":("scripts/phase2_run.py --market cn --models transformer", CN, "phase2", "Transformer OOF preds"),
+    "hist_cn_wf":       ("scripts/phase2_run.py --market cn --models hist", CN, "phase2", "HIST OOF preds"),
+    "transformer_us_wf":("scripts/phase2_run.py --market us --models transformer", US, "phase2", "Transformer OOF preds"),
+    "hist_us_wf":       ("scripts/phase2_run.py --market us --models hist", US, "phase2", "HIST OOF preds"),
 }
 
 
