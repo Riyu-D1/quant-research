@@ -105,6 +105,9 @@ models:
             num_leaves: 210
             num_threads: 4
     # GPU slots — filled only when run on a GPU box (Kaggle notebook path).
+    # hist is the priority ensemble component (phase-1 IR 1.36, our best single
+    # model); its results/oof/cn/hist__fold*.pkl join rank_avg + ridge_stack
+    # automatically once a `hist_cn_wf` Kaggle run pushes them.
     transformer:
         class: TransformerModel
         module_path: qlib.contrib.model.pytorch_transformer_ts
