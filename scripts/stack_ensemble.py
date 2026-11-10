@@ -79,7 +79,7 @@ def main() -> None:
 
     out = {"market": args.market, "components": sorted(preds),
            "ridge": {"alpha": spec["ensemble"]["ridge_alpha"],
-                     "coef": dict(zip(sorted(preds), meta.coef_.tolist())),
+                     "coef": dict(zip(preds, meta.coef_.tolist())),
                      "intercept": float(meta.intercept_)},
            "oof_window": window, "signals": {}}
     for sname, sig in sigs.items():
