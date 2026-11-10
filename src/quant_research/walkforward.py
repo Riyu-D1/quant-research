@@ -284,11 +284,12 @@ def fit_ridge(preds: dict[str, pd.Series], label: pd.Series, alpha: float):
     keep = y.notna()
     meta = Ridge(alpha=alpha)
     meta.fit(X[keep], y[keep])
+    meta._signal_order = list(preds)  # column order must survive to apply time
     return meta
 
 
 def apply_ridge(meta, preds: dict[str, pd.Series]) -> pd.Series:
-    X = zscore_frame(preds).fillna(0.0)
+    X = zscore_frame(preds).reindex(columns=meta._signal_order).fillna(0.0)
     return pd.Series(meta.predict(X), index=X.index, name="score")
 
 

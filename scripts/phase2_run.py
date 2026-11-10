@@ -234,7 +234,7 @@ def main() -> None:
         ens_preds["ridge_stack"] = wf.apply_ridge(meta, oof_preds)
         summary["ridge"] = {
             "alpha": spec["ensemble"]["ridge_alpha"],
-            "coef": dict(zip(sorted(oof_preds), meta.coef_.tolist())),
+            "coef": dict(zip(oof_preds, meta.coef_.tolist())),
             "intercept": float(meta.intercept_)}
         with open(wf.oof_dir(args.market) / "ridge_meta.pkl", "wb") as f:
             pickle.dump(meta, f)
