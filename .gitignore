@@ -8,7 +8,7 @@ __pycache__/
 data/
 mlruns/
 third_party/qlib/
-runs/
+/runs/
 build/
 fetch.log
 probe.out
