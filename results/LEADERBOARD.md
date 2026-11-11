@@ -149,3 +149,21 @@ Sharpe ratio over all recorded trials.
 | deflated_sharpe | 0.0001 (SR* 2.09) |
 | n_trials | 37 (25 Optuna + 12 OOF candidates) |
 | verdict | no harvestable alpha in the US Alpaca/PIT feed for the GBDT stack — consistent OOF (-0.266) → holdout (-0.735) |
+
+---
+
+## Phase 3 — top-trader disclosure features (US)
+
+## phase3_rule_cluster_hold20_us  (insider cluster-buy ≥2 in 30d, hold 20d @ MicroTop5 £10≈$12.70 acct)
+| metric | ours |
+|---|---|
+| ic | -0.0207 |
+| icir | -0.0386 |
+| rank_ic | -0.0290 |
+| annualized_return | -0.1091 |
+| information_ratio | -0.1408 |
+| max_drawdown | -0.4731 |
+| turnover | 0.0986 |
+| deflated_sharpe | 0.061 (SR* 0.96) |
+| n_trials | 29 (27 OOF candidates + 2 holdout) |
+| verdict | insider/13F/congress features add NO harvestable alpha over the Alpaca feed — OOF winner (+0.244 on ~1% coverage) was noise; holdout gate FAILED → no paper trading |

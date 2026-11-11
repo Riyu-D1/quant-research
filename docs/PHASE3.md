@@ -111,3 +111,24 @@ ONLY if a candidate (a) beats the OOF bar, (b) has positive holdout return,
 (c) holdout DSR > 0.5. Otherwise Phase 3 stops and reports. Credentials are
 env-only (`ALPACA_API_KEY`, `ALPACA_SECRET_KEY`, `NOTION_TOKEN`,
 `NOTION_DB_ID`) and the Alpaca endpoint is hard-guarded to paper.
+
+## Verdict (2026-11-11)
+
+**Gate FAILED — no paper trading.**
+
+- OOF (2021–2024, 27 candidates, `results/phase2_us_events.json`): best
+  `rule:rule_cluster_hold20@micro5` IR +0.244 / IC 0.010 / RankIC 0.024 —
+  a sparse signal (~1% of stock-days) that only "worked" in the 5-name
+  micro sim; its top5/topk variants and every GBDT candidate
+  (`lgb_ev`, `lgb_ev158`, `xgb_ev158`, ensembles) are IR < 0. Event
+  features add ~nothing over Alpha158 (IC ≤ 0.002 vs 0.003–0.004 Phase-2).
+- Holdout (2025-01→2026-11, scored once, `results/holdout_log.jsonl`):
+  IR **−0.141**, AR −10.9%, MDD −47.3%, DSR **0.061** (n_trials=29).
+  Fails (b) and (c). `scripts/paper_trade.py` deliberately not built.
+
+Interpretation: on the Alpaca daily feed, public disclosure events are
+already absorbed (or too sparse) — cluster buys show a faint OOF echo that
+evaporates out-of-sample, congress buys are a *negative* predictor
+(RankIC −0.007), and 13F fund-holding features carry no next-day signal.
+Consistent with Phase 2's null US result; the feed carries no harvestable
+next-day alpha for this stack.
