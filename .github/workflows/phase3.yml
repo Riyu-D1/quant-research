@@ -144,8 +144,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: results/oof/us_events
-          key: phase3-oof-us-${{ github.run_id }}
-          restore-keys: phase3-oof-us-
+          key: phase3-oof-v2-us-${{ github.run_id }}
+          restore-keys: phase3-oof-v2-us-
 
       - name: Run Phase-3 pipeline (us events)
         run: |

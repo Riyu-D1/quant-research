@@ -227,11 +227,8 @@ def main() -> None:
     wf.qlib_init(str(REPO / spec["provider_uri"]), spec["region"])
     folds, holdout_fold = wf.make_folds(spec)
     rules = args.rules.split(",") if args.rules else []
-    if rules:
-        models = {}
-    else:
-        requested = args.models.split(",") if args.models else None
-        models = models_for_spec(spec, requested, run_key)
+    requested = args.models.split(",") if args.models else None
+    models = models_for_spec(spec, requested, run_key)
     if args.force:
         for f in wf.oof_dir(run_key).glob("*__*.pkl"):
             f.unlink()
@@ -254,11 +251,10 @@ def main() -> None:
 
     # ---- OOF training ------------------------------------------------------
     want_holdout_preds = args.holdout is not None or args.train_holdout
-    if rules:
-        oof = rule_oof(spec, rules)
-    else:
-        oof = run_folds(spec, models, folds, holdout_fold, args.threads,
-                        run_key, include_holdout=want_holdout_preds)
+    model_oof = (run_folds(spec, models, folds, holdout_fold, args.threads,
+                           run_key, include_holdout=want_holdout_preds)
+                 if models else {})
+    oof = {**model_oof, **(rule_oof(spec, rules) if rules else {})}
 
     if args.train_holdout and args.holdout is None:
         trained = sorted(p.name for p in wf.oof_dir(run_key).glob("*__holdout.pkl"))
@@ -279,13 +275,14 @@ def main() -> None:
 
     # ---- ensembles ---------------------------------------------------------
     ens_preds = {}
-    if len(oof_preds) >= 2:
-        ens_preds["rank_avg"] = wf.rank_average(oof_preds)
-        meta = wf.fit_ridge(oof_preds, oof_label, spec["ensemble"]["ridge_alpha"])
-        ens_preds["ridge_stack"] = wf.apply_ridge(meta, oof_preds)
+    if len(model_oof) >= 2:
+        ens_preds["rank_avg"] = wf.rank_average(model_oof)
+        meta = wf.fit_ridge(model_oof, oof_label,
+                            spec["ensemble"]["ridge_alpha"])
+        ens_preds["ridge_stack"] = wf.apply_ridge(meta, model_oof)
         summary["ridge"] = {
             "alpha": spec["ensemble"]["ridge_alpha"],
-            "coef": dict(zip(oof_preds, meta.coef_.tolist())),
+            "coef": dict(zip(model_oof, meta.coef_.tolist())),
             "intercept": float(meta.intercept_)}
         with open(wf.oof_dir(run_key) / "ridge_meta.pkl", "wb") as f:
             pickle.dump(meta, f)
@@ -349,7 +346,7 @@ def main() -> None:
                 pd.Timestamp(spec["holdout"][0]):
                 pd.Timestamp(spec["holdout"][1])]
         elif sname in ("rank_avg", "ridge_stack"):
-            missing = set(oof_preds) - set(hp)
+            missing = set(model_oof) - set(hp)
             if missing:
                 sys.exit(f"holdout preds missing for {missing} (needed by {sname})")
             if sname == "rank_avg":
