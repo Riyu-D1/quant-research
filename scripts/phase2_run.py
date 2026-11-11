@@ -139,7 +139,7 @@ def rule_oof(spec: dict, rules: list[str]) -> dict:
            (lab.index.get_level_values("datetime") <= w1)
     lab = lab[mask]
     return {f"rule:{r}": (panel[r].loc[lab.index]
-                          .where(lambda s: s > 0).rename("score"), lab)
+                          .pipe(lambda s: s[s > 0]).rename("score"), lab)
             for r in rules}
 
 

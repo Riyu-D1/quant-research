@@ -194,7 +194,10 @@ def rule_pred(spec: dict, signal: str, window: tuple[str, str]) -> pd.Series:
     if s.index.names[0] == "instrument":
         s = s.swaplevel().sort_index()
     s = s.loc[pd.Timestamp(window[0]):pd.Timestamp(window[1])]
-    return s.where(s > 0).rename("score")   # 0 = no flag -> NaN (no opinion)
+    # only flagged (inst,day) rows — absent names are out of the candidate
+    # set entirely (qlib topk would otherwise fill slots with NaN-scored
+    # arbitrary names, polluting the baseline)
+    return s[s > 0].rename("score")
 
 
 def train_predict(model_cfg: dict, dataset: FoldDataset, num_threads: int) -> pd.Series:
