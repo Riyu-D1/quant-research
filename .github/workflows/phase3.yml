@@ -61,6 +61,12 @@ jobs:
           python-version: "3.11"
       - run: uv sync --frozen --no-dev
 
+      - name: Fetch Alpaca US qlib dump (needed for universe + panel build)
+        run: |
+          gh run download -R ${{ github.repository }} -n us-qlib-dump \
+            -D data/qlib/us_alpaca
+          test -f data/qlib/us_alpaca/calendars/day.txt
+
       - name: Restore event caches (resume interrupted fetch)
         uses: actions/cache@v4
         with:
