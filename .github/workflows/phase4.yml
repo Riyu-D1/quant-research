@@ -79,12 +79,17 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.11"
-      - run: uv sync --frozen --no-dev
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean && du -sh .venv && df -h .
 
       - name: Restore phase-3 events (cik_map needed for fundamentals)
         run: |
-          gh run download -R ${{ github.repository }} -n phase3-events \
-            -D data/events || true
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
+            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
+            > /tmp/p3ev.zip
+          mkdir -p data/events
+          unzip -o -j /tmp/p3ev.zip cik_map.parquet -d data/events/
           test -f data/events/cik_map.parquet
 
       - name: Restore news page cache (resume interrupted fetch)
@@ -96,9 +101,9 @@ jobs:
 
       - name: Fetch news + fundamentals
         run: |
-          uv run python scripts/phase4_fetch.py news --start 2020-09-01 &
+          uv run --no-sync python scripts/phase4_fetch.py news --start 2020-09-01 &
           P1=$!
-          uv run python scripts/phase4_fetch.py fundamentals
+          uv run --no-sync python scripts/phase4_fetch.py fundamentals
           wait $P1
 
       - name: Upload news + fundamentals artifacts
@@ -127,32 +132,55 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.11"
-      - run: uv sync --frozen --no-dev
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean && du -sh .venv && df -h .
 
       - name: Fetch Alpaca US qlib dump + phase-3 events + fundamentals
         run: |
           gh run download -R ${{ github.repository }} -n us-qlib-dump \
             -D data/qlib/us_alpaca
           test -f data/qlib/us_alpaca/calendars/day.txt
-          gh run download -R ${{ github.repository }} -n phase3-events \
-            -D data/events
+          # selective extract — the 185MB artifact is mostly insider/13f raw
+          # tables the store does not read
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
+            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
+            > /tmp/p3ev.zip
+          mkdir -p data/events
+          unzip -o -j /tmp/p3ev.zip features_us.parquet shares_out.parquet \
+            -d data/events/
           test -f data/events/features_us.parquet
           gh run download -R ${{ github.repository }} -n phase4-inputs \
             -D data/events || true
+          df -h / /mnt $HOME 2>/dev/null | sort -u
 
       - name: Swap headroom (full-span Alpha158 peaks ~7.5GB)
         run: |
-          nproc; free -h; swapon --show
-          if ! swapon --show --noheadings | grep -q /mnt/swapfile4; then
-            sudo fallocate -l 8G /mnt/swapfile4 \
-              || sudo dd if=/dev/zero of=/mnt/swapfile4 bs=1M count=8192
-            sudo chmod 600 /mnt/swapfile4
-            sudo mkswap /mnt/swapfile4 && sudo swapon /mnt/swapfile4
+          nproc; free -h; swapon --show; df -h /mnt $PWD
+          # /mnt may be the same disk as the workspace on some runner images —
+          # size the swapfile to the mount with most free space, capped at 4G
+          # and at 60% of what's actually free (an 8G dd to a nearly-full
+          # system disk killed the runner agent on the first two attempts).
+          if ! swapon --show --noheadings | grep -q swapfile4; then
+            MNT=/mnt
+            if [ "$(df --output=avail $PWD | tail -1)" -gt \
+                 "$(df --output=avail /mnt | tail -1)" ]; then MNT=$PWD; fi
+            FREE_MB=$(df --output=avail -BM "$MNT" | tail -1 | tr -dc '0-9')
+            SWAP_MB=$(( FREE_MB*60/100 > 4096 ? 4096 : FREE_MB*60/100 ))
+            echo "swapfile on $MNT sized ${SWAP_MB}MB (free ${FREE_MB}MB)"
+            if [ "$SWAP_MB" -ge 512 ]; then
+              sudo dd if=/dev/zero of="$MNT/swapfile4" bs=1M count=$SWAP_MB \
+                status=none
+              sudo chmod 600 "$MNT/swapfile4"
+              sudo mkswap "$MNT/swapfile4" && sudo swapon "$MNT/swapfile4"
+            else
+              echo "not enough free space for swap — running without"
+            fi
           fi
           free -h
 
       - name: Build feature store
-        run: uv run python scripts/phase4_build.py --market us
+        run: uv run --no-sync python scripts/phase4_build.py --market us
 
       - name: Upload store artifact
         uses: actions/upload-artifact@v4
@@ -179,7 +207,8 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.11"
-      - run: uv sync --frozen --no-dev
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean && du -sh .venv && df -h .
 
       - name: Fetch feature store artifact
         run: |
@@ -208,7 +237,7 @@ jobs:
               || { git rebase --abort -q 2>/dev/null; return 0; }
             git push -q origin HEAD:phase4/adaptive 2>/dev/null || true
           }
-          uv run python scripts/phase4_run.py --mode preds \
+          uv run --no-sync python scripts/phase4_run.py --mode preds \
             --signals ${{ inputs.signals }} --window ${{ inputs.window }} \
             --threads ${{ inputs.threads }} &
           PIPE=$!
@@ -227,7 +256,8 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.11"
-      - run: uv sync --frozen --no-dev
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean && du -sh .venv && df -h .
 
       - name: Fetch Alpaca US qlib dump (closes + SPY)
         run: |
@@ -290,7 +320,7 @@ jobs:
           if [ "${{ inputs.job }}" = "holdout" ]; then
             ARGS+=(--config "${{ inputs.config }}")
           fi
-          uv run python scripts/phase4_run.py --mode "${{ inputs.job }}" \
+          uv run --no-sync python scripts/phase4_run.py --mode "${{ inputs.job }}" \
             "${ARGS[@]}" &
           PIPE=$!
           while kill -0 $PIPE 2>/dev/null; do sleep 300; ckpt; done
