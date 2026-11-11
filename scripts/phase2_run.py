@@ -275,14 +275,15 @@ def main() -> None:
 
     # ---- ensembles ---------------------------------------------------------
     ens_preds = {}
-    if len(model_oof) >= 2:
-        ens_preds["rank_avg"] = wf.rank_average(model_oof)
-        meta = wf.fit_ridge(model_oof, oof_label,
+    model_preds = {m: p for m, (p, _l) in model_oof.items()}
+    if len(model_preds) >= 2:
+        ens_preds["rank_avg"] = wf.rank_average(model_preds)
+        meta = wf.fit_ridge(model_preds, oof_label,
                             spec["ensemble"]["ridge_alpha"])
-        ens_preds["ridge_stack"] = wf.apply_ridge(meta, model_oof)
+        ens_preds["ridge_stack"] = wf.apply_ridge(meta, model_preds)
         summary["ridge"] = {
             "alpha": spec["ensemble"]["ridge_alpha"],
-            "coef": dict(zip(model_oof, meta.coef_.tolist())),
+            "coef": dict(zip(model_preds, meta.coef_.tolist())),
             "intercept": float(meta.intercept_)}
         with open(wf.oof_dir(run_key) / "ridge_meta.pkl", "wb") as f:
             pickle.dump(meta, f)
