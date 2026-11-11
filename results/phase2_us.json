@@ -1,6 +1,6 @@
 {
   "market": "us",
-  "git_sha": "ad669eb",
+  "git_sha": "c67553e",
   "folds": {
     "fold0": {
       "name": "fold0",
@@ -79,7 +79,7 @@
     ]
   },
   "threads": 4,
-  "started": "2026-11-10T21:42:49.256041",
+  "started": "2026-11-11T01:24:23.637973",
   "oof_signal_metrics": {
     "lgb": {
       "IC": 0.0032877510462904153,
@@ -238,5 +238,27 @@
     "2024-12-31"
   ],
   "best_oof_candidate": "ridge_stack@topk",
-  "n_trials": 10
+  "holdout": {
+    "candidate": "ridge_stack@topk",
+    "IC": 7.869511568913731e-05,
+    "ICIR": 0.0010604397542153445,
+    "RankIC": -2.0116924751151778e-05,
+    "RankICIR": -0.0002641397265508283,
+    "annualized_return": -0.06906558675323088,
+    "information_ratio": -0.7344639800624546,
+    "max_drawdown": -0.20978625353245905,
+    "turnover": 0.14151161081145766,
+    "n_days": 459,
+    "dsr": {
+      "DSR": 8.276900215028068e-05,
+      "SR_daily": -0.046266881861427536,
+      "SR_ann": -0.7344639800624546,
+      "SR_star": 2.086557633416111,
+      "n_trials": 37,
+      "skew": 0.3775463881252055,
+      "kurtosis": 4.8397341777332255,
+      "T": 459
+    }
+  },
+  "n_trials": 37
 }
