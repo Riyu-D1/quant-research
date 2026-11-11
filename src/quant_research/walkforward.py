@@ -80,9 +80,19 @@ def make_folds(spec: dict) -> tuple[list[Fold], Fold]:
     return folds, holdout
 
 
-def load_spec(market: str) -> dict:
-    p = REPO / "configs/experiments" / f"walkforward_{market}.yaml"
-    return yaml.safe_load(p.read_text())
+def load_spec(market_or_spec: str) -> dict:
+    """Accepts a market name ('us' -> walkforward_us.yaml) or an explicit
+    spec stem/file ('walkforward_us_events' / a .yaml path)."""
+    p = Path(market_or_spec)
+    if not p.suffix:
+        p = REPO / "configs/experiments" / (
+            market_or_spec if market_or_spec.startswith("walkforward")
+            else f"walkforward_{market_or_spec}")
+    if p.suffix != ".yaml":
+        p = p.with_suffix(".yaml")
+    spec = yaml.safe_load(p.read_text())
+    spec["_spec_name"] = p.stem
+    return spec
 
 
 # --------------------------------------------------------------------------
@@ -140,25 +150,59 @@ def build_handler(spec: dict, feature_set: str, fold: Fold) -> DataHandlerLP:
     """Init a feature handler with processors fitted on this fold's train
     window only (no look-ahead across the eval boundary)."""
     hconf = spec["handler"]
+    extra = {}
     if feature_set == "alpha158":
         cls = {"class": "Alpha158", "module_path": "qlib.contrib.data.handler"}
     elif feature_set == "alpha158_360":
         cls = {"class": "Alpha158_360", "module_path": "quant_research.handler"}
     elif feature_set == "alpha360":
         cls = {"class": "Alpha360", "module_path": "qlib.contrib.data.handler"}
+    elif feature_set in ("alpha158_events", "events"):
+        from quant_research import events as ev
+        cls = ({"class": "Alpha158Events", "module_path": "quant_research.handler"}
+               if feature_set == "alpha158_events"
+               else {"class": "EventsOnly", "module_path": "quant_research.handler"})
+        extra = {"events_panel": str(REPO / spec.get(
+                     "events_panel", "data/events/features_us.parquet")),
+                 "event_cols": ev.FEATURE_COLS}
     else:
         raise ValueError(feature_set)
+    # Load only up to this fold's eval end (+ buffer for the Ref(-2) label);
+    # earlier eval folds don't need post-eval rows — halves peak RSS on
+    # memory-tight CI runners and changes nothing the processors see.
+    end_time = min(pd.Timestamp(spec["data_end"]),
+                   pd.Timestamp(fold.eval[1]) + pd.Timedelta(days=10))
     kwargs = {
         "instruments": spec["instruments"],
         "start_time": spec["data_start"],
-        "end_time": spec["data_end"],
+        "end_time": str(end_time.date()),
         "fit_start_time": fold.train[0],
         "fit_end_time": fold.train[1],
         "infer_processors": hconf["infer_processors"],
         "learn_processors": hconf["learn_processors"],
         "label": [spec["label"]],
+        **extra,
     }
     return init_instance_by_config({**cls, "kwargs": kwargs})
+
+
+def rule_pred(spec: dict, signal: str, window: tuple[str, str]) -> pd.Series:
+    """Precomputed rule signal -> pred series over one eval window.
+
+    Rule signals are columns of the events panel; NaN = 'no signal' so the
+    strategy only holds names the rule flagged. Index is qlib-style
+    (datetime, instrument) like model predictions."""
+    panel = pd.read_parquet(
+        REPO / spec.get("events_panel", "data/events/features_us.parquet"),
+        columns=[signal])
+    s = panel[signal]
+    if s.index.names[0] == "instrument":
+        s = s.swaplevel().sort_index()
+    s = s.loc[pd.Timestamp(window[0]):pd.Timestamp(window[1])]
+    # only flagged (inst,day) rows — absent names are out of the candidate
+    # set entirely (qlib topk would otherwise fill slots with NaN-scored
+    # arbitrary names, polluting the baseline)
+    return s[s > 0].rename("score")
 
 
 def train_predict(model_cfg: dict, dataset: FoldDataset, num_threads: int) -> pd.Series:
@@ -204,7 +248,23 @@ def cs_rank(pred: pd.Series) -> pd.Series:
 def backtest_signal(pred: pd.Series, spec: dict, strategy: dict,
                     window: tuple[str, str]) -> dict:
     """Run qlib daily backtest on `pred` within window; return metrics incl.
-    the daily excess-with-cost return series (for DSR downstream)."""
+    the daily excess-with-cost return series (for DSR downstream).
+
+    strategy class "MicroTop5" routes to the fractional £10-account sim
+    (quant_research.micro) instead of the qlib account model."""
+    if strategy.get("class") == "MicroTop5":
+        from quant_research import micro
+        if spec.get("_closes") is None:
+            spec["_closes"] = micro.load_closes(
+                REPO / spec["provider_uri"], spec["instruments"])
+        kw = strategy.get("kwargs", {})
+        px = spec["_closes"].loc[
+            pd.Timestamp(window[0]):pd.Timestamp(window[1])]
+        p = pred.loc[pd.Timestamp(window[0]):pd.Timestamp(window[1])]
+        return micro.micro_backtest(
+            p, px, n=kw.get("n", 5), cash_gbp=kw.get("cash_gbp", 10.0),
+            gbpusd=kw.get("gbpusd", micro.GBPUSD),
+            cost_bps=kw.get("cost_bps", 10.0))
     strategy_cfg = {"class": strategy["class"],
                     "module_path": strategy["module_path"],
                     "kwargs": {**{k: v for k, v in strategy.get("kwargs", {}).items()

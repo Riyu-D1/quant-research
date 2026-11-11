@@ -26,6 +26,7 @@ dependencies = [
     # lxml backs pandas.read_html for the S&P 500 constituent scrape
     # (scripts/alpaca_us_data.py universe)
     "lxml>=5.3,<7",
+    "pypdf>=4,<7",
 ]
 
 [dependency-groups]
