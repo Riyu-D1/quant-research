@@ -167,10 +167,15 @@ def build_handler(spec: dict, feature_set: str, fold: Fold) -> DataHandlerLP:
                  "event_cols": ev.FEATURE_COLS}
     else:
         raise ValueError(feature_set)
+    # Load only up to this fold's eval end (+ buffer for the Ref(-2) label);
+    # earlier eval folds don't need post-eval rows — halves peak RSS on
+    # memory-tight CI runners and changes nothing the processors see.
+    end_time = min(pd.Timestamp(spec["data_end"]),
+                   pd.Timestamp(fold.eval[1]) + pd.Timedelta(days=10))
     kwargs = {
         "instruments": spec["instruments"],
         "start_time": spec["data_start"],
-        "end_time": spec["data_end"],
+        "end_time": str(end_time.date()),
         "fit_start_time": fold.train[0],
         "fit_end_time": fold.train[1],
         "infer_processors": hconf["infer_processors"],
