@@ -23,19 +23,21 @@ MIN_ORDER_USD = 1.0
 
 def rebalance_step(scores: pd.Series, equity: float, n: int,
                    prices: dict[str, float], held: dict[str, float],
-                   cost: float) -> dict:
+                   cost: float, exposure: float = 1.0) -> dict:
     """One day: pick top-N scored names, equal-weight, fractional fills.
 
     scores: {instrument: score} for that day (NaN excluded upstream).
     prices: {instrument: close} dealable price for the day.
     held:   {instrument: qty} current book.
+    exposure: fraction of equity to hold in stock (regime guard); the rest
+              stays cash. 0 => liquidate everything.
     Returns dict(trades=[{sym, side, qty, price, notional}], held=..., cash=...).
     """
     want = list(scores.sort_values(ascending=False)
                 .head(n).index)
     want = [s for s in want if s in prices and np.isfinite(prices[s])
             and prices[s] > 0]
-    slot = equity / max(len(want), 1)
+    slot = equity * exposure / max(len(want), 1)
     trades = []
     new_held = dict(held)
 
@@ -71,11 +73,14 @@ def rebalance_step(scores: pd.Series, equity: float, n: int,
 
 def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
                    cash_gbp: float = 10.0, gbpusd: float = GBPUSD,
-                   cost_bps: float = 10.0) -> dict:
+                   cost_bps: float = 10.0,
+                   exposure: pd.Series | dict | None = None) -> dict:
     """Daily rebalanced long-only top-N on (datetime, instrument) scores.
 
     pred:   Series indexed (datetime, instrument), NaN = no opinion.
     closes: DataFrame indexed like pred, column 'close' deal price.
+    exposure: optional per-day fraction of equity to invest (regime guard);
+              missing days default to 1.0, 0.0 = all cash.
     Returns walkforward-style metrics + trades ledger."""
     cash = cash_gbp * gbpusd
     cost = cost_bps / 1e4
@@ -83,6 +88,7 @@ def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
     # iterate every trading day; a day with no scores means hold nothing
     px = closes["close"].unstack()
     days = px.index                                    # all priced days
+    exp = exposure if exposure is not None else {}
     held: dict[str, float] = {}
     equity_curve, ledger, turnover = [], [], []
     cash_pos = cash
@@ -96,7 +102,8 @@ def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
                             for s, q in held.items()
                             if np.isfinite(prices.get(s, np.nan)))
         equity = cash_pos + positions_val
-        step = rebalance_step(row, equity, n, prices, held, cost)
+        step = rebalance_step(row, equity, n, prices, held, cost,
+                              exposure=float(exp.get(day, 1.0)))
         bought = sum(t["notional"] for t in step["trades"] if t["side"] == "buy")
         sold = sum(t["notional"] for t in step["trades"] if t["side"] == "sell")
         cash_pos += sold - bought

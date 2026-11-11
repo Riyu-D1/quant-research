@@ -58,6 +58,10 @@ REGISTRY = {
     # a GPU model wins validation; the CI holdout run then scores once.
     "hist_cn_ho":       ("scripts/phase2_run.py --market cn --models hist --train-holdout", CN, "phase2", "HIST holdout-fold preds"),
     "transformer_cn_ho":("scripts/phase2_run.py --market cn --models transformer --train-holdout", CN, "phase2", "Transformer holdout-fold preds"),
+    # Phase 4 — FinBERT news sentiment on GPU (downloads the phase4-news
+    # artifact itself; output lands under results/news_sentiment/ which the
+    # PUSH_RESULTS=1 commit picks up).
+    "phase4_news_score":("scripts/phase4_score_news.py", CN, "phase4", "FinBERT news sentiment scoring", False),
 }
 
 
@@ -95,8 +99,10 @@ def ensure_us_concepts() -> None:
 
 def run_one(name: str) -> Path:
     entry = REGISTRY[name]
-    config, provider, experiment, _ = entry
-    ensure_data(provider)
+    config, provider, experiment = entry[0], entry[1], entry[2]
+    needs_data = entry[4] if len(entry) > 4 else True
+    if needs_data:
+        ensure_data(provider)
     if name == "hist_us":
         ensure_us_concepts()
     out = REPO / "results/runs" / f"{name}.json"
