@@ -1,0 +1,117 @@
+# Phase-3 walk-forward spec — S&P 500 PIT, disclosure-event features.
+# Same protocol/holdout as walkforward_us.yaml; adds the events panel and a
+# micro strategy approximating the £10 / max-5-names account constraint.
+market: us
+region: us
+provider_uri: data/qlib/us_alpaca
+instruments: sp500
+benchmark: SPY
+account: 100000000
+data_start: "2016-01-01"
+data_end: "2026-11-01"
+valid_days: 365
+label: "Ref($close, -2) / Ref($close, -1) - 1"
+events_panel: data/events/features_us.parquet
+
+eval_folds:
+    - ["2021-01-01", "2021-12-31"]
+    - ["2022-01-01", "2022-12-31"]
+    - ["2023-01-01", "2023-12-31"]
+    - ["2024-01-01", "2024-12-31"]
+
+holdout: ["2025-01-01", "2026-11-01"]
+
+handler:
+    infer_processors:
+        - class: RobustZScoreNorm
+          kwargs:
+              fields_group: feature
+              clip_outlier: true
+        - class: Fillna
+          kwargs:
+              fields_group: feature
+    learn_processors:
+        - class: DropnaLabel
+        - class: CSRankNorm
+          kwargs:
+              fields_group: label
+
+models:
+    # events-only GBDT — test (a)
+    lgb_ev:
+        class: LGBModel
+        module_path: qlib.contrib.model.gbdt
+        feature_set: events
+        kwargs:
+            loss: mse
+            colsample_bytree: 0.8879
+            learning_rate: 0.2
+            subsample: 0.8789
+            lambda_l1: 205.6999
+            lambda_l2: 580.9768
+            max_depth: 8
+            num_leaves: 210
+            num_threads: 4
+    # Alpha158 + events — test (b); two model classes on the same features
+    lgb_ev158:
+        class: LGBModel
+        module_path: qlib.contrib.model.gbdt
+        feature_set: alpha158_events
+        kwargs:
+            loss: mse
+            colsample_bytree: 0.8879
+            learning_rate: 0.2
+            subsample: 0.8789
+            lambda_l1: 205.6999
+            lambda_l2: 580.9768
+            max_depth: 8
+            num_leaves: 210
+            num_threads: 4
+    xgb_ev158:
+        class: XGBModel
+        module_path: qlib.contrib.model.xgboost
+        feature_set: alpha158_events
+        kwargs:
+            eval_metric: rmse
+            colsample_bytree: 0.8879
+            eta: 0.0421
+            max_depth: 8
+            n_estimators: 647
+            subsample: 0.8789
+            nthread: 4
+
+strategies:
+    # micro account: £10 -> ~$12.70, fractional, max 5 names, 10bps/side
+    micro5:
+        class: MicroTop5
+        module_path: quant_research.micro
+        kwargs:
+            n: 5
+            cash_gbp: 10.0
+            gbpusd: 1.27
+            cost_bps: 10.0
+    top5:
+        class: TopkDropoutStrategy
+        module_path: qlib.contrib.strategy
+        kwargs:
+            topk: 5
+            n_drop: 1
+    topk:
+        class: TopkDropoutStrategy
+        module_path: qlib.contrib.strategy
+        kwargs:
+            topk: 50
+            n_drop: 5
+
+# US costs: commission-free (Alpaca) + realistic spread/slippage 10bps/side.
+# Slightly more conservative than Phase 2's 10bps-incl-commission since these
+# are mid/large caps; kept identical to keep comparability with Phase 2.
+exchange_kwargs:
+    limit_threshold: null
+    deal_price: close
+    open_cost: 0.001
+    close_cost: 0.001
+    min_cost: 0
+
+ensemble:
+    ridge_alpha: 1.0

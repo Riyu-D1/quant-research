@@ -121,6 +121,28 @@ def run_folds(spec: dict, models: dict, folds: list[wf.Fold],
     return oof
 
 
+def rule_oof(spec: dict, rules: list[str]) -> dict:
+    """Rule baselines: precomputed signals sliced over the OOF window.
+
+    Each rule signal is a column of the events panel; its label comes from
+    the panel's LABEL0 (same Ref($close,-2)/Ref($close,-1)-1 formula).
+    Returns {"rule:<col>": (pred, label)} like run_folds."""
+    path = REPO / spec.get("events_panel", "data/events/features_us.parquet")
+    panel = pd.read_parquet(path, columns=rules + ["LABEL0"])
+    if panel.index.names[0] == "instrument":
+        panel = panel.swaplevel().sort_index()
+    lab = panel["LABEL0"]
+    w0 = pd.Timestamp(spec["eval_folds"][0][0])
+    w1 = (pd.Timestamp(spec["holdout"][0]) - pd.Timedelta(days=1)
+          if "holdout" in spec else pd.Timestamp(spec["data_end"]))
+    mask = (lab.index.get_level_values("datetime") >= w0) & \
+           (lab.index.get_level_values("datetime") <= w1)
+    lab = lab[mask]
+    return {f"rule:{r}": (panel[r].loc[lab.index]
+                          .where(lambda s: s > 0).rename("score"), lab)
+            for r in rules}
+
+
 def tune_lgbm(spec: dict, folds: list[wf.Fold], trials: int, tune_folds: int,
               threads: int, market: str) -> dict:
     """Optuna over the LAST `tune_folds` OOF folds; returns study summary."""
@@ -175,6 +197,12 @@ def tune_lgbm(spec: dict, folds: list[wf.Fold], trials: int, tune_folds: int,
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--market", required=True, choices=["cn", "us"])
+    p.add_argument("--spec", default=None,
+                   help="experiment spec yaml/stem (default walkforward_<market>)")
+    p.add_argument("--key", default=None,
+                   help="ofer dir/results key (default: spec stem minus walkforward_)")
+    p.add_argument("--rules", default=None,
+                   help="comma list of rule-signal columns to score instead of models")
     p.add_argument("--models", default=None,
                    help="comma list; default = all non-GPU models in spec")
     p.add_argument("--tune-trials", type=int, default=0)
@@ -192,15 +220,20 @@ def main() -> None:
     p.add_argument("--out", type=Path, default=None)
     args = p.parse_args()
 
-    spec = wf.load_spec(args.market)
+    spec = wf.load_spec(args.spec or args.market)
     if args.instruments:
         spec["instruments"] = args.instruments
+    run_key = args.key or spec["_spec_name"].removeprefix("walkforward_")
     wf.qlib_init(str(REPO / spec["provider_uri"]), spec["region"])
     folds, holdout_fold = wf.make_folds(spec)
-    requested = args.models.split(",") if args.models else None
-    models = models_for_spec(spec, requested, args.market)
+    rules = args.rules.split(",") if args.rules else []
+    if rules:
+        models = {}
+    else:
+        requested = args.models.split(",") if args.models else None
+        models = models_for_spec(spec, requested, run_key)
     if args.force:
-        for f in wf.oof_dir(args.market).glob("*__*.pkl"):
+        for f in wf.oof_dir(run_key).glob("*__*.pkl"):
             f.unlink()
 
     summary = {"market": args.market, "git_sha": git_sha(),
@@ -215,19 +248,22 @@ def main() -> None:
                           args.threads, args.market)
         n_trials += study["n_trials"]
         summary["tuning"] = study
-    prior_tune = wf.oof_dir(args.market) / TUNE_JSON
+    prior_tune = wf.oof_dir(run_key) / TUNE_JSON
     if prior_tune.exists() and args.tune_trials == 0:
         n_trials += json.loads(prior_tune.read_text())["n_trials"]  # DSR accounting
 
     # ---- OOF training ------------------------------------------------------
     want_holdout_preds = args.holdout is not None or args.train_holdout
-    oof = run_folds(spec, models, folds, holdout_fold, args.threads,
-                    args.market, include_holdout=want_holdout_preds)
+    if rules:
+        oof = rule_oof(spec, rules)
+    else:
+        oof = run_folds(spec, models, folds, holdout_fold, args.threads,
+                        run_key, include_holdout=want_holdout_preds)
 
     if args.train_holdout and args.holdout is None:
-        trained = sorted(p.name for p in wf.oof_dir(args.market).glob("*__holdout.pkl"))
+        trained = sorted(p.name for p in wf.oof_dir(run_key).glob("*__holdout.pkl"))
         summary["holdout_preds"] = trained
-        out = args.out or REPO / "results" / f"phase2_{args.market}_holdout_preds.json"
+        out = args.out or REPO / "results" / f"phase2_{run_key}_holdout_preds.json"
         out.write_text(json.dumps(summary, indent=2, default=str))
         wf.log(f"holdout preds trained: {trained}; wrote {out}")
         return
@@ -251,7 +287,7 @@ def main() -> None:
             "alpha": spec["ensemble"]["ridge_alpha"],
             "coef": dict(zip(oof_preds, meta.coef_.tolist())),
             "intercept": float(meta.intercept_)}
-        with open(wf.oof_dir(args.market) / "ridge_meta.pkl", "wb") as f:
+        with open(wf.oof_dir(run_key) / "ridge_meta.pkl", "wb") as f:
             pickle.dump(meta, f)
     for name, pred in ens_preds.items():
         sig_metrics[name] = wf.signal_metrics(pred, oof_label)
@@ -261,7 +297,7 @@ def main() -> None:
     strat = spec["strategies"]
     idx = next(iter(oof.values()))[1].index.get_level_values("datetime")
     oof_window = (str(idx.min().date()), str(idx.max().date()))
-    cand_ckpt = wf.oof_dir(args.market) / "candidates.json"
+    cand_ckpt = wf.oof_dir(run_key) / "candidates.json"
     candidates = (json.loads(cand_ckpt.read_text())
                   if cand_ckpt.exists() and not args.force else {})
     ens_names = set(ens_preds)
@@ -297,17 +333,29 @@ def main() -> None:
         sname, skey = args.holdout.split("@")
         hp, hlab = {}, None
         for m in models:
-            got = wf.load_fold_pred(args.market, m, "holdout")
+            got = wf.load_fold_pred(run_key, m, "holdout")
             if got is not None:
                 hp[m], hlab = got[0], got[1]
-        if sname in ("rank_avg", "ridge_stack"):
+        if sname.startswith("rule:"):
+            col = sname.split(":", 1)[1]
+            hsig = wf.rule_pred(spec, col, tuple(spec["holdout"]))
+            panel = pd.read_parquet(
+                REPO / spec.get("events_panel",
+                                "data/events/features_us.parquet"),
+                columns=["LABEL0"])
+            if panel.index.names[0] == "instrument":
+                panel = panel.swaplevel().sort_index()
+            hlab = panel["LABEL0"].loc[
+                pd.Timestamp(spec["holdout"][0]):
+                pd.Timestamp(spec["holdout"][1])]
+        elif sname in ("rank_avg", "ridge_stack"):
             missing = set(oof_preds) - set(hp)
             if missing:
                 sys.exit(f"holdout preds missing for {missing} (needed by {sname})")
             if sname == "rank_avg":
                 hsig = wf.rank_average(hp)
             else:
-                with open(wf.oof_dir(args.market) / "ridge_meta.pkl", "rb") as f:
+                with open(wf.oof_dir(run_key) / "ridge_meta.pkl", "rb") as f:
                     meta = pickle.load(f)
                 hsig = wf.apply_ridge(meta, hp)
         else:
@@ -326,14 +374,14 @@ def main() -> None:
         summary["n_trials"] = n_trials
         wf.append_holdout_log({"ts": dt.datetime.now().isoformat(),
                                "market": args.market, "git_sha": git_sha(),
-                               "spec": f"walkforward_{args.market}.yaml",
+                               "spec": spec["_spec_name"] + ".yaml",
                                **holdout_res})
         wf.log(f"HOLDOUT {args.holdout}: IR {holdout_res['information_ratio']:.4f} "
                f"DSR {dsr['DSR']:.3f} (n_trials={n_trials})")
     else:
         summary["n_trials"] = n_trials
 
-    out = args.out or REPO / "results" / f"phase2_{args.market}.json"
+    out = args.out or REPO / "results" / f"phase2_{run_key}.json"
     out.write_text(json.dumps(summary, indent=2, default=str))
     wf.log(f"wrote {out}")
 
