@@ -178,7 +178,7 @@ def test_build_panel_end_to_end(tmp_path):
     row = panel.loc[("X", DAYS[4])]
     assert row["ins_buy_usd_90d"] == 0          # filed D -> not visible on D
     assert panel.loc[("X", DAYS[5]), "ins_buy_usd_90d"] == 1000.0
-    assert panel.loc[("X", DAYS[5]), "rule_ins_buy_hold60"] == 1
+    assert panel.loc[("X", DAYS[5]), "rule_ins_buy_hold60"] == 60  # trigger-day score = hold length
     # LABEL0 = close[d+2]/close[d+1]-1 = 0 for flat prices; last 2 days NaN
     assert panel.loc[("X", DAYS[10]), "LABEL0"] == pytest.approx(0.0)
     assert np.isnan(panel.loc[("X", DAYS[-1]), "LABEL0"])

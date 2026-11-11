@@ -357,13 +357,19 @@ def congress_features(cong: pd.DataFrame, days: pd.DatetimeIndex) -> dict[str, n
 
 def _rule_signals(out: dict[str, np.ndarray], days) -> dict[str, np.ndarray]:
     def hold(mask_active: np.ndarray, n: int) -> np.ndarray:
+        """Hold-N-days signal scored as a freshness countdown: a triggering
+        day gets score n, decaying to 1 on the last held day, 0 when
+        inactive. Higher score = more recent trigger — a deterministic
+        tie-break for the top-N portfolio (and gives IC variance)."""
         ev = np.where(mask_active & ~np.r_[False, mask_active[:-1]])[0]
         if len(ev) == 0:
             return np.zeros(len(days))
-        diff = np.zeros(len(days) + 1)
-        np.add.at(diff, ev, 1.0)
-        np.add.at(diff, np.clip(ev + n, 0, len(days)), -1.0)
-        return (np.cumsum(diff)[: len(days)] > 0).astype(float)
+        score = np.zeros(len(days))
+        for e in ev:
+            end = min(e + n, len(days))
+            # later trigger overwrites the tail of an overlapping earlier one
+            score[e:end] = np.arange(n, n - (end - e), -1.0)
+        return score
 
     out["rule_cluster_hold20"] = hold(out["ins_cluster_30d"] >= 2, 20)
     out["rule_cluster_hold60"] = hold(out["ins_cluster_30d"] >= 2, 60)
