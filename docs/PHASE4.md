@@ -1,0 +1,102 @@
+# Phase 4 — adaptive US strategy (monthly retrain + signal weighting)
+
+The Phase-3 critique that motivates this phase: every prior US model was
+trained once and **frozen** for ~2 years of holdout. Real desks retrain
+often and re-weight signals. Phase 4 asks whether an *adaptive process* —
+monthly retraining plus trailing-performance signal weighting plus a
+predeclared regime guard — does better than the frozen Phase-2/3 process
+on the same feed, honestly scored.
+
+## Honesty contract
+
+- **No-lookahead everywhere.** A signal value on trading day `D` uses only
+  data known before `D`:
+  - price/fundamental features are point-in-time (`Alpha158` on the Alpaca
+    qlib dump; XBRL facts key on `filed < D`; shares-out key on `filed < D`);
+  - news headlines key on publish calendar date — an article is visible on
+    the first trading day **strictly after** its publish date (overnight /
+    pre-market alpha deliberately discarded, documented and conservative);
+  - the regime guard reads SPY closes strictly before `D`
+    (`regime_exposure` shifts all inputs by one day).
+- **Month boundaries are airtight.** Month `m`'s GBDTs train on rows with
+  `datetime < first_trading_day(m)` only; month `m`'s signal weights use
+  only rank ICs from days `< first_trading_day(m)`. Verified by corruption
+  tests in `tests/test_phase4.py` (mutating eval-window labels or
+  post-window features cannot change that month's predictions/weights).
+- **Selection is 2021-2024 only**, month-by-month walk-forward; the
+  full candidate grid + comparators were predeclared in
+  `configs/experiments/walkforward_us_adaptive.yaml` before any sim ran.
+- **Holdout scored once.** The chosen process (its monthly retrains
+  included) is simulated over 2025-01 → latest exactly once and appended
+  to `results/holdout_log.jsonl` with the git SHA. The US holdout was
+  viewed in Phases 2 and 3 — `prior_trials_us: 66` (37 + 29) is added to
+  the selection candidate count for the honest DSR `n_trials`.
+- **Nothing heavy on the owner's Mac.** Fetch/train/eval all run on
+  GitHub Actions (`phase4-adaptive` workflow) or Kaggle GPU (FinBERT
+  scoring, `MODELS="phase4_news_score"` in `notebooks/qlib_gpu_run.ipynb`).
+
+## Signal library (six, each an independent score)
+
+| Signal | What | Data |
+|---|---|---|
+| `gbdt` | Alpha158 LightGBM, retrained monthly on a rolling 24- or 36-month window, per-day CSRankNorm labels, early stop on last 42 train days | qlib dump |
+| `ev` | Phase-3 insider/13F/congress disclosure features, same monthly LightGBM | `features_us.parquet` |
+| `mom` | `close[t-21]/close[t-252] - 1` (12-1 momentum) | closes |
+| `rev` | `-(close[t]/close[t-21] - 1)` (1-month reversal) | closes |
+| `vq` | mean of per-day ranks of `vq_bm` (book/mcap), `vq_ep` (NI-TTM/mcap), `vq_roe` (NI-TTM/book) — all `filed < D` | SEC companyfacts + shares_out |
+| `news` | per-symbol EW mean of FinBERT (pos−neg) headline scores, 5-trading-day halflife, publish date < day | Alpaca `/v1beta1/news` + ProsusAI/finbert on Kaggle |
+
+## Adaptive weighting
+
+Each month `m`, every signal's daily rank IC is exponentially-weighted-
+averaged over the trailing `ic_months` (grid: 6 or 12; halflife =
+`ic_months × 0.5 × 21` days). Weights are floored at 0 — losing signals
+switch off — and L1-normalised; an all-nonpositive month yields all-zero
+weights (book sits in cash). Comparators: `equal` (1/N every month),
+`single:<sig>` (one signal alone, incl. the Phase-2-style `gbdt_frozen`
+train-once comparator).
+
+## Regime guard (predeclared)
+
+On each day `D`, measured on SPY closes strictly before `D`:
+
+    cut exposure to `action` when
+        SPY < SMA200   OR   21d realised vol > 90th pct of its trailing 504d
+
+Grid over `action`: `none` (off) / `half` (0.5) / `cash` (0.0) —
+implemented as a per-day exposure multiplier in the MicroTop5 simulator.
+
+## Portfolio
+
+Phase-3 `MicroTop5`: £10 ≈ $12.70, fractional shares, long-only, max 5
+names, 10 bps/side cost, daily rebalance (equal-weight top-5).
+
+## Pipeline (all remote)
+
+1. `phase4.yml job=fetch` — Alpaca news headlines (monthly pages, cached,
+   resumable) + SEC companyfacts for ~745 CIKs → artifacts `phase4-news`,
+   `phase4-inputs`.
+2. `phase4.yml job=store` — one heavy pass: Alpha158 raw (no processors)
+   + event cols + mom/rev + v/q + label → `data/features4/store_us.parquet`
+   (float32) → artifact `phase4-store`. Peak ~7-8 GB with swap.
+3. Kaggle: `MODELS="phase4_news_score"`, `PUSH_RESULTS=1` — FinBERT over
+   unique texts → `results/news_sentiment/daily_sentiment.parquet` on a
+   `results/kaggle-*` branch.
+4. `phase4.yml job=preds` (matrix `signals × window`) — monthly-retrained
+   preds → `results/oof/us_adaptive/{sig}__w{W}__YYYY-MM.pkl` committed to
+   this branch (resume-safe).
+5. `phase4.yml job=select` — 2021-2024 monthly walk-forward over the grid
+   → `results/phase4_us_select.json`.
+6. `phase4.yml job=holdout --config '<chosen json>'` — scored once →
+   `results/phase4_us.json` + `holdout_log.jsonl`.
+
+## Paper-trade gate
+
+Paper trading (`scripts/paper_trade.py`, Alpaca paper endpoint only with
+a hard live-endpoint guard, Notion Trade Journal, dispatch-only workflow)
+is built **only if** the adaptive holdout is positive AND beats SPY
+buy-and-hold on IR AND DSR > 0.5. Otherwise none is written.
+
+## Results
+
+_Pending — fill after the select + holdout runs._
