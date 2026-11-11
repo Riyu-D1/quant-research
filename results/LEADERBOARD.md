@@ -111,3 +111,41 @@ excess vs benchmark *with* cost. Turnover = mean daily portfolio turnover.
 | information_ratio | 0.0123 | — |
 | max_drawdown | -0.3117 | — |
 | turnover | 0.1781 | — |
+
+---
+
+## Phase 2 — walk-forward holdout scores (single scoring, untouched window)
+
+Different period than above, so not apples-to-apples: CN holdout is
+2018-08-01→2020-08-01 (486 days); US holdout is 2025-01-01→2026-11 (459 days).
+Each candidate below was scored exactly once; selection used OOF folds only.
+Costs identical to Phase 1 (CN 5/15bps+5CNY min; US 10bps/side). DSR = deflated
+Sharpe ratio over all recorded trials.
+
+## phase2_rank_avg_ens_cn  (rank-avg lgb+xgb+de+hist @ TopkDropout(50,5))
+| metric | ours | published ref |
+|---|---|---|
+| ic | 0.0355 | DoubleEnsemble 0.0521 |
+| icir | 0.2723 | 0.4223 |
+| rank_ic | 0.0546 | 0.0502 |
+| annualized_return | 0.0878 | 0.1158 |
+| information_ratio | 1.2191 | **1.3432** |
+| max_drawdown | -0.0733 | -0.0920 |
+| turnover | 0.1924 | — |
+| deflated_sharpe | 0.438 (SR* 1.33) | — |
+| n_trials | 39 (25 Optuna + 12 OOF candidates + 2 holdout) | — |
+| verdict | DOES NOT beat published DE (1.2191 < 1.3432) — OOF IR 3.02 was regime-inflated | |
+
+## phase2_ridge_stack_us  (ridge stack lgb+xgb+de @ TopkDropout(50,5))
+| metric | ours |
+|---|---|
+| ic | 0.0001 |
+| icir | 0.0011 |
+| rank_ic | -0.00002 |
+| annualized_return | -0.0691 |
+| information_ratio | -0.7345 |
+| max_drawdown | -0.2098 |
+| turnover | 0.1415 |
+| deflated_sharpe | 0.0001 (SR* 2.09) |
+| n_trials | 37 (25 Optuna + 12 OOF candidates) |
+| verdict | no harvestable alpha in the US Alpaca/PIT feed for the GBDT stack — consistent OOF (-0.266) → holdout (-0.735) |
