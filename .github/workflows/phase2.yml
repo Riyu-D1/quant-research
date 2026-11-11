@@ -31,6 +31,11 @@ on:
         description: 'Holdout candidate "signal@strategy" (blank = none)'
         required: false
         default: ""
+      train_holdout:
+        description: "Train holdout-fold preds only, no scoring (prep for a later holdout run)"
+        required: false
+        type: boolean
+        default: false
       threads:
         description: "Threads for GBDTs"
         required: false
@@ -94,6 +99,8 @@ jobs:
           HO=""
           if [ -n "${{ inputs.holdout_candidate }}" ]; then
             HO="--holdout ${{ inputs.holdout_candidate }}"
+          elif [ "${{ inputs.train_holdout }}" = "true" ]; then
+            HO="--train-holdout"
           fi
           uv run python scripts/phase2_run.py --market cn \
             --models "${{ inputs.models }}" \
@@ -179,6 +186,8 @@ jobs:
           HO=""
           if [ -n "${{ inputs.holdout_candidate }}" ]; then
             HO="--holdout ${{ inputs.holdout_candidate }}"
+          elif [ "${{ inputs.train_holdout }}" = "true" ]; then
+            HO="--train-holdout"
           fi
           uv run python scripts/phase2_run.py --market us \
             --models "${{ inputs.models }}" \
