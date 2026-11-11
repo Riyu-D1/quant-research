@@ -60,8 +60,11 @@ def fetch_month(key: str, secret: str, start: pd.Timestamp,
     token, out, gap = None, [], 1.0 / rps
     while True:
         t0 = time.time()
-        params = {"start": start.isoformat(), "end": end.isoformat(),
-                  "limit": PAGE_LIMIT, "sort": "asc", "include_content": "false"}
+        # RFC-3339 with explicit Z — naive isoformat() gets a 400
+        params = {"start": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                  "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                  "limit": PAGE_LIMIT, "sort": "asc",
+                  "include_content": "false"}
         if token:
             params["page_token"] = token
         r = requests.get(NEWS_URL, headers=hdr, params=params, timeout=timeout)
@@ -69,7 +72,10 @@ def fetch_month(key: str, secret: str, start: pd.Timestamp,
             time.sleep(2.0)
             r = requests.get(NEWS_URL, headers=hdr, params=params,
                              timeout=timeout)
-        r.raise_for_status()
+        if not r.ok:
+            raise RuntimeError(
+                f"news {r.status_code}: {r.text[:300]} "
+                f"(params {params | {'page_token': '...'}})")
         d = r.json()
         out.extend(d.get("news", []))
         token = d.get("next_page_token")
