@@ -54,6 +54,10 @@ REGISTRY = {
     "hist_cn_wf":       ("scripts/phase2_run.py --market cn --models hist", CN, "phase2", "HIST OOF preds"),
     "transformer_us_wf":("scripts/phase2_run.py --market us --models transformer", US, "phase2", "Transformer OOF preds"),
     "hist_us_wf":       ("scripts/phase2_run.py --market us --models hist", US, "phase2", "HIST OOF preds"),
+    # Holdout-fold preds only (no scoring) — needed when a stack that includes
+    # a GPU model wins validation; the CI holdout run then scores once.
+    "hist_cn_ho":       ("scripts/phase2_run.py --market cn --models hist --train-holdout", CN, "phase2", "HIST holdout-fold preds"),
+    "transformer_cn_ho":("scripts/phase2_run.py --market cn --models transformer --train-holdout", CN, "phase2", "Transformer holdout-fold preds"),
 }
 
 

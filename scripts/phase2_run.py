@@ -184,6 +184,9 @@ def main() -> None:
                    help="override spec instruments (debug/smoke runs only)")
     p.add_argument("--holdout", default=None,
                    help='score "signal@strategy" once on the holdout')
+    p.add_argument("--train-holdout", action="store_true",
+                   help="train holdout-fold preds only (no scoring) — used to "
+                        "fetch GPU model preds before the CI holdout run")
     p.add_argument("--force", action="store_true",
                    help="retrain even if fold pkls exist")
     p.add_argument("--out", type=Path, default=None)
@@ -217,8 +220,17 @@ def main() -> None:
         n_trials += json.loads(prior_tune.read_text())["n_trials"]  # DSR accounting
 
     # ---- OOF training ------------------------------------------------------
+    want_holdout_preds = args.holdout is not None or args.train_holdout
     oof = run_folds(spec, models, folds, holdout_fold, args.threads,
-                    args.market, include_holdout=args.holdout is not None)
+                    args.market, include_holdout=want_holdout_preds)
+
+    if args.train_holdout and args.holdout is None:
+        trained = sorted(p.name for p in wf.oof_dir(args.market).glob("*__holdout.pkl"))
+        summary["holdout_preds"] = trained
+        out = args.out or REPO / "results" / f"phase2_{args.market}_holdout_preds.json"
+        out.write_text(json.dumps(summary, indent=2, default=str))
+        wf.log(f"holdout preds trained: {trained}; wrote {out}")
+        return
 
     sig_metrics = {}
     oof_preds = {}
