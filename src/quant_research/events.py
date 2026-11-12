@@ -80,8 +80,10 @@ def load_calendar(data_dir: Path) -> pd.DatetimeIndex:
     return pd.DatetimeIndex(pd.to_datetime(cal))
 
 
-def load_close(data_dir: Path, sym: str, cal: pd.DatetimeIndex) -> np.ndarray:
-    f = data_dir / "features" / str(sym).lower() / "close.day.bin"
+def load_field(data_dir: Path, sym: str, cal: pd.DatetimeIndex,
+               field: str) -> np.ndarray:
+    """One qlib .day.bin field -> float64 array aligned to `cal`."""
+    f = data_dir / "features" / str(sym).lower() / f"{field}.day.bin"
     full = np.full(len(cal), np.nan, dtype=np.float64)
     if f.exists():
         a = np.fromfile(f, dtype=np.float32)
@@ -92,6 +94,10 @@ def load_close(data_dir: Path, sym: str, cal: pd.DatetimeIndex) -> np.ndarray:
             if e > s:
                 full[s:e] = vals[: e - s]
     return full
+
+
+def load_close(data_dir: Path, sym: str, cal: pd.DatetimeIndex) -> np.ndarray:
+    return load_field(data_dir, sym, cal, "close")
 
 
 def load_instruments(data_dir: Path, name: str) -> pd.DataFrame:

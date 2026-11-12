@@ -18,6 +18,7 @@ import live_holdout as LH  # noqa: E402
 
 from quant_research import live as LV  # noqa: E402
 from quant_research import adaptive as ad  # noqa: E402
+from quant_research import micro as mc  # noqa: E402
 
 DAYS = pd.bdate_range("2023-01-02", "2025-06-30")
 SYMS = [f"S{i}" for i in range(12)]
@@ -125,3 +126,121 @@ def test_spy_metrics_shape():
     m = LH.spy_metrics(spy, pd.DatetimeIndex(DAYS[-100:]))
     assert m["n_days"] == 100 and 0 <= m["hit_rate"] <= 1
     assert m["total_return"] > 0        # monotonic up fixture
+
+
+# ---------------------------------------------------------------------------
+# honest-micro sim: next-open fills, delist liquidation, rebalance freq, costs
+
+
+def _long(wide: pd.DataFrame, col: str) -> pd.DataFrame:
+    f = wide.stack().rename(col).to_frame()
+    f.index.names = ["datetime", "instrument"]
+    return f
+
+
+def test_next_open_fills():
+    """Decisions on day D must fill at day D+1's OPEN, not D's close."""
+    days = pd.bdate_range("2024-01-01", periods=6)
+    cl = pd.DataFrame({"A": [10, 10, 10, 10, 10, 10],
+                       "B": [10, 10, 10, 10, 10, 10]}, index=days,
+                      dtype=float)
+    # day-2 open gaps +10% over day-1 close — the fill must pay the open
+    op = cl.copy()
+    op.loc[days[1]] = [11.0, 11.0]
+    idx = pd.MultiIndex.from_product([days, ["A", "B"]],
+                                     names=["datetime", "instrument"])
+    score = pd.Series({"A": 2.0, "B": 1.0}, name="score") \
+        .reindex(idx).fillna(0.0)
+    met = mc.micro_backtest(score, _long(cl, "close"),
+                            exec_prices=_long(op, "open"),
+                            fill="next_open", n=1, cash_gbp=10.0,
+                            gbpusd=1.27, cost_bps=0.0)
+    buys = [t for t in met["trades"] if t["side"] == "buy"]
+    assert buys and buys[0]["date"] == days[1]     # day-1 signal -> day-2 open
+    assert buys[0]["price"] == 11.0                # the OPEN, not day-1 close
+    # close-fill reference: same signal fills day 1 at close 10
+    met_c = mc.micro_backtest(score, _long(cl, "close"), fill="close",
+                              n=1, cash_gbp=10.0, gbpusd=1.27, cost_bps=0.0)
+    assert met_c["trades"][0]["date"] == days[0]
+    assert met_c["trades"][0]["price"] == 10.0
+
+
+def test_delist_liquidation():
+    """A held name whose priced history ends must pay out at its last close,
+    not zombie to zero."""
+    days = pd.bdate_range("2024-01-01", periods=8)
+    cl = pd.DataFrame({"A": np.linspace(10, 12, 8),
+                       "B": np.full(8, 10.0)}, index=days)
+    cl.loc[days[5]:, "B"] = np.nan            # B delists after day 4
+    idx = pd.MultiIndex.from_product([days, ["A", "B"]],
+                                     names=["datetime", "instrument"])
+    score = pd.Series({"A": 1.0, "B": 2.0}).reindex(idx).fillna(0.0)
+    met = mc.micro_backtest(score, _long(cl, "close"), n=2, cash_gbp=10.0,
+                            gbpusd=1.27, cost_bps=0.0,
+                            delist_liquidate=True)
+    liq = [t for t in met["trades"] if t.get("reason") == "delist-liquidate"]
+    assert len(liq) == 1 and liq[0]["sym"] == "B"
+    assert liq[0]["date"] == days[5]            # first day with no bar
+    assert liq[0]["price"] == 10.0              # last close, not 0
+    # without liquidation the position is silently valued at 0
+    met_z = mc.micro_backtest(score, _long(cl, "close"), n=2, cash_gbp=10.0,
+                              gbpusd=1.27, cost_bps=0.0)
+    assert met["final_equity_usd"] > met_z["final_equity_usd"]
+
+
+def test_rebalance_freq():
+    """weekly/monthly trade only on each period's first priced day."""
+    days = pd.bdate_range("2024-01-01", periods=20)
+    cl = pd.DataFrame({"A": np.linspace(10, 12, 20),
+                       "B": np.linspace(12, 10, 20),
+                       "C": np.linspace(11, 11, 20)}, index=days)
+    idx = pd.MultiIndex.from_product([days, ["A", "B", "C"]],
+                                     names=["datetime", "instrument"])
+    rng = np.random.default_rng(0)
+    score = pd.Series(rng.normal(size=len(idx)), index=idx)
+    for freq, expect_days in (("daily", 20), ("weekly", 4), ("monthly", 1)):
+        met = mc.micro_backtest(score, _long(cl, "close"), n=2,
+                                cash_gbp=10.0, gbpusd=1.27, cost_bps=0.0,
+                                rebalance=freq)
+        tdays = {t["date"] for t in met["trades"]}
+        assert len(tdays) <= expect_days
+        if freq == "monthly":
+            assert tdays == {days[0]}
+
+
+def test_liquidity_cost_map():
+    days = pd.bdate_range("2024-01-02", periods=2)
+    cl = pd.DataFrame({"MEGA": [100.0, 100.0], "MID": [100.0, 100.0],
+                       "ILL": [100.0, 100.0]}, index=days)
+    vol = pd.DataFrame({"MEGA": [2e7, 2e7], "MID": [2e5, 2e5],
+                        "ILL": [5e3, 5e3]}, index=days)
+    cm = mc.liquidity_cost_map(_long(cl, "close"), _long(vol, "volume"),
+                               flat_bps=10.0)
+    assert cm[(days[0], "MEGA")] == pytest.approx((1.0 + 10.0) / 1e4)
+    assert cm[(days[0], "MID")] == pytest.approx((5.0 + 10.0) / 1e4)
+    assert cm[(days[0], "ILL")] == pytest.approx((20.0 + 10.0) / 1e4)
+
+
+def test_per_name_cost_dict():
+    """rebalance_step accepts {sym: frac} costs — illiquid names pay more."""
+    scores = pd.Series({"A": 1.0, "B": 0.9})
+    step = mc.rebalance_step(scores, 100.0, 2, {"A": 10.0, "B": 10.0}, {},
+                           {"A": 0.0, "B": 0.10})
+    pa = next(t for t in step["trades"] if t["sym"] == "A")["price"]
+    pb = next(t for t in step["trades"] if t["sym"] == "B")["price"]
+    assert pa == 10.0 and pb == pytest.approx(11.0)
+
+
+def test_robustness_helpers():
+    days = pd.bdate_range("2021-01-04", periods=400)
+    rng = np.random.default_rng(5)
+    spy = pd.Series(100 * np.exp(np.cumsum(
+        rng.normal(0.0004, 0.01, len(days)))), index=days)
+    bot = spy.pct_change().fillna(0) + 0.0002
+    bot.iloc[0] = 0.0
+    py = LH.per_year_table(bot, spy)
+    assert set(py) >= {2021}
+    ri = LH.rolling_xs_ir(bot, spy)
+    assert ri["n_windows"] > 0 and ri["median"] > 0
+    bs = LH.bootstrap_xs(bot, spy, n_boot=200)
+    assert bs["ci_lo"] < bs["xs_ann_mean"] < bs["ci_hi"]

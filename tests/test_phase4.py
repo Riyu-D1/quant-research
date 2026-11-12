@@ -213,6 +213,37 @@ def test_vq_point_in_time():
     assert vq["vq_ep"][-1] == pytest.approx(20.0 / 100.0)
 
 
+def test_vq_no_lookahead_corruption():
+    """The audit that fails on look-ahead: mutating or adding facts filed
+    AFTER day D must not change any vq value on days <= D."""
+    days = pd.bdate_range("2021-01-01", periods=20)
+    facts = pd.DataFrame({
+        "group": ["book"] * 4 + ["ni"] * 4,
+        "tag": ["StockholdersEquity"] * 4 + ["NetIncomeLoss"] * 4,
+        "unit": ["USD"] * 8,
+        "start": [pd.NaT] * 4 + list(days[[0, 5, 10, 15]] - pd.Timedelta(days=80)),
+        "end": [days[0]] * 4 + list(days[[4, 9, 14, 18]]),
+        "filed": [days[2]] * 4 + list(days[[5, 10, 15, 19]]),
+        "fy": [2020] * 8, "fp": ["FY"] * 4 + ["Q1", "Q2", "Q3", "Q4"],
+        "form": ["10-K"] * 8,
+        "val": [100.0, 100.0, 100.0, 100.0, 5.0, 5.0, 5.0, 5.0]})
+    shares = pd.DataFrame({"filed": [days[0]], "shares": [10.0]})
+    close = np.full(len(days), 10.0)
+    cut = 10
+    v0 = F.vq_features(facts, shares, close, days)
+    # corrupt every value filed after `cut`, and add a huge future filing
+    fut = facts.copy()
+    fut.loc[fut["filed"] > days[cut], "val"] = 999.0
+    extra = pd.DataFrame({
+        "group": ["book"], "tag": ["StockholdersEquity"], "unit": ["USD"],
+        "start": [pd.NaT], "end": [days[19]], "filed": [days[19]],
+        "fy": [2021], "fp": ["FY"], "form": ["10-K"], "val": [1e12]})
+    v1 = F.vq_features(pd.concat([fut, extra]), shares, close, days)
+    for c in ("vq_bm", "vq_ep", "vq_roe"):
+        assert np.allclose(v0[c][:cut + 1], v1[c][:cut + 1],
+                           equal_nan=True), c
+
+
 def test_parse_companyfacts_shape():
     payload = {"facts": {"us-gaap": {
         "StockholdersEquity": {"units": {"USD": [
