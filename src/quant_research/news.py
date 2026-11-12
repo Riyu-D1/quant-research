@@ -176,6 +176,23 @@ def score_finbert(articles: pd.DataFrame, out_path: Path,
     return out
 
 
+def stub_score(articles: pd.DataFrame, out_path: Path) -> pd.DataFrame:
+    """Deterministic pseudo-scores for CI plumbing checks — same output
+    schema as score_finbert, no transformers/torch/HF download needed.
+    score = md5(text) mapped to [-1, 1]."""
+    df = articles.copy()
+    df["text"] = _text_for_score(df)
+    df["thash"] = df["text"].map(
+        lambda t: hashlib.md5(t.encode()).hexdigest())
+    df["score"] = df["thash"].map(lambda h: (int(h, 16) % 2000 - 1000) / 1000)
+    out = df[["article_id", "symbol", "pub_date", "published_at", "source",
+              "score"]].dropna(subset=["score"])
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out.to_parquet(out_path, index=False)
+    log(f"stub-score: {len(out)} rows -> {out_path}")
+    return out
+
+
 def daily_table(scored: pd.DataFrame) -> pd.DataFrame:
     """(symbol, pub_date) -> mean score + article count for that publish
     calendar date. This is what the Kaggle run pushes back."""
@@ -242,6 +259,42 @@ def daily_signal(daily: pd.DataFrame, store: pd.DataFrame,
 
 # ---------------------------------------------------------------------------
 # helpers for the Kaggle entry point
+
+
+def fetch_artifact_file(repo: str, name: str, filename: str, token: str,
+                        dest: Path) -> Path:
+    """Download the latest non-expired artifact `name` and place `filename`
+    at `dest`.
+
+    upload-artifact stores members relative to the least common ancestor of
+    the uploaded paths — a single file `data/news/headlines.parquet` lands in
+    the zip as flat `headlines.parquet`, NOT under data/news/. Matching by
+    basename is robust to both layouts."""
+    api = f"https://api.github.com/repos/{repo}/actions/artifacts"
+    hdr = {"Authorization": f"Bearer {token}",
+           "Accept": "application/vnd.github+json"}
+    r = requests.get(api, headers=hdr, params={"name": name, "per_page": 100},
+                     timeout=60)
+    r.raise_for_status()
+    arts = [a for a in r.json()["artifacts"] if not a["expired"]]
+    if not arts:
+        raise RuntimeError(f"no '{name}' artifact on {repo}")
+    url = max(arts, key=lambda a: a["created_at"])["archive_download_url"]
+    import io
+    import zipfile
+    z = requests.get(url, headers=hdr, timeout=900)
+    z.raise_for_status()
+    zf = zipfile.ZipFile(io.BytesIO(z.content))
+    base = Path(filename).name
+    matches = [m for m in zf.namelist() if Path(m).name == base]
+    if not matches:
+        raise RuntimeError(
+            f"'{base}' not in artifact '{name}' (members: {zf.namelist()[:10]})")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with zf.open(matches[0]) as fh, open(dest, "wb") as out:
+        out.write(fh.read())
+    log(f"artifact {name}:{matches[0]} -> {dest}")
+    return dest
 
 
 def gh_artifact_download(repo: str, name: str, token: str, dest: Path,

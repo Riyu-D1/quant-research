@@ -1,3 +1,4 @@
+<!-- BEGIN AUTO-GENERATED (make_table.py) -->
 # Leaderboard — our runs vs published qlib benchmarks
 
 Backtest: test period 2017-01-01→2020-08-01, TopkDropout(50,5),
@@ -111,6 +112,7 @@ excess vs benchmark *with* cost. Turnover = mean daily portfolio turnover.
 | information_ratio | 0.0123 | — |
 | max_drawdown | -0.3117 | — |
 | turnover | 0.1781 | — |
+<!-- END AUTO-GENERATED (make_table.py) -->
 
 ---
 
