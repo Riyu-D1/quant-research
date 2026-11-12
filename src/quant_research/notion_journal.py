@@ -16,6 +16,7 @@ owner shares it once (see docs/BOT_SETUP.md). No paid Notion features used.
 """
 from __future__ import annotations
 
+import json
 import time
 
 import pandas as pd
@@ -45,7 +46,7 @@ DB_PROPS = {
     "Validated": {"checkbox": {}},
     "EntryType": {"select": {"options": [
         {"name": "trade"}, {"name": "day-summary"},
-        {"name": "weights-change"}, {"name": "note"}]}},
+        {"name": "weights-change"}, {"name": "note"}, {"name": "error"}]}},
     "Reason": {"rich_text": {}},
     "Outcome": {"rich_text": {}},
     "Lesson": {"rich_text": {}},
@@ -118,6 +119,7 @@ class NotionJournal:
             "Lesson": {"rich_text": self._rt("")}})
 
     def log_day_summary(self, day: pd.Timestamp, ctx: dict) -> None:
+        state = ctx.get("recon_state")
         self._page({
             "Ticker": {"title": self._rt("— day summary —")},
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
@@ -130,8 +132,49 @@ class NotionJournal:
             "Validated": {"checkbox": bool(ctx["validated"])},
             "EntryType": {"select": {"name": "day-summary"}},
             "Reason": {"rich_text": self._rt(ctx["summary"])},
-            "Outcome": {"rich_text": self._rt("")},
+            "Outcome": {"rich_text": self._rt(
+                "STATE " + json.dumps(state) if state else "")},
             "Lesson": {"rich_text": self._rt(ctx.get("lesson") or "")}})
+
+    def log_error(self, day: pd.Timestamp, message: str,
+                  ctx: dict | None = None) -> None:
+        """A loud failure row — the workflow still exits non-zero, but the
+        journal shows what died without digging through run logs."""
+        ctx = ctx or {}
+        self._page({
+            "Ticker": {"title": self._rt("— ERROR —")},
+            "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
+            "Side": {"select": {"name": "info"}},
+            "Qty": {"number": 0}, "Price": {"number": 0},
+            "Notional": {"number": 0}, "SignalScore": {"number": 0},
+            "SignalWeights": {"rich_text": self._rt(
+                ctx.get("weights_str") or "")},
+            "Regime": {"select": {"name": "calm"}},
+            "Validated": {"checkbox": bool(ctx.get("validated"))},
+            "EntryType": {"select": {"name": "error"}},
+            "Reason": {"rich_text": self._rt(message[:1900])},
+            "Outcome": {"rich_text": self._rt("")},
+            "Lesson": {"rich_text": self._rt(
+                "see the workflow run log for the traceback")}})
+
+    def log_note(self, day: pd.Timestamp, text: str,
+                 ctx: dict | None = None) -> None:
+        """Anomaly row — rejected orders, partial fills, stale inputs."""
+        ctx = ctx or {}
+        self._page({
+            "Ticker": {"title": self._rt("— note —")},
+            "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
+            "Side": {"select": {"name": "info"}},
+            "Qty": {"number": 0}, "Price": {"number": 0},
+            "Notional": {"number": 0}, "SignalScore": {"number": 0},
+            "SignalWeights": {"rich_text": self._rt(
+                ctx.get("weights_str") or "")},
+            "Regime": {"select": {"name": "calm"}},
+            "Validated": {"checkbox": bool(ctx.get("validated"))},
+            "EntryType": {"select": {"name": "note"}},
+            "Reason": {"rich_text": self._rt(text[:1900])},
+            "Outcome": {"rich_text": self._rt("")},
+            "Lesson": {"rich_text": self._rt("")}})
 
     def log_weights_change(self, month: str, old: dict, new: dict,
                            ctx: dict) -> None:
@@ -168,8 +211,58 @@ class NotionJournal:
         pages = self._query({"and": [
             {"property": "Ticker", "title": {"equals": sym}},
             {"property": "Side", "select": {"equals": "buy"}},
+            {"property": "EntryType", "select": {"equals": "trade"}},
             {"property": "Outcome", "rich_text": {"is_empty": True}}]})
         return max(pages, key=lambda p: p["created_time"]) if pages else None
+
+    def trade_pages(self, sym: str, side: str, day: str) -> list[dict]:
+        return self._query({"and": [
+            {"property": "Ticker", "title": {"equals": sym}},
+            {"property": "Side", "select": {"equals": side}},
+            {"property": "EntryType", "select": {"equals": "trade"}},
+            {"property": "Date", "date": {"equals": day}}]})
+
+    def mark_fill(self, sym: str, day: str, qty: float,
+                  price: float) -> None:
+        """Reconcile a submitted BUY against its actual Alpaca fill —
+        patches Price/Qty/Notional to real values and appends the fill to
+        Reason. Outcome stays empty so close_out still matches the page."""
+        pages = self.trade_pages(sym, "buy", day)
+        if not pages:
+            return
+        pg = max(pages, key=lambda p: p["created_time"])
+        rt = pg["properties"]["Reason"]["rich_text"]
+        reason = "".join(t.get("plain_text", "") for t in rt)
+        if "filled " in reason:            # already reconciled — idempotent
+            return
+        self._req("PATCH", f"/pages/{pg['id']}", json={"properties": {
+            "Price": {"number": round(price, 4)},
+            "Qty": {"number": round(qty, 6)},
+            "Notional": {"number": round(qty * price, 4)},
+            "Reason": {"rich_text": self._rt(
+                f"{reason} | filled {qty:g} @ {price:.2f}")}}})
+        log(f"reconciled fill {sym}: {qty:g} @ {price:.2f}")
+
+    def last_summary_state(self) -> dict:
+        """The STATE blob from the most recent day-summary page — the
+        equity/SPY baseline for the next run's P&L tracking. State lives
+        in Notion (not runner disk) so runs are machine-independent."""
+        d = self._req("POST", f"/databases/{self.db}/query", json={
+            "filter": {"property": "EntryType",
+                       "select": {"equals": "day-summary"}},
+            "sorts": [{"property": "Date", "direction": "descending"}],
+            "page_size": 1})
+        res = d.get("results", [])
+        if not res:
+            return {}
+        rt = res[0]["properties"]["Outcome"]["rich_text"]
+        txt = "".join(t.get("plain_text", "") for t in rt)
+        if not txt.startswith("STATE "):
+            return {}
+        try:
+            return json.loads(txt[len("STATE "):])
+        except ValueError:
+            return {}
 
     def close_out(self, sym: str, exit_price: float,
                   reason: str = "") -> None:

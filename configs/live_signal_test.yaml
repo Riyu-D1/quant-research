@@ -11,6 +11,12 @@
 # (positive holdout, beats SPY on IR, DSR > 0.5).
 validated: false
 
+# Live-trading interlock (NEVER set true here — see docs/BOT_SETUP.md).
+# Going live additionally needs the LIVE_TRADING_ACK repo secret set to
+# I_UNDERSTAND_LIVE_RISK and ALPACA_BASE_URL + live keys pointed at the
+# real endpoint. With this false every path stays paper-only.
+live_trading: false
+
 # Signal library to combine. Computable live: mom, rev (Alpaca bars),
 # vq, news (state/live snapshots). gbdt/ev need the monthly-retrain
 # store pipeline — the bot logs and drops them if pinned here.

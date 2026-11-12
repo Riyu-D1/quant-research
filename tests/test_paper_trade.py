@@ -24,9 +24,11 @@ DAY = "2026-06-15"          # last fixture bar == --date (a Monday)
 DAYS = pd.bdate_range(end=pd.Timestamp(DAY), periods=620)
 
 
-def fixture_closes(symbols: list[str], crash_tail: int = 0) -> pd.DataFrame:
+def fixture_closes(symbols: list[str], crash_tail: int = 0,
+                   days: pd.DatetimeIndex | None = None) -> pd.DataFrame:
     """Deterministic closes: M0..M7 strong uptrend, rest flat; SPY calm
     unless crash_tail > 0 (then the last crash_tail days fall hard)."""
+    days = DAYS if days is None else days
     rng = np.random.default_rng(3)
     data = {}
     for i, s in enumerate(symbols):
@@ -34,16 +36,16 @@ def fixture_closes(symbols: list[str], crash_tail: int = 0) -> pd.DataFrame:
             drift = 0.003 + int(s[1]) * 0.0005
         else:
             drift = 0.0000
-        r = rng.normal(drift, 0.01, len(DAYS))
+        r = rng.normal(drift, 0.01, len(days))
         px = 30 * np.exp(np.cumsum(r)) + 10
         data[s] = px
     # deterministic calm SPY — random vol occasionally trips the guard
-    spy = 100 * np.exp(np.cumsum(np.full(len(DAYS), 0.0004)))
+    spy = 100 * np.exp(np.cumsum(np.full(len(days), 0.0004)))
     if crash_tail:
         spy[-crash_tail:] = spy[-crash_tail - 1] * \
             np.cumprod(np.full(crash_tail, 0.985))
     data["SPY"] = spy
-    return pd.DataFrame(data, index=DAYS)
+    return pd.DataFrame(data, index=days)
 
 
 def write_cfg(tmp: Path, **over) -> Path:
@@ -193,3 +195,185 @@ def test_ewic_weights_sum(tmp_path):
                      .read_text())
     assert abs(sum(out["weights"].values()) - 1.0) < 1e-6
     assert all(v >= 0 for v in out["weights"].values())
+
+
+# ---------------------------------------------------------------------------
+# ship-hardening: reconcile, clock/stale guards, error entries, live gate
+
+DAY2 = "2026-06-16"          # Tuesday after DAY
+
+
+def alpaca_order(sym, side, status="filled", day=DAY, px=100.0, qty=0.02):
+    return {"symbol": sym, "side": side, "status": status,
+            "submitted_at": f"{day}T14:00:00Z",
+            "filled_at": f"{day}T14:31:00Z" if status != "new" else None,
+            "filled_qty": qty, "filled_avg_price": px,
+            "qty": qty, "notional": round(px * qty, 2)}
+
+
+def test_reconcile_close_out_and_fill(tmp_path):
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker = PT.FakeBroker()          # flat positions -> sell fully exits
+    journal = PT.FakeJournal()
+    broker.api_orders = [
+        alpaca_order("ZZOLD", "sell", day="2026-06-12", px=42.0),
+        alpaca_order(SYMS[0], "buy", day=DAY, px=55.0, qty=0.05)]
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    types = {(p["entry_type"], p.get("sym")) for p in journal.pages}
+    assert ("close-out", "ZZOLD") in types        # filled sell -> Outcome
+    assert ("fill", SYMS[0]) in types             # buy reconciled to actuals
+
+
+def test_reconcile_rejected_and_partial_noted(tmp_path):
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker = PT.FakeBroker()
+    journal = PT.FakeJournal()
+    broker.api_orders = [
+        alpaca_order("BAD", "buy", status="rejected"),
+        alpaca_order("HALF", "sell", status="partially_filled")]
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    notes = [p for p in journal.pages if p["entry_type"] == "note"]
+    assert len(notes) == 2                         # rejected + partial
+    assert any("rejected" in n["text"] for n in notes)
+    assert any("partial" in n["text"] for n in notes)
+
+
+def test_equity_state_tracks_across_runs(tmp_path):
+    days2 = pd.bdate_range(end=pd.Timestamp(DAY2), periods=621)
+    cl = fixture_closes(SYMS, days=days2)   # fixture reaches DAY2
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    s1 = [p for p in journal.pages
+          if p["entry_type"] == "day-summary"][-1]["recon_state"]
+    assert s1["equity_usd"] == 12.70 and s1["cum_bot"] == 0.0
+    broker.acct = {"cash": "0.5", "portfolio_value": "13.20"}
+    broker.day = None
+    run_bot(cfg, fx, state, DAY2, broker, journal)
+    s2 = [p for p in journal.pages
+          if p["entry_type"] == "day-summary"][-1]["recon_state"]
+    assert s2["equity_usd"] == 13.20
+    assert s2["cum_bot"] == pytest.approx(13.20 / 12.70 - 1, abs=1e-6)
+    spy1 = float(cl["SPY"].loc[:pd.Timestamp(DAY)].iloc[-1])
+    spy2 = float(cl["SPY"].loc[:pd.Timestamp(DAY2)].iloc[-1])
+    assert s2["cum_spy"] == pytest.approx(spy2 / spy1 - 1, abs=1e-6)
+
+
+def test_market_closed_note(tmp_path):
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker = PT.FakeBroker()
+    broker.clock_ret = {"is_open": False,
+                        "next_open": "2026-06-16T13:30:00Z",
+                        "timestamp": "2026-06-15T21:00:00Z"}
+    journal = PT.FakeJournal()
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    summ = [p for p in journal.pages
+            if p["entry_type"] == "day-summary"][-1]
+    assert "market closed" in summ["summary"]
+
+
+def test_stale_bars_refuse(tmp_path):
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker = PT.FakeBroker()
+    broker.clock_ret = {"is_open": False,
+                        "timestamp": "2026-08-01T21:00:00Z"}  # bars 46d stale
+    journal = PT.FakeJournal()
+    with pytest.raises(SystemExit):
+        run_bot(cfg, fx, state, DAY, broker, journal)
+    assert any(p["entry_type"] == "error" for p in journal.pages)
+
+
+def test_fail_writes_error_entry():
+    j = PT.FakeJournal()
+    with pytest.raises(SystemExit):
+        PT.fail(j, "boom went the pipeline")
+    assert j.pages[-1]["entry_type"] == "error"
+    assert "boom" in j.pages[-1]["message"]
+
+
+def test_crash_exits_nonzero(tmp_path):
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+
+    class BoomBroker(PT.FakeBroker):
+        def positions(self):
+            raise RuntimeError("broker exploded")
+
+    with pytest.raises(SystemExit) as e:
+        run_bot(cfg, fx, state, DAY, BoomBroker(), PT.FakeJournal())
+    assert e.value.code == 1                       # fail_loudly -> exit 1
+
+
+def test_live_trading_interlock(tmp_path, monkeypatch):
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path, live_trading=True)
+    monkeypatch.delenv("LIVE_TRADING_ACK", raising=False)
+    with pytest.raises(SystemExit, match="LIVE_TRADING_ACK"):
+        run_bot(cfg, fx, state, DAY)
+
+
+def test_allow_live_client_gate():
+    with pytest.raises(RuntimeError, match="paper"):
+        AB.PaperClient("k", "s", "https://api.alpaca.markets")
+    c = AB.PaperClient("k", "s", "https://api.alpaca.markets",
+                       allow_live=True)
+    assert c.base == "https://api.alpaca.markets"   # gated override only
+
+
+def test_weights_change_journal_dedup(tmp_path):
+    days2 = pd.bdate_range(end=pd.Timestamp(DAY2), periods=621)
+    cl = fixture_closes(SYMS, days=days2)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    n1 = sum(p["entry_type"] == "weights-change" for p in journal.pages)
+    assert n1 == 1
+    (state / "weights.json").unlink()   # fresh runner: local state lost
+    broker.day = None
+    run_bot(cfg, fx, state, DAY2, broker, journal)
+    n2 = sum(p["entry_type"] == "weights-change" for p in journal.pages)
+    assert n2 == 1                                   # deduped via journal
+
+
+def test_pinned_config_live_off():
+    import yaml
+    for name in ("live_signal.yaml", "live_signal_test.yaml"):
+        cfg = yaml.safe_load((REPO / "configs" / name).read_text())
+        assert cfg.get("live_trading") is False, name
+        assert cfg.get("validated") is False, name

@@ -20,22 +20,30 @@ def log(msg: str) -> None:
 
 
 class PaperClient:
-    """Thin sync wrapper over the Alpaca paper REST API."""
+    """Thin sync wrapper over the Alpaca REST API — paper-only by default.
+
+    `allow_live` is the second half of the live-trading interlock (the
+    first is `live_trading: true` in the pinned config): only when BOTH
+    are set may a non-paper base URL be used. Nothing in this repo sets
+    either — flipping live is a deliberate owner action documented in
+    docs/BOT_SETUP.md. Checked on construction AND on every call.
+    """
 
     def __init__(self, key: str, secret: str,
-                 base_url: str = PAPER_URL) -> None:
+                 base_url: str = PAPER_URL,
+                 allow_live: bool = False) -> None:
         base_url = base_url.rstrip("/")
-        # The one and only guard that matters: refuse anything that isn't
-        # the paper endpoint. Checked on construction AND on every call.
-        if "paper-api" not in base_url:
+        self._allow_live = bool(allow_live)
+        if "paper-api" not in base_url and not self._allow_live:
             raise RuntimeError(
                 f"REFUSING non-paper base URL {base_url!r} — this bot is "
-                "paper-only by hard rule")
+                "paper-only by hard rule (live needs live_trading:true "
+                "config + LIVE_TRADING_ACK secret)")
         self.base = base_url
         self.hdr = {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret}
 
     def _req(self, method: str, path: str, **kw):
-        if "paper-api" not in self.base:              # belt and suspenders
+        if "paper-api" not in self.base and not self._allow_live:
             raise RuntimeError("non-paper base URL — request refused")
         r = requests.request(method, f"{self.base}{path}",
                              headers=self.hdr, timeout=30, **kw)
