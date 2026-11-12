@@ -244,8 +244,12 @@ def daily_signal(daily: pd.DataFrame, store: pd.DataFrame,
 # helpers for the Kaggle entry point
 
 
-def gh_artifact_download(repo: str, name: str, token: str, dest: Path) -> Path:
-    """Latest non-expired workflow artifact `name` -> extracted under dest."""
+def gh_artifact_download(repo: str, name: str, token: str, dest: Path,
+                         members: list[str] | None = None) -> Path:
+    """Latest non-expired workflow artifact `name` -> extracted under dest.
+
+    members=None extracts everything; otherwise only the named zip members
+    (the zip itself still downloads whole — GitHub serves it that way)."""
     api = f"https://api.github.com/repos/{repo}/actions/artifacts"
     hdr = {"Authorization": f"Bearer {token}",
            "Accept": "application/vnd.github+json"}
@@ -261,6 +265,11 @@ def gh_artifact_download(repo: str, name: str, token: str, dest: Path) -> Path:
     z = requests.get(url, headers=hdr, timeout=900)
     z.raise_for_status()
     dest.mkdir(parents=True, exist_ok=True)
-    zipfile.ZipFile(io.BytesIO(z.content)).extractall(dest)
+    with zipfile.ZipFile(io.BytesIO(z.content)) as zf:
+        if members is None:
+            zf.extractall(dest)
+        else:
+            for m in members:
+                zf.extract(m, dest)
     log(f"artifact {name} -> {dest}")
     return dest

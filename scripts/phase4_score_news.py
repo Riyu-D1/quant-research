@@ -55,6 +55,26 @@ def main() -> None:
     import pandas as pd
     articles = pd.read_parquet(headlines)
     print(f"[phase4-score] {len(articles)} headline-symbol rows")
+
+    # Only universe-tagged articles feed the signal downstream (daily_signal
+    # joins on store instruments) — restricting the FinBERT pass to them
+    # shrinks the unique-text set ~3-5x. Universe = phase-3 cik_map.
+    token = os.environ.get("GH_TOKEN", "")
+    cmap = REPO / "data" / "events" / "cik_map.parquet"
+    try:
+        if not cmap.exists() and token:
+            NW.gh_artifact_download("Riyu-D1/quant-research", "phase3-events",
+                                    token, REPO / "data" / "events",
+                                    members=["cik_map.parquet"])
+        if cmap.exists():
+            universe = {NW.canon(s) for s in
+                        pd.read_parquet(cmap)["symbol"]}
+            before = len(articles)
+            articles = articles[articles["symbol"].isin(universe)]
+            print(f"[phase4-score] universe filter: {before} -> "
+                  f"{len(articles)} rows ({len(universe)} tickers)")
+    except Exception as e:  # noqa: BLE001
+        print(f"[phase4-score] universe filter skipped: {e}")
     ensure_transformers()
     scored = NW.score_finbert(articles, OUT / "scored_articles.parquet")
     daily = NW.daily_table(scored)
