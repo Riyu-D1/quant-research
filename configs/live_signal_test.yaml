@@ -1,0 +1,42 @@
+# Phase-4 live signal config — PINNED inputs for scripts/paper_trade.py.
+#
+# PROVISIONAL PIN (pre-holdout): the definitive select + single 2025+
+# holdout have not been scored yet. Per the provisional select on
+# 2021-2024 (results/phase4_us_select.json, run 43141704337) the best
+# single signals were vq (IR +0.74) and mom (IR +0.68); every combo was
+# negative, best deployable equal-w36-rcash at IR -0.026. This file pins
+# the owner's interim choice (mom+vq, equal weight, cash regime) until the
+# definitive result lands — at which point the winner goes here and
+# `validated` flips to true ONLY if the predeclared gate passed
+# (positive holdout, beats SPY on IR, DSR > 0.5).
+validated: false
+
+# Signal library to combine. Computable live: mom, rev (Alpaca bars),
+# vq, news (state/live snapshots). gbdt/ev need the monthly-retrain
+# store pipeline — the bot logs and drops them if pinned here.
+signals: [mom, vq]
+
+# Weighting: equal | ewic (trailing EW rank-IC; snapshot signals without
+# a live IC history force equal weighting — documented limitation).
+weighting: equal
+ic_months: 12           # ewic trailing window (when enabled)
+halflife_frac: 0.5      # ewic halflife = ic_months * 21 * frac days
+
+# Predeclared regime guard (same math as the research spec): exposure ->
+# actions[regime] when SPY < SMA(200) or 21d realised vol > 90th pct of
+# trailing 504d, all on lagged closes strictly before the day.
+regime: none   # TEST ONLY: guard off to exercise real paper orders
+regime_cfg:
+  sma: 200
+  vol_win: 21
+  vol_lookback: 504
+  vol_q: 0.90
+  actions: {none: 1.0, half: 0.5, cash: 0.0}
+
+# Portfolio — mirrors the Phase-3/4 micro simulator.
+n_positions: 5
+budget_gbp: 10.0          # £10 account, converted to USD at run time
+cost_bps: 10.0            # sizing conservatism (paper fills are free)
+snapshot_stale_days: 45   # vq/news snapshots older than this are dropped
+
+universe: configs/live_universe.txt

@@ -29,6 +29,10 @@ on:
       fixture:
         description: "optional parquet of closes (fully offline day)"
         required: false
+      config:
+        description: "signal config (configs/live_signal_test.yaml = regime guard off, test only)"
+        required: false
+        default: "configs/live_signal.yaml"
   # ── DISABLED until the owner says enable: after the US close, Mon–Fri ──
   # schedule:
   #   - cron: "0 22 * * 1-5"   # 22:00 UTC — safely after the 16:00 ET close
@@ -110,6 +114,7 @@ jobs:
             ${{ github.event.inputs.date != '' && format('--date {0}', github.event.inputs.date) || '' }}
             ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
             ${{ github.event.inputs.fixture != '' && format('--fixture {0}', github.event.inputs.fixture) || '' }}
+            ${{ github.event.inputs.config != '' && format('--config {0}', github.event.inputs.config) || '' }}
         run: |
           set -x
           uv run --no-sync python scripts/paper_trade.py $ARGS
