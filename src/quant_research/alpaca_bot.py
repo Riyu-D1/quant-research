@@ -15,8 +15,21 @@ PAPER_URL = "https://paper-api.alpaca.markets"
 MIN_NOTIONAL_USD = 1.0        # Alpaca's notional-order floor
 
 
+class OrderExistsError(Exception):
+    """Alpaca rejected a duplicate client_order_id — the order already
+    exists, so a re-run is a no-op rather than a double-order."""
+
+
 def log(msg: str) -> None:
     print(f"[alpaca {time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def client_order_id(day, sym: str, side: str) -> str:
+    """Deterministic per (signal day, symbol, side) — a rerun submits the
+    same id and Alpaca dedupes it (we treat the rejection as 'already
+    placed'). Max 48 chars per Alpaca."""
+    d = pd.Timestamp(day).strftime("%Y%m%d")
+    return f"qr-{d}-{sym}-{side}"[:48]
 
 
 class PaperClient:
@@ -52,6 +65,9 @@ class PaperClient:
             r = requests.request(method, f"{self.base}{path}",
                                  headers=self.hdr, timeout=30, **kw)
         if not r.ok:
+            if "client_order_id" in r.text:
+                raise OrderExistsError(
+                    f"duplicate client_order_id on {path}: {r.text[:200]}")
             raise RuntimeError(f"alpaca {method} {path}: {r.status_code} "
                                f"{r.text[:300]}")
         return r.json() if r.text else {}
@@ -97,25 +113,58 @@ class PaperClient:
                 and o.get("status") not in
                 ("canceled", "expired", "rejected")]
 
+    # -- calendar / open-order management -------------------------------------
+    def calendar(self, start: pd.Timestamp, end: pd.Timestamp) -> list[dict]:
+        """Trading days in [start, end]: [{date, open, close, session_open,
+        session_close}] — half-days show an early close."""
+        return self._req("GET", "/v2/calendar",
+                         params={"start": pd.Timestamp(start)
+                                 .strftime("%Y-%m-%d"),
+                                 "end": pd.Timestamp(end)
+                                 .strftime("%Y-%m-%d")})
+
+    def open_orders(self) -> list[dict]:
+        """All open (unfilled, uncancelled) orders — stale-order cleanup."""
+        return self._req("GET", "/v2/orders",
+                         params={"status": "open", "limit": 500})
+
+    def cancel_order(self, order_id: str) -> None:
+        self._req("DELETE", f"/v2/orders/{order_id}")
+
+    def cancel_all(self) -> int:
+        """Cancel every open order; returns how many were cancelled."""
+        n = 0
+        for o in self.open_orders():
+            try:
+                self.cancel_order(o["id"])
+                n += 1
+            except Exception as e:  # noqa: BLE001
+                log(f"cancel {o.get('id')} failed: {e}")
+        return n
+
     # -- orders (all long-only; no shorts ever) --------------------------------
     def buy_notional(self, sym: str, usd: float,
-                     reason: str = "") -> dict | None:
+                     reason: str = "", coid: str | None = None) -> dict | None:
         if usd < MIN_NOTIONAL_USD:
             log(f"skip buy {sym}: ${usd:.2f} < ${MIN_NOTIONAL_USD} minimum")
             return None
         from quant_research.live import to_alpaca
         body = {"symbol": to_alpaca(sym), "notional": round(usd, 2),
                 "side": "buy", "type": "market", "time_in_force": "day"}
+        if coid:
+            body["client_order_id"] = coid
         log(f"order BUY {sym} ${usd:.2f} ({reason})")
         return self._req("POST", "/v2/orders", json=body)
 
     def sell_qty(self, sym: str, qty: float,
-                 reason: str = "") -> dict | None:
+                 reason: str = "", coid: str | None = None) -> dict | None:
         if qty <= 0:
             return None
         from quant_research.live import to_alpaca
         body = {"symbol": to_alpaca(sym), "qty": f"{qty:.6f}".rstrip("0")
                 .rstrip("."), "side": "sell", "type": "market",
                 "time_in_force": "day"}
+        if coid:
+            body["client_order_id"] = coid
         log(f"order SELL {sym} {qty} ({reason})")
         return self._req("POST", "/v2/orders", json=body)

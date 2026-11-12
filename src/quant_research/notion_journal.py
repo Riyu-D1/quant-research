@@ -46,7 +46,8 @@ DB_PROPS = {
     "Validated": {"checkbox": {}},
     "EntryType": {"select": {"options": [
         {"name": "trade"}, {"name": "day-summary"},
-        {"name": "weights-change"}, {"name": "note"}, {"name": "error"}]}},
+        {"name": "weights-change"}, {"name": "note"}, {"name": "error"},
+        {"name": "weekly-summary"}, {"name": "halt"}]}},
     "Reason": {"rich_text": {}},
     "Outcome": {"rich_text": {}},
     "Lesson": {"rich_text": {}},
@@ -68,6 +69,28 @@ class NotionJournal:
             raise RuntimeError(
                 "need NOTION_DB_ID or NOTION_PARENT_PAGE_ID — "
                 "run scripts/notion_setup.py to create the database")
+        self._ensure_entry_types()
+
+    def _ensure_entry_types(self) -> None:
+        """Add any EntryType options the db is missing (older dbs predate
+        'error'/'weekly-summary'/'halt'). Best-effort — a schema read
+        failure must not stop a run."""
+        try:
+            db = self._req("GET", f"/databases/{self.db}")
+            prop = db["properties"].get("EntryType", {})
+            have = {o["name"] for o in
+                    prop.get("select", {}).get("options", [])}
+            want = {o["name"] for o in
+                    DB_PROPS["EntryType"]["select"]["options"]}
+            missing = want - have
+            if missing:
+                opts = [{"name": n} for n in sorted(have | missing)]
+                self._req("PATCH", f"/databases/{self.db}", json={
+                    "properties": {"EntryType": {
+                        "select": {"options": opts}}}})
+                log(f"EntryType options extended: +{sorted(missing)}")
+        except Exception as e:  # noqa: BLE001
+            log(f"entry-type ensure failed (non-fatal): {e}")
 
     # -- plumbing --------------------------------------------------------------
     def _req(self, method: str, path: str, **kw):
@@ -194,6 +217,47 @@ class NotionJournal:
             "Outcome": {"rich_text": self._rt("")},
             "Lesson": {"rich_text": self._rt("")}})
 
+    def log_weekly_summary(self, day: pd.Timestamp, ctx: dict) -> None:
+        """One row per week: equity, return vs SPY, drawdown, turnover,
+        hit rate, what changed in weights, lessons."""
+        self._page({
+            "Ticker": {"title": self._rt("— weekly summary —")},
+            "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
+            "Side": {"select": {"name": "info"}},
+            "Qty": {"number": 0}, "Price": {"number": 0},
+            "Notional": {"number": round(ctx.get("equity_usd", 0.0), 2)},
+            "SignalScore": {"number": 0},
+            "SignalWeights": {"rich_text": self._rt(
+                ctx.get("weights_str") or "")},
+            "Regime": {"select": {"name": "calm"}},
+            "Validated": {"checkbox": bool(ctx.get("validated"))},
+            "EntryType": {"select": {"name": "weekly-summary"}},
+            "Reason": {"rich_text": self._rt(ctx["summary"])},
+            "Outcome": {"rich_text": self._rt(
+                "STATE " + json.dumps(ctx.get("state"))
+                if ctx.get("state") else "")},
+            "Lesson": {"rich_text": self._rt(ctx.get("lesson") or "")}})
+
+    def log_halt(self, day: pd.Timestamp, reason: str,
+                 ctx: dict | None = None) -> None:
+        """Kill-switch / circuit-breaker row — unmistakable in the journal."""
+        ctx = ctx or {}
+        self._page({
+            "Ticker": {"title": self._rt("— HALT —")},
+            "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
+            "Side": {"select": {"name": "info"}},
+            "Qty": {"number": 0}, "Price": {"number": 0},
+            "Notional": {"number": 0}, "SignalScore": {"number": 0},
+            "SignalWeights": {"rich_text": self._rt(
+                ctx.get("weights_str") or "")},
+            "Regime": {"select": {"name": "calm"}},
+            "Validated": {"checkbox": bool(ctx.get("validated"))},
+            "EntryType": {"select": {"name": "halt"}},
+            "Reason": {"rich_text": self._rt(reason[:1900])},
+            "Outcome": {"rich_text": self._rt("")},
+            "Lesson": {"rich_text": self._rt(
+                "no orders placed this run")}})
+
     # -- queries / updates ------------------------------------------------------
     def _query(self, filt: dict) -> list[dict]:
         d = self._req("POST", f"/databases/{self.db}/query",
@@ -214,6 +278,38 @@ class NotionJournal:
             {"property": "EntryType", "select": {"equals": "trade"}},
             {"property": "Outcome", "rich_text": {"is_empty": True}}]})
         return max(pages, key=lambda p: p["created_time"]) if pages else None
+
+    def open_buys(self) -> list[str]:
+        """Tickers of all still-open BUY trade pages — used to detect
+        corporate actions (a position that vanished without a sell)."""
+        pages = self._query({"and": [
+            {"property": "Side", "select": {"equals": "buy"}},
+            {"property": "EntryType", "select": {"equals": "trade"}},
+            {"property": "Outcome", "rich_text": {"is_empty": True}}]})
+        out = []
+        for p in pages:
+            t = p["properties"]["Ticker"]["title"]
+            txt = "".join(x.get("plain_text", "") for x in t)
+            if txt:
+                out.append(txt)
+        return out
+
+    def day_summaries(self, n: int = 10) -> list[dict]:
+        """The last n day-summary pages (newest first) — weekly rollup
+        and the equity-peak baseline for the drawdown breaker."""
+        d = self._req("POST", f"/databases/{self.db}/query", json={
+            "filter": {"property": "EntryType",
+                       "select": {"equals": "day-summary"}},
+            "sorts": [{"property": "Date", "direction": "descending"}],
+            "page_size": max(1, min(n, 100))})
+        return d.get("results", [])
+
+    def trades_between(self, start: str, end: str) -> list[dict]:
+        """Trade pages with start <= Date <= end — turnover accounting."""
+        return self._query({"and": [
+            {"property": "EntryType", "select": {"equals": "trade"}},
+            {"property": "Date", "date": {"on_or_after": start}},
+            {"property": "Date", "date": {"on_or_before": end}}]})
 
     def trade_pages(self, sym: str, side: str, day: str) -> list[dict]:
         return self._query({"and": [

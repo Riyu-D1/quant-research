@@ -1,0 +1,75 @@
+{
+ "day": "2026-06-16",
+ "config": "/private/var/folders/9p/8hzcb7413kd8m79rs_33gv3r0000gn/T/pytest-of-deepakdiwan/pytest-73/test_weights_change_journal_de0/live_signal.yaml",
+ "sha": "local",
+ "validated": false,
+ "want": [
+  "M7",
+  "M6",
+  "M5",
+  "M4",
+  "M2"
+ ],
+ "exposure": 1.0,
+ "fx_gbpusd": 1.27,
+ "gates": {
+  "order_window": "dry-run: window forced open",
+  "risk": {
+   "order_ok": true,
+   "buy_ok": true,
+   "checks": {
+    "n_planned_orders": 5
+   },
+   "drawdown": 0.0,
+   "daily_pnl": 0.0
+  },
+  "drift": "drift: M2 -20.0%, M4 -20.0%, M5 -20.0%, M6 -20.0%, M7 -20.0%"
+ },
+ "orders": [
+  {
+   "sym": "M7",
+   "side": "buy",
+   "notional": 2.54,
+   "qty": 0.001424311450205117,
+   "client_order_id": "qr-20260616-M7-buy"
+  },
+  {
+   "sym": "M6",
+   "side": "buy",
+   "notional": 2.54,
+   "qty": 0.0023012555722477035,
+   "client_order_id": "qr-20260616-M6-buy"
+  },
+  {
+   "sym": "M5",
+   "side": "buy",
+   "notional": 2.54,
+   "qty": 0.003276493918412223,
+   "client_order_id": "qr-20260616-M5-buy"
+  },
+  {
+   "sym": "M4",
+   "side": "buy",
+   "notional": 2.54,
+   "qty": 0.004302621171944311,
+   "client_order_id": "qr-20260616-M4-buy"
+  },
+  {
+   "sym": "M2",
+   "side": "buy",
+   "notional": 2.54,
+   "qty": 0.005257887584683117,
+   "client_order_id": "qr-20260616-M2-buy"
+  }
+ ],
+ "notes": [
+  "vq: snapshot asof 2026-06-01 (age 15d)",
+  "corp-action close M7 @ 1783.3178267535595",
+  "corp-action close M6 @ 1103.7452904542488",
+  "corp-action close M4 @ 590.3378193186828",
+  "corp-action close M5 @ 775.2188965547889",
+  "corp-action close M2 @ 483.0837402076334"
+ ],
+ "orders_filled": 5,
+ "skipped": []
+}

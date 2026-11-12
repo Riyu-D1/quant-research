@@ -45,4 +45,21 @@ budget_gbp: 10.0          # £10 account, converted to USD at run time
 cost_bps: 10.0            # sizing conservatism (paper fills are free)
 snapshot_stale_days: 45   # vq/news snapshots older than this are dropped
 
+# Order timing — orders only during the regular session, at least this
+# many minutes after the open (calendar-API session times; half-days
+# handled automatically). Cron should land after this anyway.
+order_after_open_min: 15
+
+# Risk controls — all gates below are enforced in paper_trade.py and
+# covered by tests. A sanity failure aborts the whole run (no orders);
+# a breaker blocks only new buys (sells still de-risk).
+risk:
+  max_drawdown: 0.25          # equity vs running peak -> halt new buys
+  daily_loss: 0.05            # equity vs prior day-summary -> halt buys
+  max_position_weight: 0.40   # clip any single buy to this share of equity
+  max_orders: 12              # per run (sells kept, excess buys dropped)
+  max_daily_notional_frac: 1.0  # total buys <= this * equity
+  max_price_move: 0.50        # |last/prior close - 1| bound for traded names
+  min_universe: 100           # priced-name floor — a tiny count = broken bars
+
 universe: configs/live_universe.txt

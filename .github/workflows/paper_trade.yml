@@ -39,10 +39,15 @@ on:
         type: choice
         options: [run, refresh_snapshot]
         default: run
-  # ── DISABLED until the owner says enable: after the US close, Mon–Fri ──
-  # schedule:
-  #   - cron: "0 22 * * 1-5"   # daily paper run — 22:00 UTC, after close
-  #   - cron: "0 9 1 * *"      # monthly snapshot refresh — 1st, 09:00 UTC
+  # ── DISABLED until the owner says enable — uncomment the whole block ──
+  # Owner enablement = remove '# ' at the start of each line, commit, push.
+  #   schedule:
+  #     - cron: "0 15 * * 1-5"   # ORDERS 10:00-11:00 ET year-round (past open+15m)
+  #     - cron: "0 22 * * 1-5"   # RECONCILE after the close (17:00-18:00 ET)
+  #     - cron: "0 14 * * 6"     # weekly Notion summary — Saturday 14:00 UTC
+  #     - cron: "0 10 1 * *"     # monthly reweight — 1st of month, 10:00 UTC
+  #     - cron: "0 9 1 * *"      # monthly snapshot refresh — 1st, 09:00 UTC
+  #     - cron: "0 10 * * 1"     # snapshot staleness check — Mondays 10:00 UTC
   push:
     paths:
       - scripts/paper_trade.py
@@ -104,7 +109,9 @@ jobs:
     name: paper day
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.job != 'refresh_snapshot')
-      || (github.event_name == 'schedule' && github.event.schedule == '0 22 * * 1-5')
+      || (github.event_name == 'schedule'
+          && (github.event.schedule == '0 15 * * 1-5'
+              || github.event.schedule == '0 22 * * 1-5'))
     runs-on: ubuntu-latest
     environment: ALPACA_API_KEY   # env holding the paper keys
     env:
@@ -117,6 +124,9 @@ jobs:
       # permits a non-paper base URL when live_trading:true in the config
       # AND this secret equals I_UNDERSTAND_LIVE_RISK. Never set it.
       LIVE_TRADING_ACK: ${{ secrets.LIVE_TRADING_ACK }}
+      # Kill switch — a repo/environment VARIABLE (not secret) named
+      # BOT_HALT=1 makes every run reconcile + journal, place no orders.
+      BOT_HALT: ${{ vars.BOT_HALT }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -148,6 +158,7 @@ jobs:
           name: paper-day-${{ github.run_id }}
           path: |
             results/paper_dryrun/
+            results/paper_run/
             state/live/weights.json
           if-no-files-found: ignore
           retention-days: 30
@@ -211,3 +222,113 @@ jobs:
             git push origin "phase4/adaptive:phase4/adaptive" && break
             git pull --rebase origin phase4/adaptive
           done
+
+  # ── weekly Notion rollup (Saturday cron when enabled) ─────────────────
+  weekly:
+    name: weekly summary
+    if: >-
+      github.event_name == 'schedule' && github.event.schedule == '0 14 * * 6'
+    runs-on: ubuntu-latest
+    environment: ALPACA_API_KEY
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+      NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: env (slim)
+        run: |
+          uv sync --no-install-package torch --no-install-package xgboost \
+            --no-install-package mlflow --no-install-package optuna \
+            --no-install-package cvxpy
+      - name: weekly summary
+        run: uv run --no-sync python scripts/weekly_summary.py
+
+  # ── monthly adaptive reweight (1st-of-month cron when enabled) ────────
+  monthly:
+    name: monthly reweight
+    if: >-
+      github.event_name == 'schedule' && github.event.schedule == '0 10 1 * *'
+    runs-on: ubuntu-latest
+    environment: ALPACA_API_KEY
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+      NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: env (slim)
+        run: |
+          uv sync --no-install-package torch --no-install-package xgboost \
+            --no-install-package mlflow --no-install-package optuna \
+            --no-install-package cvxpy
+      - name: reweight
+        run: uv run --no-sync python scripts/monthly_reweight.py
+      - name: weights artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monthly-weights-${{ github.run_id }}
+          path: state/live/weights.json
+          if-no-files-found: ignore
+
+  # ── snapshot staleness alarm (Monday cron when enabled) ────────────────
+  freshness:
+    name: snapshot freshness check
+    if: >-
+      github.event_name == 'schedule' && github.event.schedule == '0 10 * * 1'
+    runs-on: ubuntu-latest
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+      NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: env (slim)
+        run: |
+          uv sync --no-install-package torch --no-install-package xgboost \
+            --no-install-package mlflow --no-install-package optuna \
+            --no-install-package cvxpy
+      - name: stale check
+        run: |
+          uv run --no-sync python - <<'EOF'
+          import os, sys, time
+          import pandas as pd
+          stale_days = 45
+          msgs = []
+          for name in ("vq", "news"):
+              p = f"state/live/{name}_snapshot.parquet"
+              if not os.path.exists(p):
+                  if name == "news":
+                      continue      # news only ships with the Kaggle branch
+                  msgs.append(f"{name}: snapshot missing")
+                  continue
+              df = pd.read_parquet(p)
+              age = (pd.Timestamp.now().normalize()
+                     - pd.to_datetime(df["date"]).max()).days
+              print(f"{name}: snapshot as-of {df['date'].max()} "
+                    f"({age}d old)")
+              if age > stale_days:
+                  msgs.append(f"{name}: {age}d stale > {stale_days}d")
+          if msgs:
+              print("STALE: " + "; ".join(msgs), file=sys.stderr)
+              try:
+                  sys.path.insert(0, "src")
+                  from quant_research.notion_journal import NotionJournal
+                  NotionJournal(os.environ.get("NOTION_TOKEN", ""),
+                                os.environ.get("NOTION_DB_ID", ""),
+                                os.environ.get("NOTION_PARENT_PAGE_ID", "")
+                                ).log_error(pd.Timestamp.now(),
+                                            "snapshot staleness: " +
+                                            "; ".join(msgs), {})
+              except Exception as e:
+                  print(f"journal write failed: {e}", file=sys.stderr)
+              sys.exit(1)
+          EOF

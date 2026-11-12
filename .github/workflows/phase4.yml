@@ -320,7 +320,8 @@ jobs:
           if [ -f results/news_sentiment/daily_sentiment.parquet ]; then
             echo "sentiment present:"; ls -la results/news_sentiment/
           elif [ "${{ inputs.allow_missing_news }}" = "true" ] || \
-               [ "${{ inputs.job }}" = "livebot_holdout" ]; then
+               [ "${{ inputs.job }}" = "livebot_holdout" ] || \
+               [ "${{ inputs.job }}" = "honest_holdout" ]; then
             echo "::warning::news sentiment absent — 'news' signal dead (dev run)"
           else
             echo "::error::no news sentiment — run Kaggle MODELS=phase4_news_score or set allow_missing_news"
