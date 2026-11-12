@@ -77,6 +77,8 @@ env:
 jobs:
   mock_day:
     name: mocked full day (CI, no keys)
+    # skipped on master dispatch-copy pushes (tests live on phase4/adaptive)
+    if: hashFiles('tests/test_paper_trade.py') != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
