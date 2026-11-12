@@ -1,0 +1,125 @@
+name: paper-trade
+# ─────────────────────────────────────────────────────────────────────────────
+# MicroTop5 paper bot — Phase-4 adaptive signal, Alpaca PAPER account only,
+# Notion trade journal. Signal is UNVALIDATED until the 2025+ holdout clears
+# the gate; every log/journal entry carries the flag.
+#
+#   run       one trading day end-to-end (manual dispatch — or the schedule
+#             below once the owner enables it). Needs Alpaca paper + Notion
+#             secrets; hard-refuses any non-paper base URL.
+#   mock_day  CI smoke: a full day with mocked Alpaca/Notion (no keys needed).
+#
+# Secrets (GitHub Environment "ALPACA_API_KEY" holds the Alpaca pair; add the
+# Notion ones as repo secrets — see docs/BOT_SETUP.md):
+#   ALPACA_API_KEY, ALPACA_API_SECRET  — paper trading keys, paper-api only
+#   NOTION_TOKEN                     — internal integration secret
+#   NOTION_DB_ID                     — Trade Journal db (after notion_setup.py)
+#   NOTION_PARENT_PAGE_ID            — only used to create the db if DB unset
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "override signal day YYYY-MM-DD (default: latest bar)"
+        required: false
+      dry_run:
+        description: "journal to a file instead of Notion (orders still paper)"
+        required: false
+        default: "false"
+      fixture:
+        description: "optional parquet of closes (fully offline day)"
+        required: false
+  # ── DISABLED until the owner says enable: after the US close, Mon–Fri ──
+  # schedule:
+  #   - cron: "0 22 * * 1-5"   # 22:00 UTC — safely after the 16:00 ET close
+  push:
+    paths:
+      - scripts/paper_trade.py
+      - scripts/notion_setup.py
+      - src/quant_research/**
+      - tests/test_paper_trade.py
+      - configs/live_signal.yaml
+      - .github/workflows/paper_trade.yml
+  pull_request:
+    paths:
+      - scripts/paper_trade.py
+      - scripts/notion_setup.py
+      - src/quant_research/**
+      - tests/test_paper_trade.py
+      - configs/live_signal.yaml
+      - .github/workflows/paper_trade.yml
+
+permissions:
+  contents: read
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  mock_day:
+    name: mocked full day (CI, no keys)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: env (slim — no torch/xgb/mlflow/optuna/cvxpy)
+        run: |
+          uv sync --no-install-package torch --no-install-package xgboost \
+            --no-install-package mlflow --no-install-package optuna \
+            --no-install-package cvxpy
+          uv cache clean
+      - name: full-day mocked run (fake Alpaca + Notion)
+        run: uv run --no-sync python -m pytest tests/test_paper_trade.py -x -q
+      - name: dry-run journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-mock-day
+          path: results/paper_dryrun/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  run:
+    name: paper day
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    environment: ALPACA_API_KEY   # env holding the paper keys
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+      NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: env (slim)
+        run: |
+          uv sync --no-install-package torch --no-install-package xgboost \
+            --no-install-package mlflow --no-install-package optuna \
+            --no-install-package cvxpy
+          uv cache clean
+      - name: keys sanity
+        run: |
+          [ -n "$ALPACA_API_KEY" ] || { echo "ALPACA_API_KEY secret missing"; exit 1; }
+          [ -n "$ALPACA_SECRET_KEY" ] || { echo "ALPACA_API_SECRET secret missing"; exit 1; }
+          [ -n "$NOTION_TOKEN" ] || echo "::warning::NOTION_TOKEN missing — journal writes will fail unless dry_run"
+      - name: paper day
+        env:
+          ARGS: >-
+            ${{ github.event.inputs.date != '' && format('--date {0}', github.event.inputs.date) || '' }}
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+            ${{ github.event.inputs.fixture != '' && format('--fixture {0}', github.event.inputs.fixture) || '' }}
+        run: |
+          set -x
+          uv run --no-sync python scripts/paper_trade.py $ARGS
+      - name: day journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-day-${{ github.run_id }}
+          path: |
+            results/paper_dryrun/
+            state/live/weights.json
+          if-no-files-found: ignore
+          retention-days: 30
