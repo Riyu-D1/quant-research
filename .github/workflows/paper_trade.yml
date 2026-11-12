@@ -95,7 +95,7 @@ jobs:
             --no-install-package cvxpy
           uv cache clean
       - name: full-day mocked run (fake Alpaca + Notion)
-        run: uv run --no-sync python -m pytest tests/test_paper_trade.py tests/test_live_holdout.py -x -q
+        run: uv run --no-sync python -m pytest tests/test_paper_trade.py tests/test_live_holdout.py tests/test_production.py -x -q
       - name: dry-run journal artifact
         if: always()
         uses: actions/upload-artifact@v4
