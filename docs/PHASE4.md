@@ -99,4 +99,31 @@ buy-and-hold on IR AND DSR > 0.5. Otherwise none is written.
 
 ## Results
 
-_Pending — fill after the select + holdout runs._
+**Select (2021-2024, run 43141704337):** 27 candidates —
+`results/phase4_us_select.json`. Best deployable `equal-w36-rcash`; every
+candidate's IR was negative to flat on OOF — no deployable adaptive config
+cleared bar on the selection window.
+
+**Live-bot holdout (RE-VIEWED, run 43323965312):** the pinned paper-bot
+pipeline (`configs/live_signal.yaml`: mom+vq equal, regime guard cash,
+MicroTop5 £10, 10 bps) scored once on 2025-01-02 → 2026-11-06 by
+`scripts/live_holdout.py` — signals/weights decided through 2024-12-31
+only, weights re-derived monthly exactly like the live run. This window
+was already viewed in phases 2/3 — **re-viewed holdout, no tuning
+permitted on it.**
+
+| variant | total | ann. | IR | IRxs SPY | max DD | turnover | hit | final £ | DSR |
+|---|---|---|---|---|---|---|---|---|---|
+| regime:cash (pinned) | +39.2% | +19.8% | +0.977 | +0.236 | -17.3% | 0.097 | 46.4% | £13.92 | 0.415 |
+| regime:none (guard off) | +62.2% | +30.2% | +1.189 | +0.746 | -25.7% | 0.107 | 54.9% | £16.22 | 0.527 |
+| SPY buy & hold | +28.2% | +14.5% | +0.876 | — | -18.8% | — | — | — | — |
+
+In-sample context (2023-2024, not a holdout): bot IR 1.37/1.52 < SPY 1.87
+— the OOS SPY-beat is *not* predicted by the in-sample window.
+
+**Gate verdict:** positive ✓, beats SPY on IR ✓, DSR > 0.5 ✗ (0.415,
+n_trials = 66 prior + 27 select + 2 here) → **gate FAILED — `validated`
+stays `false`.** The strategy beat SPY on this re-viewed window but the
+trial-adjusted confidence doesn't clear the predeclared bar. News signal
+was absent (Kaggle FinBERT branch not landed); rerun the same job with
+`--with-news` when it does.
