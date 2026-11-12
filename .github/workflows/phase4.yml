@@ -1,0 +1,426 @@
+name: phase4-adaptive
+
+# Phase-4 adaptive-strategy pipeline on GitHub-hosted runners — nothing
+# heavy runs on the owner's Mac. Dispatch-only.
+#
+# Jobs (run in order):
+#   fetch    Alpaca news headlines (ALPACA_API_KEY environment) + XBRL
+#            fundamentals -> artifacts phase4-news / phase4-inputs
+#   store    Alpha158+events+price+vq feature store -> artifact phase4-store
+#            (needs us-qlib-dump + phase3-events + phase4-inputs)
+#   preds    monthly-retrained model preds, matrix signal x window ->
+#            results/oof/us_adaptive/*.pkl committed to this branch
+#   smoke    tiny plumbing check (3 months, one window)
+#   select   2021-2024 monthly walk-forward over the predeclared grid ->
+#            results/phase4_us_select.json (needs phase4-store + preds +
+#            news sentiment from a results/kaggle-* branch)
+#   holdout  the chosen process scored once over 2025-01+ ->
+#            results/phase4_us.json + results/holdout_log.jsonl
+#   livebot_holdout  the pinned live-bot config (configs/live_signal.yaml:
+#            mom+vq equal, regime guard, MicroTop5 £10) scored on 2025+ ->
+#            results/live_holdout_us.json + results/holdout_log.jsonl
+#
+# The Kaggle FinBERT scoring step is manual (MODELS="phase4_news_score" in
+# notebooks/qlib_gpu_run.ipynb with PUSH_RESULTS=1) between fetch and select.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "fetch, store, preds, smoke, select, holdout, livebot_holdout, or news_smoke"
+        required: true
+        type: choice
+        options: [fetch, store, preds, smoke, select, holdout, livebot_holdout, honest_holdout, news_smoke]
+        default: smoke
+      signals:
+        description: "preds only: comma list of model signals (gbdt,ev)"
+        required: false
+        default: "gbdt"
+      window:
+        description: "preds only: train window months"
+        required: false
+        default: "24"
+        type: choice
+        options: ["24", "36"]
+      config:
+        description: 'holdout only: chosen config JSON e.g. {"train_months":24,"ic_months":6,"weighting":"ewic","regime":"half"}'
+        required: false
+        default: ""
+      sentiment_ref:
+        description: "select/holdout: git ref holding results/news_sentiment (blank = auto-find results/kaggle-* branch)"
+        required: false
+        default: ""
+      allow_missing_news:
+        description: "select/holdout: allow the news signal to be absent (dev only)"
+        required: false
+        type: boolean
+        default: false
+      threads:
+        description: "Threads for GBDTs"
+        required: false
+        default: "4"
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  fetch:
+    if: inputs.job == 'fetch'
+    runs-on: ubuntu-latest
+    environment: ALPACA_API_KEY   # environment name (contains both secrets)
+    timeout-minutes: 300
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean && du -sh .venv && df -h .
+
+      - name: Restore phase-3 events (cik_map needed for fundamentals)
+        run: |
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
+            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
+            > /tmp/p3ev.zip
+          mkdir -p data/events
+          unzip -o -j /tmp/p3ev.zip cik_map.parquet -d data/events/
+          test -f data/events/cik_map.parquet
+
+      - name: Restore news page cache (resume interrupted fetch)
+        uses: actions/cache@v4
+        with:
+          path: data/news/raw
+          key: phase4-news-${{ github.run_id }}
+          restore-keys: phase4-news-
+
+      - name: Fetch news + fundamentals
+        run: |
+          uv run --no-sync python scripts/phase4_fetch.py news --start 2020-09-01 &
+          P1=$!
+          uv run --no-sync python scripts/phase4_fetch.py fundamentals
+          wait $P1
+
+      - name: Upload news + fundamentals artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-news
+          path: data/news/headlines.parquet
+          retention-days: 90
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4-inputs
+          path: data/events/fundamentals.parquet
+          retention-days: 90
+          if-no-files-found: warn
+
+  # Cheap CPU plumbing check for the FinBERT entry point: real artifact
+  # downloads (the exact path that silently broke on Kaggle — artifact zips
+  # are root-flat, not repo-relative), deterministic hash scores, asserts
+  # results/news_sentiment/ is written. No transformers/torch needed.
+  news_smoke:
+    if: inputs.job == 'news_smoke'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean
+      - name: Score smoke (stub scores, real artifacts)
+        run: |
+          uv run --no-sync python scripts/phase4_score_news.py \
+            --smoke --limit 300
+          test -s results/news_sentiment/daily_sentiment.parquet
+          test -s results/news_sentiment/scored_articles.parquet
+          ls -la results/news_sentiment/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4-news-smoke-${{ github.run_id }}
+          path: results/news_sentiment/
+          if-no-files-found: ignore
+
+  store:
+    if: inputs.job == 'store'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean && du -sh .venv && df -h .
+
+      - name: Fetch Alpaca US qlib dump + phase-3 events + fundamentals
+        run: |
+          gh run download -R ${{ github.repository }} -n us-qlib-dump \
+            -D data/qlib/us_alpaca
+          test -f data/qlib/us_alpaca/calendars/day.txt
+          # selective extract — the 185MB artifact is mostly insider/13f raw
+          # tables the store does not read
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
+            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
+            > /tmp/p3ev.zip
+          mkdir -p data/events
+          unzip -o -j /tmp/p3ev.zip features_us.parquet shares_out.parquet \
+            -d data/events/
+          test -f data/events/features_us.parquet
+          gh run download -R ${{ github.repository }} -n phase4-inputs \
+            -D data/events || true
+          df -h / /mnt $HOME 2>/dev/null | sort -u
+
+      - name: Swap headroom (full-span Alpha158 peaks ~7.5GB)
+        run: |
+          nproc; free -h; swapon --show; df -h /mnt $PWD
+          # /mnt may be the same disk as the workspace on some runner images —
+          # size the swapfile to the mount with most free space, capped at 4G
+          # and at 60% of what's actually free (an 8G dd to a nearly-full
+          # system disk killed the runner agent on the first two attempts).
+          if ! swapon --show --noheadings | grep -q swapfile4; then
+            MNT=/mnt
+            if [ "$(df --output=avail $PWD | tail -1)" -gt \
+                 "$(df --output=avail /mnt | tail -1)" ]; then MNT=$PWD; fi
+            FREE_MB=$(df --output=avail -BM "$MNT" | tail -1 | tr -dc '0-9')
+            SWAP_MB=$(( FREE_MB*60/100 > 4096 ? 4096 : FREE_MB*60/100 ))
+            echo "swapfile on $MNT sized ${SWAP_MB}MB (free ${FREE_MB}MB)"
+            if [ "$SWAP_MB" -ge 512 ]; then
+              sudo dd if=/dev/zero of="$MNT/swapfile4" bs=1M count=$SWAP_MB \
+                status=none
+              sudo chmod 600 "$MNT/swapfile4"
+              sudo mkswap "$MNT/swapfile4" && sudo swapon "$MNT/swapfile4"
+            else
+              echo "not enough free space for swap — running without"
+            fi
+          fi
+          free -h
+
+      - name: Build feature store
+        run: uv run --no-sync python scripts/phase4_build.py --market us
+
+      - name: Upload store artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-store
+          path: data/features4/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Cache store (resume for preds/select jobs)
+        uses: actions/cache@v4
+        with:
+          path: data/features4
+          key: phase4-store-${{ github.run_id }}
+          restore-keys: phase4-store-
+
+  preds:
+    if: inputs.job == 'preds'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean && du -sh .venv && df -h .
+
+      - name: Fetch feature store artifact
+        run: |
+          gh run download -R ${{ github.repository }} -n phase4-store \
+            -D data/features4
+          test -f data/features4/store_us.parquet
+
+      - name: Restore pred checkpoints (resume on rerun)
+        uses: actions/cache@v4
+        with:
+          path: results/oof/us_adaptive
+          key: phase4-preds-${{ github.run_id }}
+          restore-keys: phase4-preds-
+
+      - name: Monthly retrains (commit checkpoints as we go)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase4/adaptive
+          ckpt() {
+            git fetch origin phase4/adaptive -q 2>/dev/null || true
+            git add results/oof/us_adaptive 2>/dev/null || true
+            git diff --cached --quiet && return 0
+            git commit -qm "phase4 preds checkpoint (${{ inputs.signals }} w${{ inputs.window }}, ${{ github.run_id }})" || return 0
+            git pull --rebase origin phase4/adaptive -q 2>/dev/null \
+              || { git rebase --abort -q 2>/dev/null; return 0; }
+            git push -q origin HEAD:phase4/adaptive 2>/dev/null || true
+          }
+          uv run --no-sync python scripts/phase4_run.py --mode preds \
+            --signals ${{ inputs.signals }} --window ${{ inputs.window }} \
+            --threads ${{ inputs.threads }} &
+          PIPE=$!
+          while kill -0 $PIPE 2>/dev/null; do sleep 300; ckpt; done
+          wait $PIPE; RC=$?
+          ckpt
+          exit $RC
+
+  eval-run:
+    if: inputs.job == 'smoke' || inputs.job == 'select' || inputs.job == 'holdout' || inputs.job == 'livebot_holdout' || inputs.job == 'honest_holdout'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: uv sync --frozen --no-dev --no-install-package torch --no-install-package xgboost --no-install-package mlflow --no-install-package optuna --no-install-package cvxpy
+      - run: uv cache clean && du -sh .venv && df -h .
+
+      - name: Fetch Alpaca US qlib dump (closes + SPY)
+        run: |
+          gh run download -R ${{ github.repository }} -n us-qlib-dump \
+            -D data/qlib/us_alpaca
+          test -f data/qlib/us_alpaca/calendars/day.txt
+
+      - name: Fetch feature store
+        run: |
+          gh run download -R ${{ github.repository }} -n phase4-store \
+            -D data/features4
+          test -f data/features4/store_us.parquet
+
+      - name: Pull news sentiment from results branch
+        run: |
+          if [ -n "${{ inputs.sentiment_ref }}" ]; then
+            git fetch -q --depth 1 origin "${{ inputs.sentiment_ref }}"
+            git checkout FETCH_HEAD -- results/news_sentiment/ || true
+          else
+            for br in $(git ls-remote --heads origin 'results/kaggle-*' \
+                        | cut -f2 | sort -rV); do
+              git fetch -q --depth 1 origin "$br" || continue
+              git checkout FETCH_HEAD -- results/news_sentiment/ 2>/dev/null \
+                && break || true
+            done
+          fi
+          if [ -f results/news_sentiment/daily_sentiment.parquet ]; then
+            echo "sentiment present:"; ls -la results/news_sentiment/
+          elif [ "${{ inputs.allow_missing_news }}" = "true" ] || \
+               [ "${{ inputs.job }}" = "livebot_holdout" ] || \
+               [ "${{ inputs.job }}" = "honest_holdout" ]; then
+            echo "::warning::news sentiment absent — 'news' signal dead (dev run)"
+          else
+            echo "::error::no news sentiment — run Kaggle MODELS=phase4_news_score or set allow_missing_news"
+            exit 1
+          fi
+
+      - name: Restore pred checkpoints
+        uses: actions/cache@v4
+        with:
+          path: results/oof/us_adaptive
+          key: phase4-preds-${{ github.run_id }}
+          restore-keys: phase4-preds-
+
+      - name: Run pipeline (select / smoke / holdout)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase4/adaptive
+          ckpt() {
+            git fetch origin phase4/adaptive -q 2>/dev/null || true
+            # per-path add: a single unmatched pathspec would kill the whole
+            # `git add` (phase4_us.json / news_sentiment don't exist pre-holdout)
+            for p in results/oof/us_adaptive results/phase4_us_select.json \
+                     results/phase4_us.json results/live_holdout_us.json \
+                     results/honest_holdout_us.json \
+                     results/holdout_log.jsonl results/news_sentiment; do
+              git add "$p" 2>/dev/null || true
+            done
+            git diff --cached --quiet && return 0
+            git commit -qm "phase4 checkpoint (${{ inputs.job }}, ${{ github.run_id }})" || return 0
+            git pull --rebase origin phase4/adaptive -q 2>/dev/null \
+              || { git rebase --abort -q 2>/dev/null; return 0; }
+            git push -q origin HEAD:phase4/adaptive 2>/dev/null || true
+          }
+          if [ "${{ inputs.job }}" = "livebot_holdout" ]; then
+            ARGS=(--eval-start 2025-01-01)
+            # the pinned live config carries no news signal; --with-news only
+            # matters once the Kaggle sentiment branch has landed
+            if [ -f results/news_sentiment/daily_sentiment.parquet ]; then
+              ARGS+=(--with-news)
+            fi
+            uv run --no-sync python scripts/live_holdout.py "${ARGS[@]}" &
+          elif [ "${{ inputs.job }}" = "honest_holdout" ]; then
+            # the Phase-5 honest rescore: PIT universe (delisted included),
+            # liquidity-bucket costs + flat-bps sweep, next-open fills,
+            # delist liquidation, robustness block — all variants count in
+            # n_trials. Writes results/honest_holdout_us.json.
+            ARGS=(--eval-start 2025-01-01
+                  --out results/honest_holdout_us.json)
+            if [ -f results/news_sentiment/daily_sentiment.parquet ]; then
+              ARGS+=(--with-news)
+            fi
+            uv run --no-sync python scripts/live_holdout.py "${ARGS[@]}" &
+          else
+            ARGS=(--threads "${{ inputs.threads }}")
+            if [ "${{ inputs.job }}" = "holdout" ]; then
+              ARGS+=(--config "${{ inputs.config }}")
+            fi
+            uv run --no-sync python scripts/phase4_run.py \
+              --mode "${{ inputs.job }}" "${ARGS[@]}" &
+          fi
+          PIPE=$!
+          while kill -0 $PIPE 2>/dev/null; do sleep 300; ckpt; done
+          wait $PIPE; RC=$?
+          ckpt
+          exit $RC
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-us-${{ github.run_id }}
+          path: |
+            results/oof/us_adaptive/
+            results/phase4_us_select.json
+            results/phase4_us.json
+            results/live_holdout_us.json
+            results/honest_holdout_us.json
+            results/holdout_log.jsonl
+          if-no-files-found: ignore
+
+      - name: Commit results back to phase4/adaptive
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase4/adaptive
+          for p in results/oof/us_adaptive results/phase4_us_select.json \
+                   results/phase4_us.json results/live_holdout_us.json \
+                   results/honest_holdout_us.json \
+                   results/holdout_log.jsonl results/news_sentiment; do
+            git add "$p" 2>/dev/null || true
+          done
+          if git diff --cached --quiet; then
+            echo "nothing to commit"; exit 0
+          fi
+          git commit -m "phase4 us results — run ${{ github.run_id }}"
+          git fetch origin phase4/adaptive || true
+          for i in 1 2 3; do
+            git push origin "phase4/adaptive:phase4/adaptive" && break
+            git pull --rebase origin phase4/adaptive
+          done

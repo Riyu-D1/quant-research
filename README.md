@@ -6,8 +6,12 @@ then paper-trades it via NautilusTrader + Alpaca. **No real money, ever.**
 
 ## Status
 
-Phase 1 — baseline reproduction of the Qlib benchmarks. See
-`results/LEADERBOARD.md` for the table and `EXPERIMENTS.md` for the attempt log.
+Phase 4 — adaptive process research + a hardened Alpaca **paper**-trading
+bot (`scripts/paper_trade.py`, MicroTop5 £10, mom+vq signal, Notion Trade
+Journal, manual dispatch only; daily cron commented out). The bot's exact
+pipeline is scored on 2025+ by `scripts/live_holdout.py` — see
+`docs/PHASE4.md` for the result and `docs/BOT_SETUP.md` for operations.
+Earlier phases: `results/LEADERBOARD.md`, `EXPERIMENTS.md`.
 
 ## Layout
 

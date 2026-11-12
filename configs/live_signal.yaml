@@ -1,0 +1,65 @@
+# Phase-4 live signal config — PINNED inputs for scripts/paper_trade.py.
+#
+# PROVISIONAL PIN (pre-holdout): the definitive select + single 2025+
+# holdout have not been scored yet. Per the provisional select on
+# 2021-2024 (results/phase4_us_select.json, run 43141704337) the best
+# single signals were vq (IR +0.74) and mom (IR +0.68); every combo was
+# negative, best deployable equal-w36-rcash at IR -0.026. This file pins
+# the owner's interim choice (mom+vq, equal weight, cash regime) until the
+# definitive result lands — at which point the winner goes here and
+# `validated` flips to true ONLY if the predeclared gate passed
+# (positive holdout, beats SPY on IR, DSR > 0.5).
+validated: false
+
+# Live-trading interlock (NEVER set true here — see docs/BOT_SETUP.md).
+# Going live additionally needs the LIVE_TRADING_ACK repo secret set to
+# I_UNDERSTAND_LIVE_RISK and ALPACA_BASE_URL + live keys pointed at the
+# real endpoint. With this false every path stays paper-only.
+live_trading: false
+
+# Signal library to combine. Computable live: mom, rev (Alpaca bars),
+# vq, news (state/live snapshots). gbdt/ev need the monthly-retrain
+# store pipeline — the bot logs and drops them if pinned here.
+signals: [mom, vq]
+
+# Weighting: equal | ewic (trailing EW rank-IC; snapshot signals without
+# a live IC history force equal weighting — documented limitation).
+weighting: equal
+ic_months: 12           # ewic trailing window (when enabled)
+halflife_frac: 0.5      # ewic halflife = ic_months * 21 * frac days
+
+# Predeclared regime guard (same math as the research spec): exposure ->
+# actions[regime] when SPY < SMA(200) or 21d realised vol > 90th pct of
+# trailing 504d, all on lagged closes strictly before the day.
+regime: cash
+regime_cfg:
+  sma: 200
+  vol_win: 21
+  vol_lookback: 504
+  vol_q: 0.90
+  actions: {none: 1.0, half: 0.5, cash: 0.0}
+
+# Portfolio — mirrors the Phase-3/4 micro simulator.
+n_positions: 5
+budget_gbp: 10.0          # £10 account, converted to USD at run time
+cost_bps: 10.0            # sizing conservatism (paper fills are free)
+snapshot_stale_days: 45   # vq/news snapshots older than this are dropped
+
+# Order timing — orders only during the regular session, at least this
+# many minutes after the open (calendar-API session times; half-days
+# handled automatically). Cron should land after this anyway.
+order_after_open_min: 15
+
+# Risk controls — all gates below are enforced in paper_trade.py and
+# covered by tests. A sanity failure aborts the whole run (no orders);
+# a breaker blocks only new buys (sells still de-risk).
+risk:
+  max_drawdown: 0.25          # equity vs running peak -> halt new buys
+  daily_loss: 0.05            # equity vs prior day-summary -> halt buys
+  max_position_weight: 0.40   # clip any single buy to this share of equity
+  max_orders: 12              # per run (sells kept, excess buys dropped)
+  max_daily_notional_frac: 1.0  # total buys <= this * equity
+  max_price_move: 0.50        # |last/prior close - 1| bound for traded names
+  min_universe: 100           # priced-name floor — a tiny count = broken bars
+
+universe: configs/live_universe.txt

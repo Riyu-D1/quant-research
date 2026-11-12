@@ -1,0 +1,82 @@
+# Phase-4 adaptive spec — S&P 500 PIT, monthly-retrained signal-weighted
+# strategy on the MicroTop5 £10 simulator.
+#
+# Everything below was PREDECLARED before any evaluation run (grid shape,
+# signal definitions, weighting rule, regime guard, costs). Selection runs
+# month-by-month over eval_window only; the holdout is scored once on the
+# chosen config and logged to results/holdout_log.jsonl.
+market: us
+region: us
+provider_uri: data/qlib/us_alpaca
+instruments: sp500
+benchmark: SPY
+data_start: "2016-01-01"
+data_end: "2026-11-01"
+label: "Ref($close, -2) / Ref($close, -1) - 1"
+
+store: data/features4/store_us.parquet
+news_daily: results/news_sentiment/daily_sentiment.parquet   # Kaggle output
+
+eval_window: ["2021-01-01", "2024-12-31"]   # selection ONLY
+holdout: ["2025-01-01", "2026-11-01"]       # scored once, after selection
+
+# Signal library — each is an independent (datetime, instrument) score.
+#   gbdt  Alpha158 LightGBM, retrained monthly on trailing `train_months`
+#   ev    Phase-3 insider/13F/congress features, same monthly LightGBM
+#   mom   close[t-21]/close[t-252]-1  (12-1 momentum)
+#   rev   -(close[t]/close[t-21]-1)   (1-month reversal)
+#   vq    mean per-day rank of vq_bm/vq_ep/vq_roe (XBRL value/quality)
+#   news  EW mean of FinBERT headline scores, 5-trading-day halflife,
+#         keyed to publish date < trading day
+signals: [gbdt, ev, mom, rev, vq, news]
+
+# Selection grid — every combination is simulated; the deployable set is the
+# ewic+equal combos (single-signal rows are comparators, not deployable).
+grid:
+  train_months: [24, 36]        # rolling train window for gbdt/ev
+  ic_months: [6, 12]            # trailing rank-IC window for ewic weights
+  weighting: [ewic, equal]
+  regime: [none, half, cash]    # guard action: off / 50% / cash
+
+# EW weighting: score_i = exponentially-weighted mean of daily rank IC over
+# the trailing ic_months, halflife = ic_months * halflife_frac (in ~21d
+# months); floor at 0, L1-normalise; all-nonpositive => flat month in cash.
+halflife_frac: 0.5
+
+# Regime guard (predeclared): exposure = action when, measured on closes
+# strictly before the day, SPY < SMA(200) OR trailing 21d realised vol is
+# above the 90th percentile of its trailing 504d history.
+regime:
+  sma: 200
+  vol_win: 21
+  vol_lookback: 504
+  vol_q: 0.90
+  action: {half: 0.5, cash: 0.0}
+
+# Portfolio — Phase-3 micro account: £10 -> ~$12.70, fractional, max 5
+# names, 10bps/side. Identical to walkforward_us_events.yaml.
+micro:
+  n: 5
+  cash_gbp: 10.0
+  gbpusd: 1.27
+  cost_bps: 10.0
+
+# Monthly LightGBM — same hyperparameters as every prior phase (declared
+# parity; no phase-4 tuning). Early stop on the last 42 days of the window.
+lgb:
+  colsample_bytree: 0.8879
+  learning_rate: 0.2
+  subsample: 0.8789
+  bagging_freq: 1
+  lambda_l1: 205.6999
+  lambda_l2: 580.9768
+  max_depth: 8
+  num_leaves: 210
+
+# Prior US trial count for the honest DSR: phase-2 US n_trials 37 +
+# phase-3 US n_trials 29 (per EXPERIMENTS.md EX-022 / EX-026).
+prior_trials_us: 66
+
+# Filled by hand AFTER the select run, BEFORE the holdout run.
+# chosen: {train_months: 24, ic_months: 6, weighting: ewic, regime: half}
+chosen: null

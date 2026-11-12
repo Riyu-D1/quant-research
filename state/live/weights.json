@@ -1,0 +1,8 @@
+{
+ "month": "2026-11",
+ "weights": {
+  "mom": 0.5,
+  "vq": 0.5
+ },
+ "config": "/Users/deepakdiwan/quant-research/configs/live_signal.yaml"
+}
