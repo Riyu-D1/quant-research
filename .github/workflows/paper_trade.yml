@@ -107,6 +107,8 @@ jobs:
 
   run:
     name: paper day
+    # never on pull_request — the env deployment review would fire on a
+    # job that can never trade (PRs have no secret access by design)
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.job != 'refresh_snapshot')
       || (github.event_name == 'schedule'
