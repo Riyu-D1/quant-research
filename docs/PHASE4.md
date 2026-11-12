@@ -121,9 +121,68 @@ permitted on it.**
 In-sample context (2023-2024, not a holdout): bot IR 1.37/1.52 < SPY 1.87
 — the OOS SPY-beat is *not* predicted by the in-sample window.
 
-**Gate verdict:** positive ✓, beats SPY on IR ✓, DSR > 0.5 ✗ (0.415,
-n_trials = 66 prior + 27 select + 2 here) → **gate FAILED — `validated`
-stays `false`.** The strategy beat SPY on this re-viewed window but the
-trial-adjusted confidence doesn't clear the predeclared bar. News signal
-was absent (Kaggle FinBERT branch not landed); rerun the same job with
-`--with-news` when it does.
+**Gate verdict (first pass, legacy spec):** positive ✓, beats SPY on IR ✓,
+DSR > 0.5 ✗ (0.415, n_trials = 95) → gate FAILED.
+
+**Phase-5 honest rescore (run 43329820435, `job=honest_holdout` →
+`results/honest_holdout_us.json`):** the same pinned pipeline re-scored
+with a corrected universe, costs, and fills. What changed:
+
+- **Universe — the real surprise.** `live_universe.txt` already contains
+  the 2025-exited names (WBA, JNPR, PARA, DFS, BWA…), so the deployed
+  universe was never survivors-biased on the membership axis. The old
+  score's inflation came from a subtler bug: signals were computed on
+  *membership-masked* bars, so any mid-window index joiner (COIN +1030d,
+  DASH +1076d, CVNA +2176d of real history at join) was invisible to
+  12-1 momentum for its first ~252 member-days — the hot additions of
+  2025 could never be picked. The honest loader gives each name its full
+  listed history (exactly what the live bot sees on Alpaca), and the
+  eligibility mask is the per-day bar frame.
+- **Costs** — cap-bucket half-spread by dollar volume (1/5/20 bps
+  mega/mid/illiquid) + 10 bps flat, per-name per-day.
+- **Fills** — next-day open instead of signal-close (no same-close
+  look-ahead).
+- **Delisted holds** — liquidate at last close instead of zombifying.
+
+| variant | total | ann. | IR | xsIR vs SPY | maxDD | turnover | hit | DSR |
+|---|---|---|---|---|---|---|---|---|
+| survivors_only (legacy fills/costs) | +26.8% | +13.8% | +0.725 | +0.008 | -21.3% | 0.096 | 46.4% | 0.280 |
+| listed (legacy) — the bot's universe | +26.8% | +13.8% | +0.725 | +0.008 | -21.3% | 0.096 | 46.4% | 0.280 |
+| pit_index (legacy; S&P members only) | +23.8% | +12.4% | +0.664 | -0.050 | -21.2% | 0.093 | 46.2% | 0.253 |
+| **honest (primary)** | **+20.6%** | **+10.7%** | **+0.593** | **-0.119** | **-21.6%** | 0.096 | 46.4% | **0.223** |
+| honest_pit (honest on index members) | +23.8% | +12.3% | +0.657 | -0.052 | -21.2% | 0.093 | 46.4% | 0.250 |
+| honest regime off | +34.4% | +17.5% | +0.766 | +0.216 | -26.6% | 0.106 | 54.2% | 0.298 |
+| SPY buy & hold | +28.2% | +14.5% | +0.876 | — | -18.8% | — | — | — |
+
+`survivors_only` ≡ `listed` here — dead names are already in the universe
+file, so there was no survivorship delta to remove; the revision is from
+signal-history eligibility + costs + fills. **Cost fragility is severe**
+(flat-bps sweep on the honest spec):
+
+| cost/side | total | IR |
+|---|---|---|
+| 0 bps | +34.4% | +0.878 |
+| 10 bps | +22.5% | +0.635 |
+| 25 bps | +8.3% | +0.312 |
+| 50 bps | -11.6% | -0.207 |
+
+**Robustness (reported, never used to pick):**
+- Per-year OOF IR: 2016 ~0 (startup), 2017 +1.65, 2018 +0.97, 2019 +0.66
+  (xs -0.17), 2020 +1.18, 2021 +1.35, **2022 -1.68** (bear), 2023 +1.62,
+  2024 +1.42 — good years exist but the sign isn't stable.
+- Rolling-12m excess IR vs SPY: median **-0.25**, only **40.6%** of
+  windows positive (latest +0.99 — recent strength is not the norm).
+- Block-bootstrap annualised excess vs SPY: mean -4.9%, 95% CI
+  **[-30.7%, +22.1%]** — includes zero.
+- Top-N: top-10 +18.6%/IR 0.64 (similar); **top-20 is infeasible at £10**
+  ($0.66/position < Alpaca's $1 minimum → flat book — noted, not a bug).
+- Rebalance: daily +20.6% >> weekly +4.6% / monthly +8.1% — the edge is
+  churn-dependent → fragile.
+
+**Gate verdict (honest):** positive ✓ (+20.6%), beats SPY on IR ✗
+(0.593 < 0.876), DSR > 0.5 ✗ (0.223, n_trials = 66 prior + 27 select +
+2 prior livebot + 14 scored here = 109) → **VALIDATION GATE FAILED on two
+of three legs. `validated` stays `false`.** Plainly: after honest
+universe/costs/fills the bot *loses* to SPY on this re-viewed window —
+the earlier +39.2% result was inflated by masked-signal history and
+free/instant fills, and should not be quoted.
