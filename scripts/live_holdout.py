@@ -408,24 +408,28 @@ def main() -> None:
         f"weighting={cfg['weighting']} regime={cfg['regime']} ===")
 
     from quant_research import events as ev
-    live_uni = {ev.canon(l) for l in
-                (REPO / cfg["universe"]).read_text().splitlines()
-                if l.strip() and not l.startswith("#")}
 
-    # -- market data (PIT dump: membership windows, delisted names included) ------
+    # -- market data -------------------------------------------------------------
+    # Two views of the same dump:
+    #  bars_pit — membership-windowed: a name exists only while it was an
+    #     S&P 500 member (stricter than the deployed universe; reported as
+    #     a variant, NOT the primary — the live bot trades every name in
+    #     configs/live_universe.txt, member or not).
+    #  bars_all — every instrument while it had bars (listed as of each
+    #     day, delisted names included). This is the honest universe for
+    #     the deployed bot: live_universe.txt already contains the dead
+    #     names, so trading them while listed is exactly what the bot does.
     provider = Path(args.provider_uri)
-    # `bars` is membership-windowed: tradable/eligible universe per day.
-    bars = mc.load_bars(provider, args.instruments,
-                        ("close", "open", "volume"), masked=True)
-    # `full_close` is the full data span per symbol — signal math may read
-    # pre-membership history (a new member still has 252d of prices).
-    full_close = mc.load_bars(provider, args.instruments, ("close",),
-                              masked=False)["close"]
+    bars_pit = mc.load_bars(provider, args.instruments,
+                            ("close", "open", "volume"), masked=True)
+    bars_all = mc.load_bars(provider, args.instruments,
+                            ("close", "open", "volume"), masked=False)
+    full_close = bars_all["close"]
     cal = ev.load_calendar(provider)
     spy = pd.Series(ev.load_close(provider, "SPY", cal), index=cal) \
         .dropna().replace(0, np.nan).dropna()
     all_days = pd.DatetimeIndex(
-        bars["close"].index.get_level_values("datetime").unique()
+        bars_all["close"].index.get_level_values("datetime").unique()
         .sort_values())
     e0 = pd.Timestamp(args.eval_start)
     e1 = pd.Timestamp(args.eval_end) if args.eval_end else all_days.max()
@@ -490,29 +494,48 @@ def main() -> None:
     LEGACY = {"cost": "flat", "flat_bps": float(cfg["cost_bps"]),
               "fill": "close", "delist": False, "rebalance": "daily"}
 
-    variants: list[tuple[str, dict, set | None]] = [
-        # survivorship before/after: identical spec, only the universe changes
-        ("survivors_only(legacy)", {**LEGACY}, live_uni),
-        ("pit(legacy)", {**LEGACY}, None),
-        # the honest primary + regime-off comparator
-        ("honest", {**HONEST, "regime": cfg["regime"]}, None),
-        ("honest_regimeoff", {**HONEST, "regime": "none"}, None),
+    # -- universes ---------------------------------------------------------------
+    # survivors_only: only names still trading at the dump's last day —
+    #   the survivorship-BIASED baseline (what a naive today's-list test
+    #   would look like if it had dropped the dead names).
+    # listed: every name while it had bars — the honest universe, matching
+    #   the deployed bot's live_universe.txt (which contains dead names).
+    # pit: index members only while members — stricter than deployment.
+    last_day = all_days.max()
+    alive = set(bars_all["close"].loc[last_day]
+                .index.get_level_values("instrument"))
+    uni_surv = _filter_universe(bars_all, alive)
+    n_dead = len(set(bars_all["close"].index.get_level_values("instrument"))
+                 - alive)
+    log(f"universes: survivors={len(alive)} listed=+{n_dead} dead names "
+        f"pit={len(set(bars_pit['close'].index.get_level_values('instrument')))} "
+        f"members")
+
+    variants: list[tuple[str, dict, dict]] = [
+        # survivorship before/after — identical spec, only the universe
+        ("survivors_only(legacy)", LEGACY, uni_surv),
+        ("listed(legacy)", LEGACY, bars_all),
+        ("pit_index(legacy)", LEGACY, bars_pit),
+        # the honest primaries + comparators
+        ("honest", {**HONEST, "regime": cfg["regime"]}, bars_all),
+        ("honest_pit", {**HONEST, "regime": cfg["regime"]}, bars_pit),
+        ("honest_regimeoff", {**HONEST, "regime": "none"}, bars_all),
     ]
     # flat-cost sensitivity on the honest spec
     for bps in [float(x) for x in args.cost_sweep.split(",") if x.strip()]:
         variants.append((f"flat{int(bps)}bps",
-                         {**HONEST, "cost": "flat", "flat_bps": bps}, None))
+                         {**HONEST, "cost": "flat", "flat_bps": bps},
+                         bars_all))
     if not args.no_robustness:
         variants += [
-            ("robust_top10", {**HONEST, "n": 10}, None),
-            ("robust_top20", {**HONEST, "n": 20}, None),
-            ("robust_weekly", {**HONEST, "rebalance": "weekly"}, None),
-            ("robust_monthly", {**HONEST, "rebalance": "monthly"}, None),
+            ("robust_top10", {**HONEST, "n": 10}, bars_all),
+            ("robust_top20", {**HONEST, "n": 20}, bars_all),
+            ("robust_weekly", {**HONEST, "rebalance": "weekly"}, bars_all),
+            ("robust_monthly", {**HONEST, "rebalance": "monthly"}, bars_all),
         ]
 
     results, ledgers, daily = {}, {}, {}
-    for name, spec, uni in variants:
-        vb = _filter_universe(bars, uni)
+    for name, spec, vb in variants:
         rep, dr, led = eval_variant(cfg, sigs, label, vb, spy, eval_days,
                                     spec, base_kw)
         results[name] = rep
@@ -529,7 +552,7 @@ def main() -> None:
     insample = {}
     for rg in {cfg["regime"], "none"}:
         spec = {**HONEST, "regime": rg}
-        rep, _, _ = eval_variant(cfg, sigs, label, bars, spy, is_days,
+        rep, _, _ = eval_variant(cfg, sigs, label, bars_all, spy, is_days,
                                  spec, base_kw)
         insample[f"regime:{rg}"] = rep
         log(f"  [in-sample ctx] regime:{rg} tot={rep['total_return']:+.3f} "
@@ -539,7 +562,7 @@ def main() -> None:
     robust = {}
     if not args.no_robustness:
         # per-year OOF table on the honest spec (pre-2025 data only)
-        _, dr_oof, _ = eval_variant(cfg, sigs, label, bars, spy,
+        _, dr_oof, _ = eval_variant(cfg, sigs, label, bars_all, spy,
                                     oof_days, HONEST, base_kw)
         robust["per_year_oof"] = per_year_table(dr_oof, spy)
         log("  [oof] " + " ".join(
@@ -602,12 +625,16 @@ def main() -> None:
         "with_news": bool(args.with_news and "news" in sigs),
         "eval_window": [str(eval_days[0].date()), str(eval_days[-1].date())],
         "insample_window": [str(is_days[0].date()), str(is_days[-1].date())],
-        "honest_spec": {"universe": "pit (membership windows, delisted "
-                        "names included)", "cost": "liquidity half-spread "
-                        "buckets + 10bps flat", "fill": "next_open",
+        "honest_spec": {"universe": "listed (all dump names while trading;"
+                        " live_universe.txt already contains dead names)",
+                        "cost": "liquidity half-spread buckets + 10bps "
+                        "flat", "fill": "next_open",
                         "delist_liquidate": True},
-        "variant_specs": {n: {**s, "universe": "live" if u is not None
-                              else "pit"} for n, s, u in variants},
+        "variant_specs": {n: {**s, "universe": u} for n, s, u in
+                          [(v[0], v[1],
+                            "survivors" if v[2] is uni_surv else
+                            "pit_index" if v[2] is bars_pit else "listed")
+                           for v in variants]},
         "n_trials": n_trials, "results": results,
         "insample_context": insample,
         "robustness": robust,
