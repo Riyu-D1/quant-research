@@ -167,8 +167,9 @@ jobs:
           test -f data/qlib/us_alpaca/calendars/day.txt
           art phase3-events /tmp/p3ev
           mkdir -p data/events
-          cp /tmp/p3ev/features_us.parquet /tmp/p3ev/shares_out.parquet \
-            data/events/ 2>/dev/null || true
+          find /tmp/p3ev -name features_us.parquet -exec cp {} data/events/ \;
+          find /tmp/p3ev -name shares_out.parquet -exec cp {} data/events/ \;
+          test -f data/events/features_us.parquet
           art phase4-inputs data/events || true
           ls data/events/
 
@@ -221,8 +222,9 @@ jobs:
           test -f data/qlib/us_alpaca/calendars/day.txt
           art phase3-events /tmp/p3ev
           mkdir -p data/events
-          cp /tmp/p3ev/features_us.parquet /tmp/p3ev/shares_out.parquet \
-            data/events/ 2>/dev/null || true
+          find /tmp/p3ev -name features_us.parquet -exec cp {} data/events/ \;
+          find /tmp/p3ev -name shares_out.parquet -exec cp {} data/events/ \;
+          test -f data/events/features_us.parquet
           art phase4-inputs data/events || true
           art phase6-us-select results
 
