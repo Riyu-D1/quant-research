@@ -295,15 +295,35 @@ def cmd_holdout(spec: dict, select_path: Path, out: Path) -> dict:
     gate = {"positive": stats["ann_ret"] > 0,
             "beats_spy_ir": stats["IR"] > spy_stats["IR"],
             "dsr": dsr_val > 0.5}
+    # Deployable-shape check: the £10 bot holds ~5 names, not top-30. If
+    # the winning shape isn't top5_h20, score that shape too so the wiring
+    # decision knows the concentrated version's outcome. Counts as one
+    # extra holdout evaluation.
+    feasible = None
+    fp = next((p for p in spec["portfolios"] if p["name"] == "top5_h20"),
+              None)
+    if fp and fp["name"] != winner["portfolio"]:
+        fr = portfolio_returns(score, label, elig, fp["topk"], fp["hold"],
+                               fp["cost_bps"])
+        frh = fr.loc[fr.index.intersection(hdays)]
+        fstats = perf_stats(frh["net"])
+        feasible = {"portfolio": fp["name"], **fstats,
+                    "turnover": float(frh["turnover"].mean()),
+                    "by_year": by_year(frh["net"]),
+                    "beats_spy_ir": fstats["IR"] > spy_stats["IR"],
+                    "positive": fstats["ann_ret"] > 0}
+        log(f"feasible check {fp['name']}: IR {fstats['IR']:+.3f} "
+            f"ret {fstats['ann_ret']:+.3f}")
     summary = {"stage": "phase6_us_holdout (re-viewed)", "winner": winner,
-               "n_trials": sel.get("n_trials"), "holdout": stats,
+               "n_trials": sel.get("n_trials", 0) + (1 if feasible else 0),
+               "holdout": stats, "feasible_check": feasible,
                "spy": spy_stats, "dsr": dsr, "gate": gate,
                "turnover": float(rh["turnover"].mean()),
                "by_year": by_year(rh["net"]),
                "ts": time.strftime("%Y-%m-%d %H:%M:%S")}
     out.write_text(json.dumps(summary, indent=1))
     if all(gate.values()):
-        _wire_live(winner, combo, spec)
+        _wire_live(winner, combo, spec, stats)
     else:
         log("gate FAILED — live_signal.yaml left at validated: false")
     log(f"holdout IR {stats['IR']:+.3f} vs SPY {spy_stats['IR']:+.3f} "
@@ -315,7 +335,8 @@ _LIVE_COMPUTABLE = {"mom", "rev", "srev5", "mom6", "lowvol", "beta",
                     "vq", "news"}
 
 
-def _wire_live(winner: dict, combo: dict | None, spec: dict) -> None:
+def _wire_live(winner: dict, combo: dict | None, spec: dict,
+               holdout_stats: dict | None = None) -> None:
     """Gate passed: pin the winner into configs/live_signal.yaml.
 
     Only components the live bot can compute are kept; a winner whose
@@ -335,14 +356,18 @@ def _wire_live(winner: dict, combo: dict | None, spec: dict) -> None:
     import re
     text = cfg_path.read_text()
     weighting = "ewic" if combo and combo["weight"] == "ewic" else "equal"
+    text = re.sub(r"^# Phase-6 pin:.*\n", "", text,
+                  flags=re.MULTILINE)   # idempotent on re-run
     text = re.sub(r"^signals: .*$", f"signals: {live_sigs}",
                   text, count=1, flags=re.MULTILINE)
     text = re.sub(r"^weighting: .*$", f"weighting: {weighting}",
                   text, count=1, flags=re.MULTILINE)
     text = re.sub(r"^validated: .*$", "validated: true",
                   text, count=1, flags=re.MULTILINE)
-    text = ("# Phase-6 pin: {}/{} re-viewed holdout IR {:+.3f}\n".format(
+    text = ("# Phase-6 pin: {}/{} re-viewed holdout IR {:+.3f} "
+            "(OOF {:+.3f})\n".format(
                 winner["signal"], winner["portfolio"],
+                (holdout_stats or {}).get("IR", float("nan")),
                 winner.get("IR") or 0.0) + text)
     cfg_path.write_text(text)
     log(f"live_signal.yaml updated: signals={live_sigs} validated: true")
