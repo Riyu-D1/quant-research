@@ -334,11 +334,11 @@ def _wire_live(winner: dict, combo: dict | None, spec: dict) -> None:
     text = cfg_path.read_text()
     weighting = "ewic" if combo and combo["weight"] == "ewic" else "equal"
     text = re.sub(r"^signals: .*$", f"signals: {live_sigs}",
-                  text, count=1, flags=re.M)
+                  text, count=1, flags=re.MULTILINE)
     text = re.sub(r"^weighting: .*$", f"weighting: {weighting}",
-                  text, count=1, flags=re.M)
+                  text, count=1, flags=re.MULTILINE)
     text = re.sub(r"^validated: .*$", "validated: true",
-                  text, count=1, flags=re.M)
+                  text, count=1, flags=re.MULTILINE)
     text = ("# Phase-6 pin: {}/{} re-viewed holdout IR {:+.3f}\n".format(
                 winner["signal"], winner["portfolio"],
                 winner.get("IR") or 0.0) + text)

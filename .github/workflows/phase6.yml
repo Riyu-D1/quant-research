@@ -157,7 +157,7 @@ jobs:
       - name: Fetch US dump + events + fundamentals
         run: |
           art() {  # fetch latest unexpired artifact $1 -> $2 via API
-            AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
               -q "[.artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id] | max")
             gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
               > /tmp/a.zip
@@ -211,7 +211,7 @@ jobs:
       - name: Fetch US dump + events + fundamentals + select result
         run: |
           art() {
-            AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
               -q "[.artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id] | max")
             gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
               > /tmp/a.zip
