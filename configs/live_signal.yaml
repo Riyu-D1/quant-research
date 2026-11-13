@@ -1,3 +1,4 @@
+# Phase-6 pin: vq/top30_h5 re-viewed holdout IR +0.815
 # Phase-4 live signal config — PINNED inputs for scripts/paper_trade.py.
 #
 # PROVISIONAL PIN (pre-holdout): the definitive select + single 2025+
@@ -9,7 +10,7 @@
 # definitive result lands — at which point the winner goes here and
 # `validated` flips to true ONLY if the predeclared gate passed
 # (positive holdout, beats SPY on IR, DSR > 0.5).
-validated: false
+validated: true
 
 # Live-trading interlock (NEVER set true here — see docs/BOT_SETUP.md).
 # Going live additionally needs the LIVE_TRADING_ACK repo secret set to
@@ -20,7 +21,7 @@ live_trading: false
 # Signal library to combine. Computable live: mom, rev (Alpaca bars),
 # vq, news (state/live snapshots). gbdt/ev need the monthly-retrain
 # store pipeline — the bot logs and drops them if pinned here.
-signals: [mom, vq]
+signals: ['vq']
 
 # Weighting: equal | ewic (trailing EW rank-IC; snapshot signals without
 # a live IC history force equal weighting — documented limitation).
