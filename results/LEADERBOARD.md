@@ -169,3 +169,26 @@ Sharpe ratio over all recorded trials.
 | deflated_sharpe | 0.061 (SR* 0.96) |
 | n_trials | 29 (27 OOF candidates + 2 holdout) |
 | verdict | insider/13F/congress features add NO harvestable alpha over the Alpaca feed — OOF winner (+0.244 on ~1% coverage) was noise; holdout gate FAILED → no paper trading |
+
+---
+
+## Phase 6 — benchmark chase (branch `phase6/benchmarks`)
+
+Dispatched (results pending):
+- **CN OOF** `phase6-benchmarks / cn-oof`: CatBoost, Linear, LambdaRank
+  LightGBM (`lgb_rank`), 5-day-label LightGBM (`lgb5`), +30 Optuna trials
+  for `lgb_tuned`, plus the new fold-causal EW-IC ensemble (`ewic_avg`)
+  over all OOF preds. Published targets to beat: HIST α360 IR 1.3726 /
+  RankIC 0.0667; DoubleEnsemble α158 IR 1.3432 / RankIC 0.0502.
+- **US select** `phase6-benchmarks / us-select`: predeclared grid in
+  `configs/experiments/phase6_us.yaml` — 15 signals (price: srev5/rev/
+  mom6/mom/lowvol/beta/amihud; PIT fundamentals: pead/qual/vq; events:
+  ins; sector-neutral variants) + 4 predeclared combos × 4 portfolios,
+  OOF 2018-2024 only, winner by net IR with per-fold stability filter.
+- **GPU (owner-run, one Kaggle session)**: `MODELS =
+  'tcn_cn_wf alstm_cn_wf tra_cn_wf igmtf_cn_wf tcn_us_wf'` — fills
+  `results/oof/{cn,us}/` incl. holdout-fold preds via --train-holdout.
+
+Pending after OOF lands: CN holdout scored once for the best OOF
+candidate (re-viewed), US holdout scored once for the select winner
+(re-viewed), live wiring only if the gate passes.
