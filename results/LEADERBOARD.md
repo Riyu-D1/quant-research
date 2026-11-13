@@ -196,15 +196,33 @@ predeclared in `configs/experiments/phase6_us.yaml` before the single
 holdout look (2025-01→2026-11). Runner: `scripts/phase6_us.py`, run
 43397877113 → `results/phase6_us_holdout.json`.
 
-- **CN OOF** `phase6-benchmarks / cn-oof`: CatBoost, Linear, LambdaRank
-  LightGBM (`lgb_rank`), 5-day-label LightGBM (`lgb5`), +30 Optuna trials
-  for `lgb_tuned` (done, IC 0.0718), plus fold-causal EW-IC ensemble
-  (`ewic_avg`). First run died on CatBoost Poisson-bootstrap (GPU-only);
-  fixed to MVS and re-dispatched. Published targets: HIST α360 IR
-  1.3726 / RankIC 0.0667; DoubleEnsemble α158 IR 1.3432 / RankIC 0.0502.
+## phase6_ridge_stack_topk_cn  (9-model ridge stack @ TopkDropout(50,5), holdout re-viewed)
+| metric | ours | best published |
+|---|---|---|
+| ic | 0.0414 | HIST α360 0.0522 / DE α158 0.0521 |
+| icir | 0.2767 | HIST 0.3530 / DE 0.4223 |
+| rank_ic | 0.0576 | HIST 0.0667 / **DE 0.0502 (beaten)** |
+| rank_icir | 0.3933 | HIST 0.4576 / DE 0.4117 |
+| annualized_return | 0.0991 | DE 0.1158 / HIST 0.0987 |
+| information_ratio | 1.2231 | HIST 1.3726 / **DE 1.3432** |
+| max_drawdown | -0.0615 | HIST -0.0681 / DE -0.0920 |
+| turnover | 0.1911 | — |
+| deflated_sharpe | 0.281 (SR* 1.63) | — |
+| n_trials | 56 | — |
+| verdict | DOES NOT beat published on IR (1.2231 < 1.3432); RankIC 0.0576 tops DE's 0.0502. OOF IR 3.44 was regime-inflated — same pattern as EX-023 (3.02→1.22). +5 models on the phase-2 stack bought ΔIR +0.004 |
+
+Scored once on the re-viewed holdout 2018-08-01→2020-07-31 (486d; phase-2
+holdout — second look, logged). Candidate chosen as best OOF IR after
+re-computing the ensemble rows over all 8 base models (3.440); the run
+fit ridge on 9 incl. `lgb_tuned` (holdout coef ~5e-5, immaterial). Run
+43468264714 → `results/phase2_cn.json`, `results/holdout_log.jsonl`.
+
+- **CN OOF** (run 43430705177): all 4 new CPU models delivered fold
+  preds. OOF table (IR, topk): ridge_stack 3.440, ewic_avg 3.081, xgb
+  2.822, lgb 2.779, lgb5 2.748, cat 2.742, rank_avg 2.704, lgb_tuned
+  2.547 (30-trial tune UNDERPERFORMS base lgb), de 2.493, lrn 2.456,
+  hist 2.323, lgb_rank 0.944. CatBoost needed `bootstrap_type: MVS`
+  (Poisson is GPU-only).
 - **GPU (owner-run, one Kaggle session)**: `MODELS =
   'tcn_cn_wf alstm_cn_wf tra_cn_wf igmtf_cn_wf tcn_us_wf'` — fills
   `results/oof/{cn,us}/` incl. holdout-fold preds via --train-holdout.
-
-Pending after CN OOF lands: CN holdout scored once for the best OOF
-candidate (re-viewed).
