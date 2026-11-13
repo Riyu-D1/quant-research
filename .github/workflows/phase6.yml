@@ -72,7 +72,9 @@ jobs:
         with:
           path: results/oof/cn
           key: phase6-oof-cn-${{ github.run_id }}
-          restore-keys: phase6-oof-cn-,phase2-oof-cn-
+          restore-keys: |
+            phase6-oof-cn-
+            phase2-oof-cn-
 
       - name: Swap headroom (Alpha158 peaks ~7.5GB)
         run: |
