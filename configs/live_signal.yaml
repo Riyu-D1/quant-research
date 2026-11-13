@@ -1,4 +1,4 @@
-# Phase-6 pin: vq/top30_h5 re-viewed holdout IR +0.815
+# Phase-6 pin: vq/top30_h5 re-viewed holdout IR +1.167 (OOF +0.815)
 # Phase-4 live signal config — PINNED inputs for scripts/paper_trade.py.
 #
 # PROVISIONAL PIN (pre-holdout): the definitive select + single 2025+
