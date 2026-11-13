@@ -117,7 +117,7 @@ models:
             num_leaves: 100
             thread_count: 4
             grow_policy: Lossguide
-            bootstrap_type: Poisson
+            bootstrap_type: MVS
     lrn:
         class: LinearModel
         module_path: qlib.contrib.model.linear
