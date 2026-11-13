@@ -234,7 +234,12 @@ def build_signals(provider_dir: Path, symbols: list[str],
     out = {}
     for n in names:
         if n.startswith("sn_"):
-            out[n] = sector_neutral(sigs.get(n[3:], empty()), sector_map or {})
+            s = sector_neutral(sigs.get(n[3:], empty()), sector_map or {})
         else:
-            out[n] = sigs.get(n, empty())
+            s = sigs.get(n, empty())
+        # event/parquet sources can carry duplicate (datetime, instrument)
+        # rows (amended filings etc.) — dedupe before they hit reindex()
+        if not s.empty:
+            s = s[~s.index.duplicated(keep="first")].sort_index()
+        out[n] = s
     return out

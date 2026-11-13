@@ -51,8 +51,10 @@ def load_universe(provider: Path) -> tuple[list[str], pd.DataFrame]:
 
 
 def member_mask(cal: pd.DatetimeIndex, inst: pd.DataFrame) -> pd.DataFrame:
-    """(date × symbol) bool — was the name in the PIT S&P500 that day?"""
-    m = pd.DataFrame(False, index=cal, columns=inst["instrument"])
+    """(date × symbol) bool — was the name in the PIT S&P500 that day?
+    Delisted-then-relisted tickers appear twice in the instruments file;
+    column labels must be unique for downstream .where() alignment."""
+    m = pd.DataFrame(False, index=cal, columns=inst["instrument"].unique())
     for r in inst.itertuples():
         a = pd.Timestamp(r.start) if pd.notna(r.start) else cal[0]
         b = pd.Timestamp(r.end) if pd.notna(r.end) else cal[-1]
