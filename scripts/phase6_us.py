@@ -322,8 +322,13 @@ def cmd_holdout(spec: dict, select_path: Path, out: Path) -> dict:
                "by_year": by_year(rh["net"]),
                "ts": time.strftime("%Y-%m-%d %H:%M:%S")}
     out.write_text(json.dumps(summary, indent=1))
-    if all(gate.values()):
+    feasible_ok = feasible is None or (
+        feasible["positive"] and feasible["beats_spy_ir"])
+    if all(gate.values()) and feasible_ok:
         _wire_live(winner, combo, spec, stats)
+    elif all(gate.values()):
+        log("gate passed at winner shape but DEPLOYABLE top5 shape fails "
+            "beats-SPY — validated stays false (documented shortfall)")
     else:
         log("gate FAILED — live_signal.yaml left at validated: false")
     log(f"holdout IR {stats['IR']:+.3f} vs SPY {spy_stats['IR']:+.3f} "

@@ -1,16 +1,11 @@
-# Phase-6 pin: vq/top30_h5 re-viewed holdout IR +1.167 (OOF +0.815)
-# Phase-4 live signal config — PINNED inputs for scripts/paper_trade.py.
-#
-# PROVISIONAL PIN (pre-holdout): the definitive select + single 2025+
-# holdout have not been scored yet. Per the provisional select on
-# 2021-2024 (results/phase4_us_select.json, run 43141704337) the best
-# single signals were vq (IR +0.74) and mom (IR +0.68); every combo was
-# negative, best deployable equal-w36-rcash at IR -0.026. This file pins
-# the owner's interim choice (mom+vq, equal weight, cash regime) until the
-# definitive result lands — at which point the winner goes here and
-# `validated` flips to true ONLY if the predeclared gate passed
-# (positive holdout, beats SPY on IR, DSR > 0.5).
-validated: true
+# Phase-6 outcome (re-viewed 2025+ holdout, run 43397877113): the
+# predeclared select winner `vq` PASSED the gate at top30_h5 — IR +1.167
+# vs SPY +0.867, +24.0%/yr, DSR 0.878 (n_trials 77). BUT the deployable
+# £10 shape (top5_h20, same signal) did NOT beat SPY on IR
+# (+0.559, +16.3%/yr) — the edge lives in diversification the micro
+# account can't hold. `validated` stays FALSE for the live config;
+# see results/phase6_us_holdout.json.
+validated: false
 
 # Live-trading interlock (NEVER set true here — see docs/BOT_SETUP.md).
 # Going live additionally needs the LIVE_TRADING_ACK repo secret set to
@@ -21,7 +16,7 @@ live_trading: false
 # Signal library to combine. Computable live: mom, rev (Alpaca bars),
 # vq, news (state/live snapshots). gbdt/ev need the monthly-retrain
 # store pipeline — the bot logs and drops them if pinned here.
-signals: ['vq']
+signals: [mom, vq]
 
 # Weighting: equal | ewic (trailing EW rank-IC; snapshot signals without
 # a live IC history force equal weighting — documented limitation).
