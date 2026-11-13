@@ -174,21 +174,37 @@ Sharpe ratio over all recorded trials.
 
 ## Phase 6 — benchmark chase (branch `phase6/benchmarks`)
 
-Dispatched (results pending):
+US grid scored against SPY (not a qlib baseline — the phase-2 finding is
+that the US GBDT stack has no alpha on this feed, so honest comparators
+are SPY itself + realistic cost/fill discipline: 10bps/side, next-open
+fills, PIT sp500 membership, delistings handled).
+
+## phase6_us_vq_top30_h5  (value+quality composite, top-30, 5d hold)
+| metric | ours | SPY |
+|---|---|---|
+| rank_ic (OOF 18-24) | -0.006 | — |
+| annualized_return | 0.2404 | 0.1483 |
+| information_ratio | **1.1671** | 0.8673 |
+| max_drawdown | -0.2053 | -0.1875 |
+| deflated_sharpe | 0.878 | — |
+| n_trials | 77 (76 OOF + 1 holdout) | — |
+| verdict | BROAD GATE PASSES (positive + beats SPY IR + DSR>0.5) at top-30; **deployable top5_h20 shape FAILS** (IR +0.559 < SPY +0.867) — edge lives in diversification a 5-name micro account can't hold. `validated` stays false |
+
+OOF selection (76 predeclared trials, 2018-2024): `vq/top30_h5` won on
+net IR +0.815. Selection, gate, and the top-5 feasibility check were all
+predeclared in `configs/experiments/phase6_us.yaml` before the single
+holdout look (2025-01→2026-11). Runner: `scripts/phase6_us.py`, run
+43397877113 → `results/phase6_us_holdout.json`.
+
 - **CN OOF** `phase6-benchmarks / cn-oof`: CatBoost, Linear, LambdaRank
   LightGBM (`lgb_rank`), 5-day-label LightGBM (`lgb5`), +30 Optuna trials
-  for `lgb_tuned`, plus the new fold-causal EW-IC ensemble (`ewic_avg`)
-  over all OOF preds. Published targets to beat: HIST α360 IR 1.3726 /
-  RankIC 0.0667; DoubleEnsemble α158 IR 1.3432 / RankIC 0.0502.
-- **US select** `phase6-benchmarks / us-select`: predeclared grid in
-  `configs/experiments/phase6_us.yaml` — 15 signals (price: srev5/rev/
-  mom6/mom/lowvol/beta/amihud; PIT fundamentals: pead/qual/vq; events:
-  ins; sector-neutral variants) + 4 predeclared combos × 4 portfolios,
-  OOF 2018-2024 only, winner by net IR with per-fold stability filter.
+  for `lgb_tuned` (done, IC 0.0718), plus fold-causal EW-IC ensemble
+  (`ewic_avg`). First run died on CatBoost Poisson-bootstrap (GPU-only);
+  fixed to MVS and re-dispatched. Published targets: HIST α360 IR
+  1.3726 / RankIC 0.0667; DoubleEnsemble α158 IR 1.3432 / RankIC 0.0502.
 - **GPU (owner-run, one Kaggle session)**: `MODELS =
   'tcn_cn_wf alstm_cn_wf tra_cn_wf igmtf_cn_wf tcn_us_wf'` — fills
   `results/oof/{cn,us}/` incl. holdout-fold preds via --train-holdout.
 
-Pending after OOF lands: CN holdout scored once for the best OOF
-candidate (re-viewed), US holdout scored once for the select winner
-(re-viewed), live wiring only if the gate passes.
+Pending after CN OOF lands: CN holdout scored once for the best OOF
+candidate (re-viewed).
