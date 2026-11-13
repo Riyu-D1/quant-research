@@ -146,9 +146,17 @@ class FoldDataset:
 # handlers / models
 
 
-def build_handler(spec: dict, feature_set: str, fold: Fold) -> DataHandlerLP:
+def build_handler(spec: dict, feature_set: str, fold: Fold,
+                  label: str | None = None,
+                  infer_processors: list | None = None) -> DataHandlerLP:
     """Init a feature handler with processors fitted on this fold's train
-    window only (no look-ahead across the eval boundary)."""
+    window only (no look-ahead across the eval boundary).
+
+    label: per-model training-label expression override (e.g. a 5-day
+    horizon). The eval metric label is always fetched separately from the
+    canonical handler (spec["label"]) — see run_folds.
+    infer_processors: per-model processor-list override (e.g. the 20-feature
+    FilterCol subset used by the published neural-model configs)."""
     hconf = spec["handler"]
     extra = {}
     if feature_set == "alpha158":
@@ -178,9 +186,10 @@ def build_handler(spec: dict, feature_set: str, fold: Fold) -> DataHandlerLP:
         "end_time": str(end_time.date()),
         "fit_start_time": fold.train[0],
         "fit_end_time": fold.train[1],
-        "infer_processors": hconf["infer_processors"],
+        "infer_processors": (infer_processors if infer_processors is not None
+                             else hconf["infer_processors"]),
         "learn_processors": hconf["learn_processors"],
-        "label": [spec["label"]],
+        "label": [label or spec["label"]],
         **extra,
     }
     return init_instance_by_config({**cls, "kwargs": kwargs})
@@ -205,7 +214,25 @@ def rule_pred(spec: dict, signal: str, window: tuple[str, str]) -> pd.Series:
     return s[s > 0].rename("score")
 
 
-def train_predict(model_cfg: dict, dataset: FoldDataset, num_threads: int) -> pd.Series:
+def make_dataset(model_cfg: dict, handler: DataHandlerLP,
+                 segments: dict[str, tuple], ts_step: int | None = None):
+    """Build the dataset object a model trains/predicts on.
+
+    Default is the FoldDataset shim (DatasetH/TSDatasetH-compatible). A
+    model may pin a different qlib dataset via spec `dataset:` (e.g.
+    MTSDatasetH for TRA) — its kwargs get the handler + segments injected;
+    seq_len/num_states-style params come from the spec."""
+    dconf = model_cfg.get("dataset")
+    if not dconf:
+        return FoldDataset(handler, segments, ts_step=ts_step)
+    kw = {**dconf.get("kwargs", {}), "handler": handler,
+          "segments": segments}
+    return init_instance_by_config({"class": dconf["class"],
+                                    "module_path": dconf["module_path"],
+                                    "kwargs": kw})
+
+
+def train_predict(model_cfg: dict, dataset, num_threads: int) -> pd.Series:
     kw = dict(model_cfg.get("kwargs", {}))
     for k in ("num_threads", "nthread", "n_jobs"):
         if k in kw:
@@ -335,6 +362,56 @@ def zscore_frame(preds: dict[str, pd.Series]) -> pd.DataFrame:
 def rank_average(preds: dict[str, pd.Series]) -> pd.Series:
     R = pd.DataFrame({k: cs_rank(v) for k, v in preds.items()})
     return R.mean(axis=1).rename("score")
+
+
+def ewic_weights(preds: dict[str, pd.Series], label: pd.Series,
+                 windows: list[tuple[str, str]] | None = None) -> pd.Series:
+    """Floored, L1-normalised mean daily rank-IC per model -> weight row.
+
+    windows=None uses all of `preds` (the holdout-fold case). Otherwise
+    each model's weight is its mean daily rank-IC over eval days inside
+    `windows` — callers pass the *earlier* folds' windows so the weight
+    for fold i never sees fold-i eval data."""
+    ics = {}
+    for name, p in preds.items():
+        use = p
+        if windows:
+            d = p.index.get_level_values("datetime")
+            mask = np.zeros(len(p), dtype=bool)
+            for a, b in windows:
+                mask |= (d >= pd.Timestamp(a)) & (d <= pd.Timestamp(b))
+            use = p[mask]
+        df = pd.concat({"p": use, "y": label.reindex(use.index)},
+                       axis=1).dropna()
+        if df.empty:
+            continue
+        ric = df.groupby(level="datetime").apply(
+            lambda g: g["p"].corr(g["y"], method="spearman"))
+        ics[name] = float(ric.mean())
+    w = pd.Series(ics).clip(lower=0.0)
+    return w / w.sum() if w.sum() > 0 else pd.Series(
+        1.0 / max(len(preds), 1), index=list(preds))
+
+
+def ewic_rank_average(preds: dict[str, pd.Series], label: pd.Series,
+                      fold_windows: list[list]) -> pd.Series:
+    """Fold-causal EW-IC weighted rank average.
+
+    For eval days inside fold i, model weights come from mean daily rank
+    IC over folds 0..i-1 only (equal weights on the first fold). The
+    holdout-side helper is `ewic_weights` on the full OOF span."""
+    R = pd.DataFrame({k: cs_rank(v) for k, v in preds.items()})
+    days = R.index.get_level_values("datetime")
+    out = []
+    for i, (a, b) in enumerate(fold_windows):
+        m = (days >= pd.Timestamp(a)) & (days <= pd.Timestamp(b))
+        if not m.any():
+            continue
+        w = ewic_weights(preds, label, fold_windows[:i])
+        block = R[m].reindex(columns=w.index).fillna(0.5)
+        out.append(block.mul(w, axis=1).sum(axis=1))
+    return (pd.concat(out).sort_index().rename("score") if out
+            else pd.Series(dtype=float, name="score"))
 
 
 def fit_ridge(preds: dict[str, pd.Series], label: pd.Series, alpha: float):

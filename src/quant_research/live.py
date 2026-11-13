@@ -126,6 +126,45 @@ def reversal(close: pd.Series, day: pd.Timestamp) -> float:
     return -float(px.iloc[-1] / px.iloc[-22] - 1.0)
 
 
+def reversal5(close: pd.Series, day: pd.Timestamp) -> float:
+    """-(close[t]/close[t-5]-1) — negative one-week return (phase 6)."""
+    px = close.loc[:day].dropna()
+    if len(px) < 6:
+        return np.nan
+    return -float(px.iloc[-1] / px.iloc[-6] - 1.0)
+
+
+def momentum6(close: pd.Series, day: pd.Timestamp) -> float:
+    """close[t-21]/close[t-126]-1 — 6-month momentum, skip last month."""
+    px = close.loc[:day].dropna()
+    if len(px) < 127:
+        return np.nan
+    return float(px.iloc[-22] / px.iloc[-127] - 1.0)
+
+
+def lowvol(close: pd.Series, day: pd.Timestamp) -> float:
+    """-std(daily returns, 20) — low realised-volatility tilt."""
+    px = close.loc[:day].dropna()
+    if len(px) < 21:
+        return np.nan
+    return -float(px.pct_change().iloc[-20:].std())
+
+
+def lowbeta(close: pd.Series, mkt: pd.Series, day: pd.Timestamp) -> float:
+    """-cov(r, r_mkt)/var(r_mkt) over 60d — market = equal-weight universe."""
+    px = close.loc[:day].dropna()
+    if len(px) < 61:
+        return np.nan
+    r = px.pct_change().iloc[-60:]
+    rm = mkt.loc[r.index]
+    v = float(rm.var())
+    return -float(r.cov(rm) / v) if v > 0 else np.nan
+
+
+_BARS_FNS = {"mom": momentum, "rev": reversal, "srev5": reversal5,
+             "mom6": momentum6, "lowvol": lowvol}
+
+
 def fwd_return(close: pd.Series, day: pd.Timestamp,
                skip: int = 1, horizon: int = 1) -> float:
     """close[day+skip+horizon]/close[day+skip]-1 — same 2-day shifted label
@@ -138,15 +177,24 @@ def fwd_return(close: pd.Series, day: pd.Timestamp,
 
 def bars_signals(closes: pd.DataFrame, days: pd.DatetimeIndex,
                  names: list[str]) -> dict[str, pd.Series]:
-    """mom/rev per (date, symbol) on `days` — point-in-time via .loc[:day]."""
+    """bars-derived signals per (date, symbol) — point-in-time via .loc[:day].
+
+    Known names: mom, rev, srev5, mom6, lowvol, beta (equal-weight-universe
+    market proxy). Snapshot-sourced signals (vq/news) are handled
+    elsewhere."""
     out: dict[str, pd.Series] = {}
+    mkt = closes.pct_change().mean(axis=1)
     for sig in names:
-        if sig not in ("mom", "rev"):
+        if sig not in _BARS_FNS and sig != "beta":
             continue
         recs = {}
-        fn = momentum if sig == "mom" else reversal
         for d in days:
-            recs[d] = {s: fn(closes[s], d) for s in closes.columns}
+            if sig == "beta":
+                recs[d] = {s: lowbeta(closes[s], mkt, d)
+                           for s in closes.columns}
+            else:
+                recs[d] = {s: _BARS_FNS[sig](closes[s], d)
+                           for s in closes.columns}
         s_ = pd.DataFrame(recs).T.stack()
         s_.index.names = ["datetime", "instrument"]
         out[sig] = s_
