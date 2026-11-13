@@ -1,16 +1,16 @@
 {
-  "best_mean_ic": 0.07188388612267546,
+  "best_mean_ic": 0.07176046256730523,
   "best_params": {
     "learning_rate": 0.016446650860537614,
     "num_leaves": 356,
-    "max_depth": 7,
+    "max_depth": 8,
     "colsample_bytree": 0.9468214924934878,
     "subsample": 0.9843831084119822,
     "lambda_l1": 197.2319413051184,
     "lambda_l2": 1.7858398745839301,
     "min_data_in_leaf": 388
   },
-  "n_trials": 25,
+  "n_trials": 30,
   "folds": [
     "fold2",
     "fold3"
