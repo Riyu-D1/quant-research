@@ -320,7 +320,6 @@ def _wire_live(winner: dict, combo: dict | None, spec: dict) -> None:
     signals are all snapshot/model-based cannot be wired and is logged
     instead of silently validated."""
     cfg_path = REPO / "configs" / "live_signal.yaml"
-    cfg = yaml.safe_load(cfg_path.read_text())
     need = combo["signals"] if combo else [winner["signal"]]
     live_sigs = [s for s in need
                  if s.removeprefix("sn_") in _LIVE_COMPUTABLE
@@ -329,16 +328,21 @@ def _wire_live(winner: dict, combo: dict | None, spec: dict) -> None:
         log("gate passed but no live-computable signal components — "
             "manual wiring needed; leaving validated: false")
         return
-    cfg["signals"] = live_sigs
-    cfg["weighting"] = "ewic" if combo and combo["weight"] == "ewic" \
-        else "equal"
-    cfg["n_positions"] = min(5, cfg.get("n_positions", 5))
-    cfg["validated"] = True
-    cfg["validated_by"] = "phase6_us_holdout"
-    cfg["validation_note"] = (
-        f"{winner['signal']}/{winner['portfolio']} re-viewed holdout "
-        f"IR {winner.get('IR'):+.3f}")
-    cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
+    # targeted line edits — a full yaml round-trip would strip the
+    # documented pin rationale and risk comments.
+    import re
+    text = cfg_path.read_text()
+    weighting = "ewic" if combo and combo["weight"] == "ewic" else "equal"
+    text = re.sub(r"^signals: .*$", f"signals: {live_sigs}",
+                  text, count=1, flags=re.M)
+    text = re.sub(r"^weighting: .*$", f"weighting: {weighting}",
+                  text, count=1, flags=re.M)
+    text = re.sub(r"^validated: .*$", "validated: true",
+                  text, count=1, flags=re.M)
+    text = ("# Phase-6 pin: {}/{} re-viewed holdout IR {:+.3f}\n".format(
+                winner["signal"], winner["portfolio"],
+                winner.get("IR") or 0.0) + text)
+    cfg_path.write_text(text)
     log(f"live_signal.yaml updated: signals={live_sigs} validated: true")
 
 
