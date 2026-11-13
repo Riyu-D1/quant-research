@@ -307,7 +307,7 @@ jobs:
           # gpu-required ones are skipped automatically when their fold
           # preds are absent.
           uv run python scripts/phase2_run.py --market cn \
-            --models "lgb,xgb,de,cat,lrn,lgb5,lgb_rank,lgb_tuned" \
+            --models "lgb,xgb,de,hist,cat,lrn,lgb5,lgb_rank,lgb_tuned" \
             --threads 4 \
             --holdout "${{ inputs.holdout_candidate }}"
           git add results/phase2_cn.json results/holdout_log.jsonl \
