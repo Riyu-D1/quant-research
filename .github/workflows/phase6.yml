@@ -154,18 +154,20 @@ jobs:
 
       - name: Fetch US dump + events + fundamentals
         run: |
-          gh run download -R ${{ github.repository }} -n us-qlib-dump \
-            -D data/qlib/us_alpaca
+          art() {  # fetch latest unexpired artifact $1 -> $2 via API
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
+              -q "[.artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id] | max")
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
+              > /tmp/a.zip
+            mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"
+          }
+          art us-qlib-dump data/qlib/us_alpaca
           test -f data/qlib/us_alpaca/calendars/day.txt
-          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
-            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
-          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
-            > /tmp/p3ev.zip
+          art phase3-events /tmp/p3ev
           mkdir -p data/events
-          unzip -o -j /tmp/p3ev.zip features_us.parquet shares_out.parquet \
-            -d data/events/
-          gh run download -R ${{ github.repository }} -n phase4-inputs \
-            -D data/events || true
+          cp /tmp/p3ev/features_us.parquet /tmp/p3ev/shares_out.parquet \
+            data/events/ 2>/dev/null || true
+          art phase4-inputs data/events || true
           ls data/events/
 
       - name: Run US select grid (pre-2025 only)
@@ -206,20 +208,21 @@ jobs:
 
       - name: Fetch US dump + events + fundamentals + select result
         run: |
-          gh run download -R ${{ github.repository }} -n us-qlib-dump \
-            -D data/qlib/us_alpaca
+          art() {
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
+              -q "[.artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id] | max")
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
+              > /tmp/a.zip
+            mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"
+          }
+          art us-qlib-dump data/qlib/us_alpaca
           test -f data/qlib/us_alpaca/calendars/day.txt
-          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
-            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
-          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
-            > /tmp/p3ev.zip
+          art phase3-events /tmp/p3ev
           mkdir -p data/events
-          unzip -o -j /tmp/p3ev.zip features_us.parquet shares_out.parquet \
-            -d data/events/
-          gh run download -R ${{ github.repository }} -n phase4-inputs \
-            -D data/events || true
-          gh run download -R ${{ github.repository }} -n phase6-us-select \
-            -D results/
+          cp /tmp/p3ev/features_us.parquet /tmp/p3ev/shares_out.parquet \
+            data/events/ 2>/dev/null || true
+          art phase4-inputs data/events || true
+          art phase6-us-select results
 
       - name: Score US holdout (re-viewed, once)
         run: |
