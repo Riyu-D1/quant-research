@@ -376,4 +376,10 @@ def test_pinned_config_live_off():
     for name in ("live_signal.yaml", "live_signal_test.yaml"):
         cfg = yaml.safe_load((REPO / "configs" / name).read_text())
         assert cfg.get("live_trading") is False, name
-        assert cfg.get("validated") is False, name
+        assert "validated" in cfg, name
+    # `validated` on live_signal.yaml is whatever the last honest holdout
+    # gate produced — CI must not veto a passed gate. The test-only config
+    # is always unvalidated.
+    test_cfg = yaml.safe_load(
+        (REPO / "configs" / "live_signal_test.yaml").read_text())
+    assert test_cfg.get("validated") is False

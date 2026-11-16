@@ -1,13 +1,22 @@
-# Paper bot setup — MicroTop5
+# Paper bot setup — Phase-7 core+satellite book
 
 `scripts/paper_trade.py` runs one trading day end-to-end on an **Alpaca
 paper account** and journals every decision to a Notion "Trade Journal"
 database. It is armed manually (`workflow_dispatch`) — the daily crons in
 `paper_trade.yml` are commented out until you enable them.
 
-**Signal status:** `configs/live_signal.yaml` pins the exact config. It
-reads `validated: false` — the honest re-scored holdout did not clear the
-DSR gate — so every run and journal entry is labelled UNVALIDATED.
+**Book shape (Phase 7):** the config may pin a `core:`/`sleeve:` schema —
+a fixed % of the book in an SPY core plus a signal sleeve of up to 8
+names (equal or inverse-volatility weights, 20% single-stock cap, 2%
+rebalance band, $1 order floor). With no `core:` key the legacy top-N
+equal-weight book runs unchanged. On a risk-off regime day the sleeve's
+freed share moves into the SPY core (`risk_off: to_core`) — never to a
+sideline.
+
+**Signal status:** `configs/live_signal.yaml` pins the exact config.
+`validated` is whatever the last honest holdout gate produced — it is
+`false` until a single fresh-window look clears the predeclared match
+gate, and every run/journal entry carries the flag.
 
 ## What the bot does each run
 
@@ -32,7 +41,7 @@ DSR gate — so every run and journal entry is labelled UNVALIDATED.
 5. Applies the SPY regime guard (below 200-day SMA or extreme trailing
    vol → reduced or zero exposure per `regime` in the config).
 6. Computes the pinned signals, weights them (equal or trailing-IC
-   `ewic`), and picks the top 5 names.
+   `ewic`), and picks the top-N sleeve names.
 7. **Gates, in order, before any order:**
    - `BOT_HALT=1` repo/environment variable → reconcile + journal + a
      `halt` row, **zero orders** (the kill switch);
@@ -56,10 +65,12 @@ DSR gate — so every run and journal entry is labelled UNVALIDATED.
    - **PDT guard** — accounts under $25k can't open and close the same
      symbol the same day; the guard drops any trade that would (checked
      against today's orders *and* within the batch, with a hard assert).
-8. Sells before buys. Rebalances toward equal-weight slots sized from a
+8. Sells before buys. Rebalances toward the weight map sized from a
    £10 budget converted to USD at the live GBPUSD rate (each run records
    the rate used; equity is journaled in both USD and GBP); fractional
-   shares, long-only, orders under the $1 minimum are skipped.
+   shares, long-only. A rebalance is skipped when the weight gap is under
+   2% or the order is under the $1 Alpaca minimum — except outright
+   exits, which always trade (full close-outs are exempt from the floor).
 9. **Drift check** — actual vs target weights are computed every run and
    logged into the day summary, so missed fills or stale positions are
    visible instead of silent.
@@ -114,11 +125,17 @@ use.
 
 ## Running it
 
-- **By hand:** Actions → `paper-trade` → Run workflow **on
-  `phase4/adaptive`**. Inputs: `date`, `dry_run`, `fixture`, `config`,
+- **By hand:** Actions → `paper-trade` → Run workflow on the branch that
+  owns the config (phase 7: `phase7/us-live`, later `phase6/benchmarks`
+  once the PR lands). Inputs: `date`, `dry_run`, `fixture`, `config`,
   `job` (`run` or `refresh_snapshot`).
-- **Daily (when you're ready):** uncomment the commented `schedule:`
-  block at the top of `paper_trade.yml` — six lines, all documented:
+- **Daily paper (exact clicks, when you're ready):** edit
+  `.github/workflows/paper_trade.yml` on the deployed branch — remove the
+  leading `# ` on the `schedule:` block (six commented lines, all
+  documented below), commit, push. GitHub runs the cron from the repo's
+  default branch, so the enable only takes effect once the branch
+  carrying it is merged or set default; until then manual dispatch on the
+  branch is the way to run it.
   - `0 15 * * 1-5` — **orders** run, lands ~10:00–11:00 ET year-round
     (past the open+15min buffer in both EDT and EST);
   - `0 22 * * 1-5` — **reconcile** run after the close (idempotent: no
@@ -131,6 +148,8 @@ use.
     to the branch);
   - `0 10 * * 1` — **staleness alarm** (fails + journals an `error` row
     if a snapshot is >45 days old).
+  Daily paper keeps trading forever until you halt it — the kill switch
+  below is the stop.
 - **Snapshot refresh (manual):** dispatch `job=refresh_snapshot`.
 - **Local dry run:** `.venv/bin/python scripts/paper_trade.py --dry-run`
   — synthetic bars + fake broker/journal, journal lands in
@@ -150,21 +169,49 @@ also cancel any open orders in the Alpaca paper dashboard.
 
 ## The live-trading switch (OFF — never flip without thinking twice)
 
-Four independent gates, **all** required to reach real money:
+`.github/workflows/live_trade.yml` is the real-money scaffold — its cron
+is commented out and every run is dispatch-only inside a `live` GitHub
+Environment that pauses for an owner approval click.
 
-1. `live_trading: true` in `configs/live_signal.yaml` (currently `false`).
-2. The `LIVE_TRADING_ACK` secret set to `I_UNDERSTAND_LIVE_RISK`.
-3. A **separate GitHub Environment** named `live` with a **required
-   reviewer** (you) configured under Settings → Environments — the
-   workflow job that could trade live must point at that environment,
-   so a run pauses for explicit approval.
-4. `ALPACA_BASE_URL` + live `ALPACA_API_KEY`/`ALPACA_SECRET_KEY` in that
-   environment's secrets (live endpoint + live keys, not paper).
+Five independent gates, **all** required to reach real money:
+
+1. **Environment approval** — Settings → Environments → create `live`,
+   add yourself as a required reviewer. Every `live-trade` run then
+   pauses until you click Approve.
+2. `live_trading: true` in `configs/live_signal.yaml` (currently
+   `false`) — flip it only after the paper book has run long enough for
+   you to trust it.
+3. The `LIVE_TRADING_ACK` secret set to `I_UNDERSTAND_LIVE_RISK`.
+4. `ALPACA_BASE_URL` variable pointing at the live endpoint (the
+   preflight refuses anything containing `paper`), plus the **live**
+   `ALPACA_API_KEY`/`ALPACA_SECRET_KEY` secrets inside the `live`
+   environment — the paper keys stay in the `ALPACA_API_KEY` environment
+   and are never touched by this job.
+5. The workflow's own preflight re-checks 2–4 and exits before any
+   network call if one is missing.
 
 `PaperClient` only accepts a non-paper base URL when `allow_live` is
-passed, which `paper_trade.py` sets only when gates 1+2 hold. Gates 3+4
-make even a misconfigured run wait on a human click. **None of this has
-been done — every shipped path is paper-only.**
+passed, which `paper_trade.py` sets only when gates 2+3 hold. **None of
+this has been done — every shipped path is paper-only.**
+
+### Going live with £10 — the exact order of clicks
+
+1. Watch the daily paper run for a while; confirm the journal matches
+   Alpaca paper fills.
+2. Create the `live` environment (required reviewer = you), put the
+   **live** Alpaca keys in its secrets, and set its `ALPACA_BASE_URL`
+   variable to `https://api.alpaca.markets`.
+3. Add repo secret `LIVE_TRADING_ACK` = `I_UNDERSTAND_LIVE_RISK`.
+4. Edit `configs/live_signal.yaml` on the deployed branch: set
+   `live_trading: true`. Commit + push.
+5. Fund the live Alpaca account with ~£10 of USD.
+6. Actions → `live-trade` → Run workflow on the deployed branch →
+   **approve** the environment prompt. The run record lands as an
+   artifact; fills + journal reconcile as usual.
+7. Optional: uncomment the `schedule:` block in `live_trade.yml` for
+   daily live runs — each still needs the environment approval.
+8. To stop: `gh variable set BOT_HALT --body 1` (next run places no
+   orders) and/or delete the `live` environment.
 
 ## State files (tracked, committed)
 

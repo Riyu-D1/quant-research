@@ -74,6 +74,67 @@ def rebalance_step(scores: pd.Series, equity: float, n: int,
     return {"trades": trades, "held": new_held, "want": want}
 
 
+def weights_step(targets: dict[str, float], equity: float,
+                 prices: dict[str, float], held: dict[str, float],
+                 cost, band: float = 0.02,
+                 min_order: float = MIN_ORDER_USD) -> dict:
+    """One day: trade toward explicit weight targets {sym: equity frac}.
+
+    The core+satellite counterpart of rebalance_step — used by both the
+    phase-7 simulator (micro_backtest weight_targets=) and the live bot
+    so research and production trade the identical map.
+
+    Band rule (turnover cut): a trade is skipped when the weight gap
+    |target - actual| < `band`, OR the notional is < `min_order` (the $1
+    Alpaca floor). Outright exits (target 0) always trade — the band is
+    a drift filter, not a freeze. Sells run first (frees cash); each
+    symbol emits at most one order — the PDT guard's effect by
+    construction.
+    """
+    c_of = cost.get if isinstance(cost, dict) else lambda _s, _d=None: cost
+    trades, new_held = [], dict(held)
+
+    for s in sorted(new_held):
+        px = prices.get(s)
+        if px is None or not np.isfinite(px) or px <= 0:
+            continue                       # can't trade; keep the zombie
+        cur_w = new_held[s] * px / equity if equity > 0 else 0.0
+        tgt_w = float(targets.get(s, 0.0))
+        if tgt_w <= 0:                     # exit — band does not apply
+            qty = new_held.pop(s)
+            px_ = px * (1 - c_of(s, 0.0))
+            trades.append({"sym": s, "side": "sell", "qty": qty,
+                           "price": px_, "notional": qty * px_})
+            continue
+        gap = tgt_w - cur_w
+        if gap <= -band and -gap * equity >= min_order:
+            qty = min(new_held[s],
+                      round(-gap * equity / px, 6))
+            px_ = px * (1 - c_of(s, 0.0))
+            new_held[s] = max(0.0, new_held[s] - qty)
+            if new_held[s] <= 1e-9:
+                new_held.pop(s)
+            trades.append({"sym": s, "side": "sell", "qty": qty,
+                           "price": px_, "notional": qty * px_})
+    for s in sorted(targets, key=lambda s: -targets[s]):
+        px = prices.get(s)
+        if px is None or not np.isfinite(px) or px <= 0:
+            continue
+        cur_w = new_held.get(s, 0.0) * px / equity if equity > 0 else 0.0
+        gap = float(targets[s]) - cur_w
+        # floor, not round: rounding each buy UP to cents can push the
+        # batch total a cent over equity and trip the notional sanity cap
+        notional = np.floor(gap * equity * 100) / 100
+        if gap >= band and notional >= min_order:
+            px_ = px * (1 + c_of(s, 0.0))
+            qty = round(notional / px_, 9)
+            new_held[s] = new_held.get(s, 0.0) + qty
+            trades.append({"sym": s, "side": "buy", "qty": qty,
+                           "price": px_, "notional": notional})
+    return {"trades": trades, "held": new_held,
+            "want": [s for s, v in targets.items() if v > 0]}
+
+
 # ---------------------------------------------------------------------------
 # realistic cost model (no paid bid/ask feed): liquidity-bucket half-spread
 #
@@ -136,8 +197,15 @@ def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
                    fill: str = "close",
                    delist_liquidate: bool = False,
                    rebalance: str = "daily",
-                   cost_map: dict | None = None) -> dict:
+                   cost_map: dict | None = None,
+                   weight_targets: dict | None = None,
+                   band: float = 0.02) -> dict:
     """Daily rebalanced long-only top-N on (datetime, instrument) scores.
+
+    When `weight_targets` is given ({sig_day: {sym: equity fraction}},
+    from coresat.build_targets), the book trades toward those weights via
+    weights_step + `band` instead of top-N scores, and `pred`/`exposure`
+    are ignored (the caller bakes regime/exposure into the targets).
 
     pred:   Series indexed (datetime, instrument), NaN = no opinion.
     closes: DataFrame indexed like pred, column 'close' — end-of-day marks
@@ -169,6 +237,7 @@ def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
     exp = exposure if exposure is not None else {}
     held: dict[str, float] = {}
     equity_curve, ledger, turnover = [], [], []
+    cost_paid, traded_frac = [], []
     cash_pos = cash
     last_px: dict[str, float] = {}                     # last seen close/sym
     last_bar = px.apply(lambda c: c.last_valid_index())  # delist detector
@@ -216,26 +285,39 @@ def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
                             for s, q in held.items()
                             if np.isfinite(deal.get(s, np.nan)))
         equity = cash_pos + positions_val
+        day_trades: list[dict] = []
         if _rebalance_day(day, prev_day, rebalance) and sig_day is not None:
-            row = (sig.loc[sig_day].dropna() if sig_day in sig.index
-                   else pd.Series(dtype=float))
-            step = rebalance_step(row, equity, n, deal, held, day_cost,
-                                  exposure=float(exp.get(sig_day, 1.0)))
-            bought = sum(t["notional"] for t in step["trades"]
+            if weight_targets is not None:
+                step = weights_step(weight_targets.get(sig_day, {}),
+                                    equity, deal, held, day_cost,
+                                    band=band)
+            else:
+                row = (sig.loc[sig_day].dropna() if sig_day in sig.index
+                       else pd.Series(dtype=float))
+                step = rebalance_step(row, equity, n, deal, held, day_cost,
+                                      exposure=float(exp.get(sig_day, 1.0)))
+            day_trades = step["trades"]
+            bought = sum(t["notional"] for t in day_trades
                          if t["side"] == "buy")
-            sold = sum(t["notional"] for t in step["trades"]
+            sold = sum(t["notional"] for t in day_trades
                        if t["side"] == "sell")
             cash_pos += sold - bought
             held = step["held"]
-            ledger.extend({"date": day, **t} for t in step["trades"])
+            ledger.extend({"date": day, **t} for t in day_trades)
         else:
             bought = sold = 0.0
         # end-of-day equity: cash + positions at close marks
         positions_val = sum(q * marks.get(s, 0.0) for s, q in held.items())
         equity = cash_pos + positions_val
         equity_curve.append((day, equity))
-        turnover.append((bought + sold + sum(l["notional"] for l in liq))
-                        / max(equity, 1e-9) / 2)
+        day_traded = bought + sold + sum(l["notional"] for l in liq)
+        turnover.append(day_traded / max(equity, 1e-9) / 2)
+        traded_frac.append(day_traded / max(equity, 1e-9))
+        rate = (day_cost.get if isinstance(day_cost, dict)
+                else lambda _s, _d=flat: flat)
+        cost_paid.append(
+            sum(t["notional"] * rate(t["sym"], flat)
+                for t in day_trades + liq) / max(equity, 1e-9))
         prev_day = day
 
     eq = pd.Series(dict(equity_curve)).sort_index()
@@ -254,6 +336,11 @@ def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
         "final_equity_usd": float(eq.iloc[-1]) if len(eq) else cash,
         "trades": ledger,
         "daily_excess": rets,      # benchmark-free; excess = total return
+        # equity-fraction series for cost-sensitivity maths (break-even
+        # per-side cost): daily_cost = paid costs, daily_traded = gross
+        # two-side traded fraction
+        "daily_cost": pd.Series(cost_paid, index=eq.index),
+        "daily_traded": pd.Series(traded_frac, index=eq.index),
     }
 
 
