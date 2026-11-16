@@ -1,0 +1,31 @@
+# Phase-6 CN GPU fold-in — PREDECLARED candidate set + selection rule.
+# Written BEFORE the holdout look (mirrors phase6_us.yaml's convention).
+#
+# The four Kaggle GPU walk-forward pred sets (tcn/alstm/tra/igmtf,
+# scriptVersionId 370197588, results/kaggle-wf-2026-11-16-1650 @67b28e5)
+# fold into the CN OOF stack: ridge_stack/rank_avg/ewic_avg refit over the
+# 13 signals below (existing 9 + 4 GPU). Ensemble rows in
+# results/oof/cn/candidates.json were dropped pre-run so their OOF stats
+# recompute over the new signal set.
+#
+# Selection: OOF information_ratio ONLY (TopkDropout(50,5) backtest IR on
+# the walk-forward eval window) over exactly `candidates`. The argmax is
+# scored ONCE on the 2018-08-01→2020-08-01 holdout at TopkDropout(50,5)
+# with spec CN costs. Every candidate row evaluated counts in n_trials
+# (expected 32 OOF rows + 30 prior tune trials + 2 holdout steps = 64);
+# DSR recomputed over all trials.
+
+market: cn
+spec: walkforward_cn.yaml
+
+stack_signals: [lgb, xgb, de, hist, cat, lrn, lgb5, lgb_rank, lgb_tuned,
+                tcn, alstm, tra, igmtf]
+
+candidates: [ridge_stack@topk, tcn@topk, alstm@topk, tra@topk, igmtf@topk]
+selection: argmax_oof_information_ratio
+holdout_once: true
+
+verdict_vs:
+    DoubleEnsemble_published: 1.3432
+    HIST_published: 1.3726
+    ours_EX-033_ridge_stack9: 1.2231

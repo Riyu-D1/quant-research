@@ -199,6 +199,16 @@ def main() -> None:
     if unknown:
         sys.exit(f"unknown model(s) {unknown}; run --list")
 
+    us_missing = not (US / "calendars/day.txt").exists()
+    if us_missing:
+        skipped = [m for m in models
+                   if REGISTRY[m][1] == US and
+                   (REGISTRY[m][4] if len(REGISTRY[m]) > 4 else True)]
+        if skipped:
+            print(f"[gpu-run] WARNING us-qlib-dump missing at {US} — "
+                  f"skipping {skipped} (run us-alpaca-data to build it)")
+            models = [m for m in models if m not in skipped]
+
     results = {}
     failures = []
     for name in models:

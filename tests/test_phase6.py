@@ -1,4 +1,6 @@
 """Phase-6 additions: EW-IC ensemble, signal library, portfolio sim, LGB rank."""
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -6,6 +8,8 @@ import pytest
 from quant_research import signals6 as s6
 from quant_research import walkforward as wf
 from quant_research.models import RankLGBModel, _to_grades
+
+REPO = Path(__file__).resolve().parents[1]
 
 
 def _idx(days, syms):
@@ -159,6 +163,66 @@ def test_portfolio_respects_eligibility_and_costs():
     # constant weights -> only the day-0 build-up trades
     assert r2["net"].iloc[0] < r2["gross"].iloc[0]
     assert (r2["net"].iloc[1:] == r2["gross"].iloc[1:]).all()
+
+
+def test_load_fold_pred_tra_frame_becomes_score_series(tmp_path, monkeypatch):
+    """qlib TRA predict() returns a DataFrame (score + per-state score_i +
+    label); load_fold_pred must hand downstream code the score Series."""
+    import pickle
+    monkeypatch.setenv("PHASE2_RESULTS_DIR", str(tmp_path))
+    days = pd.date_range("2018-01-02", periods=3, freq="B")
+    idx = _idx(days, ["A", "B"])
+    df = pd.DataFrame({"score": range(6), "label": range(6),
+                       "score_0": range(6), "score_1": range(6),
+                       "score_2": range(6)}, index=idx)
+    lab = pd.Series(0.01, index=idx)
+    p = tmp_path / "oof" / "cn"
+    p.mkdir(parents=True)
+    with open(p / "tra__fold0.pkl", "wb") as f:
+        pickle.dump({"pred": df, "label": lab}, f)
+    pred, label = wf.load_fold_pred("cn", "tra", "fold0")
+    assert isinstance(pred, pd.Series)
+    pd.testing.assert_series_equal(pred, df["score"])
+    pd.testing.assert_series_equal(label, lab)
+
+
+def test_gpu_run_skips_us_models_when_dump_missing(monkeypatch, capsys,
+                                                   tmp_path):
+    """A missing us-qlib-dump warns + drops *_us models instead of the old
+    sys.exit that killed the run before the push cell."""
+    import scripts.gpu_run as gr
+    missing = tmp_path / "no_such_dump"
+    monkeypatch.setattr(gr, "US", missing)
+    monkeypatch.setitem(gr.REGISTRY, "tcn_us_wf",
+                        ("scripts/x.py", missing, "phase6", "fake us entry"))
+    monkeypatch.setattr("sys.argv",
+                        ["gpu_run.py", "--models", "tcn_us_wf"])
+    gr.main()   # must not raise SystemExit
+    out = capsys.readouterr().out
+    assert "skipping" in out and "tcn_us_wf" in out
+
+
+def test_kaggle_notebook_push_plumbing():
+    """Pin the fixed push discipline in qlib_gpu_run.ipynb — the empty
+    kaggle-wf-2026-11-16 push must not regress."""
+    import json
+    nb = json.loads((REPO / "notebooks" / "qlib_gpu_run.ipynb").read_text())
+    cells = ["".join(c["source"]) for c in nb["cells"]
+             if c["cell_type"] == "code"]
+    allsrc = "\n".join(cells)
+    # scoped force-add before every commit, incl. the holdout-preds summary
+    for path in ("results/oof", "results/phase2_cn_holdout_preds.json",
+                 "results/runs"):
+        assert f"'{path}'" in allsrc, path
+    assert "'add', '-f'" in allsrc
+    # periodic + per-model checkpoints, not one final blind commit
+    assert "_ckpt_loop" in allsrc and "ckpt(name)" in allsrc
+    # final cell fails loudly when a successful run staged nothing
+    assert "refusing to push an empty" in allsrc
+    # missing us-qlib-dump warns + skips *_us instead of raising
+    us_cell = next(c for c in cells if "archive_download_url" in c)
+    assert "skipping *_us models" in us_cell
+    assert "raise RuntimeError('no us-qlib-dump" not in us_cell
 
 
 def test_live_new_signal_fns():

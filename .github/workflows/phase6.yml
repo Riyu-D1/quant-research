@@ -9,8 +9,10 @@ name: phase6-benchmarks
 #   us-holdout re-view the select winner on 2025+, apply the live gate
 #   cn-score  one-shot holdout scoring of a chosen CN candidate
 #
-# Results commit back to phase6/benchmarks; holdout results also land in
-# results/holdout_log.jsonl so they show up in the leaderboard.
+# Results commit back to the branch each job checks out (phase6/gpu-score
+# for cn-oof/cn-score on this branch, phase6/benchmarks elsewhere); holdout
+# results also land in results/holdout_log.jsonl so they show up in the
+# leaderboard.
 
 on:
   workflow_dispatch:
@@ -47,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: phase6/benchmarks
+          ref: phase6/gpu-score
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -94,15 +96,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B phase6/benchmarks
+          git checkout -B phase6/gpu-score
           ckpt() {
-            git fetch origin phase6/benchmarks -q 2>/dev/null || true
+            git fetch origin phase6/gpu-score -q 2>/dev/null || true
             git add results/oof/cn results/phase2_cn.json 2>/dev/null || true
             git diff --cached --quiet && return 0
             git commit -qm "phase6 cn oof checkpoint (${{ github.run_id }})" || return 0
-            git pull --rebase origin phase6/benchmarks -q 2>/dev/null \
+            git pull --rebase origin phase6/gpu-score -q 2>/dev/null \
               || { git rebase --abort -q 2>/dev/null; return 0; }
-            git push -q origin HEAD:phase6/benchmarks 2>/dev/null || true
+            git push -q origin HEAD:phase6/gpu-score 2>/dev/null || true
           }
           uv run python scripts/phase2_run.py --market cn \
             --models "${{ inputs.models }}" \
@@ -123,19 +125,19 @@ jobs:
             results/phase2_cn.json
           if-no-files-found: ignore
 
-      - name: Commit results to phase6/benchmarks
+      - name: Commit results to phase6/gpu-score
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B phase6/benchmarks
+          git checkout -B phase6/gpu-score
           git add results/oof/cn results/phase2_cn.json 2>/dev/null || true
           if git diff --cached --quiet; then echo "nothing"; exit 0; fi
           git commit -m "phase6 cn results — run ${{ github.run_id }}"
-          git fetch origin phase6/benchmarks || true
+          git fetch origin phase6/gpu-score || true
           for i in 1 2 3; do
-            git push origin "phase6/benchmarks:phase6/benchmarks" && break
-            git pull --rebase origin phase6/benchmarks
+            git push origin "phase6/gpu-score:phase6/gpu-score" && break
+            git pull --rebase origin phase6/gpu-score
           done
 
   us-select:
@@ -265,7 +267,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: phase6/benchmarks
+          ref: phase6/gpu-score
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -302,15 +304,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B phase6/benchmarks
+          git checkout -B phase6/gpu-score
           # all model names are needed so ensemble candidates can assemble;
           # gpu-required ones are skipped automatically when their fold
           # preds are absent.
           uv run python scripts/phase2_run.py --market cn \
-            --models "lgb,xgb,de,hist,cat,lrn,lgb5,lgb_rank,lgb_tuned" \
+            --models "lgb,xgb,de,hist,cat,lrn,lgb5,lgb_rank,lgb_tuned,tcn,alstm,tra,igmtf" \
             --threads 4 \
             --holdout "${{ inputs.holdout_candidate }}"
           git add results/phase2_cn.json results/holdout_log.jsonl \
                   results/oof/cn 2>/dev/null || true
           git commit -qm "phase6 cn holdout (re-viewed) — run ${{ github.run_id }}" || true
-          git push -q origin HEAD:phase6/benchmarks 2>/dev/null || true
+          git push -q origin HEAD:phase6/gpu-score 2>/dev/null || true
