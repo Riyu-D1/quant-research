@@ -226,3 +226,27 @@ fit ridge on 9 incl. `lgb_tuned` (holdout coef ~5e-5, immaterial). Run
 - **GPU (owner-run, one Kaggle session)**: `MODELS =
   'tcn_cn_wf alstm_cn_wf tra_cn_wf igmtf_cn_wf tcn_us_wf'` — fills
   `results/oof/{cn,us}/` incl. holdout-fold preds via --train-holdout.
+
+## phase6_ridge_stack13_topk_cn  (13-model ridge stack incl. tcn/alstm/tra/igmtf @ TopkDropout(50,5), holdout re-viewed)
+| metric | ours | best published |
+|---|---|---|
+| ic | 0.0409 | HIST α360 0.0522 / DE α158 0.0521 |
+| icir | 0.2758 | HIST 0.3530 / DE 0.4223 |
+| rank_ic | 0.0563 | HIST 0.0667 / **DE 0.0502 (beaten)** |
+| rank_icir | 0.3909 | HIST 0.4576 / DE 0.4117 |
+| annualized_return | 0.0915 | DE 0.1158 / HIST 0.0987 |
+| information_ratio | 1.1780 | HIST 1.3726 / **DE 1.3432** |
+| max_drawdown | -0.0725 | HIST -0.0681 / DE -0.0920 |
+| turnover | 0.1932 | — |
+| deflated_sharpe | 0.130 (SR* 1.97) | — |
+| n_trials | 64 | — |
+| verdict | DOES NOT beat published on IR (1.1780 < 1.3432 < 1.3726) and is WORSE than the 9-model stack it extends (1.2231, ΔIR -0.045). GPU preds added noise, not lift; RankIC 0.0563 still tops DE's 0.0502. OOF IR 3.14 again regime-inflated (EX-023/EX-033 pattern) |
+
+Scored once on the re-viewed holdout 2018-08-01→2020-07-31 (486d; third
+look, logged). Candidate predeclared in
+`configs/experiments/phase6_gpu_score.yaml`: OOF-IR argmax over
+{ridge_stack@topk, tcn, alstm, tra, igmtf @topk} = ridge_stack@topk
+(OOF IR 3.136; GPU solos 2.52/2.47/1.92/0.29). Kaggle v8 preds
+(scriptVersionId 370197588, branch results/kaggle-wf-2026-11-16-1650).
+Runs 43934368427 (cn-oof) + 43938177196 (cn-score) →
+`results/phase2_cn.json`, `results/holdout_log.jsonl`.
