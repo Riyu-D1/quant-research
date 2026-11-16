@@ -76,7 +76,8 @@ def load_books(spec: dict) -> dict:
     for f in ("close", "open", "volume"):
         arr = ev.load_field(provider, "SPY", cal, f)
         spy_rows[f] = pd.DataFrame(
-            {f: arr}, index=cal).assign(instrument="SPY") \
+            {f: arr}, index=cal.rename("datetime")) \
+            .assign(instrument="SPY") \
             .set_index("instrument", append=True)
         bars[f] = pd.concat([bars[f], spy_rows[f]]).sort_index()
     spy = pd.Series(spy_rows["close"]["close"].values,
