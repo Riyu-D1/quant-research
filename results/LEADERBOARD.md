@@ -250,3 +250,37 @@ look, logged). Candidate predeclared in
 (scriptVersionId 370197588, branch results/kaggle-wf-2026-11-16-1650).
 Runs 43934368427 (cn-oof) + 43938177196 (cn-score) →
 `results/phase2_cn.json`, `results/holdout_log.jsonl`.
+
+---
+
+## Phase 7 — US core+satellite live bot (branch `phase7/us-live`)
+
+The deployable-shape question from phase 6, asked directly: can a ~£10
+Alpaca book (fractional shares, $1 order floor, 2% rebalance band,
+≤1 order/symbol/day, 20% stock cap w/ SPY overflow, bucketed
+half-spread+5bps, next-open fills) match or beat SPY? 22 predeclared
+core/satellite candidates (A: 100% SPY; B: 50/70/85% SPY core + ≤8-name
+sleeve × {vq, mom+vq, ens_def}; C: B + sleeve→core regime guard; D:
+sleeve-only top-8 invvol). Selection on OOF 2018–2024 ONLY; the fresh
+2026 window scored once on the winner + SPY baseline.
+
+## phase7_B50_momvq  (50% SPY core + 6-name mom+vq sleeve, equal wt)
+| metric | OOF 18–24 | re-viewed 2025 | fresh 2026 | SPY 2026 |
+|---|---|---|---|---|
+| annualized_return | 0.179 | 0.247 | 0.009 | 0.133 |
+| information_ratio | 0.943 | 1.037 | 0.137 | 0.965 |
+| max_drawdown | -0.319 | -0.246 | -0.159 | -0.089 |
+| excess-IR vs SPY | +0.440 | +0.646 | -1.187 | — |
+| rolling-12m win rate | 0.608 | — | — | — |
+| turnover (daily) | 0.030 | 0.022 | 0.028 | — |
+| verdict | **OOF winner** (2/22 survived: this + C50_momvq IR 0.874) | beat SPY on all legs | **MATCH GATE FAILED — does not match or beat SPY** | — |
+
+Selection (runs 43979807942 select / 43981216061 holdout →
+`results/phase7_us_select.json`, `phase7_us_holdout.json`,
+`holdout_log.jsonl` n_trials 155): predeclared rule = drop OOF mdd
+deeper than SPY (-33.8%) or <50% rolling-12m wins, then best OOF IR.
+2026 gate (IR ≥ SPY-0.05 or AR ≥ SPY-0.5pt, and mdd ≤ SPY+2pt) failed
+on all legs; DSR 0.422. `validated` stays **false** — the deployed
+`configs/live_signal.yaml` is B50_momvq, paper-only, honestly flagged.
+If all signal candidates had failed, A_spy would have deployed by the
+same rule.
