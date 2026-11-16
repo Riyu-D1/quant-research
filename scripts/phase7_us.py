@@ -235,7 +235,7 @@ def breakeven_bps(met: dict, spy: pd.Series) -> dict:
     traded = met["daily_traded"].reindex(r.index)
     mu_traded = float(traded.mean())
     if mu_traded <= 0:
-        return {"breakeven_extra_bps": np.inf, "breakeven_total_bps": np.inf,
+        return {"breakeven_extra_bps": None, "breakeven_total_bps": None,
                 "avg_cost_bps": 0.0}
     avg_cost = float(met["daily_cost"].reindex(r.index).mean() /
                      mu_traded * 1e4)
@@ -253,6 +253,8 @@ def score_window(cand: dict, comp: pd.DataFrame, books: dict,
                             exposure)
     met = run_candidate(books["bars"], targets, days, spec)
     rep = LH.bot_metrics(met, spec["account"]["gbpusd"], books["spy"])
+    for k in ("daily_cost", "daily_traded"):
+        rep.pop(k, None)      # Series — not JSON-serialisable
     daily = met["daily_excess"].dropna()
     roll = LH.rolling_xs_ir(daily, books["spy"])
     rep.update({
