@@ -58,6 +58,14 @@ REGISTRY = {
     # a GPU model wins validation; the CI holdout run then scores once.
     "hist_cn_ho":       ("scripts/phase2_run.py --market cn --models hist --train-holdout", CN, "phase2", "HIST holdout-fold preds"),
     "transformer_cn_ho":("scripts/phase2_run.py --market cn --models transformer --train-holdout", CN, "phase2", "Transformer holdout-fold preds"),
+    # Phase 6 — remaining published-GPU models on the walk-forward grids.
+    # --train-holdout trains the 4 OOF folds AND the holdout fold in one
+    # pass so CI can score any candidate without a second GPU session.
+    "tcn_cn_wf":        ("scripts/phase2_run.py --market cn --models tcn --train-holdout", CN, "phase6", "TCN Alpha158-20 OOF+holdout preds"),
+    "alstm_cn_wf":      ("scripts/phase2_run.py --market cn --models alstm --train-holdout", CN, "phase6", "ALSTM Alpha158-20 OOF+holdout preds"),
+    "tra_cn_wf":        ("scripts/phase2_run.py --market cn --models tra --train-holdout", CN, "phase6", "TRA MTSDatasetH OOF+holdout preds"),
+    "igmtf_cn_wf":      ("scripts/phase2_run.py --market cn --models igmtf --train-holdout", CN, "phase6", "IGMTF Alpha360 OOF+holdout preds"),
+    "tcn_us_wf":        ("scripts/phase2_run.py --market us --models tcn --train-holdout", US, "phase6", "TCN US OOF+holdout preds"),
     # Phase 4 — FinBERT news sentiment on GPU (downloads the phase4-news
     # artifact itself; output lands under results/news_sentiment/ which the
     # PUSH_RESULTS=1 commit picks up).
@@ -190,6 +198,16 @@ def main() -> None:
     unknown = [m for m in models if m not in REGISTRY]
     if unknown:
         sys.exit(f"unknown model(s) {unknown}; run --list")
+
+    us_missing = not (US / "calendars/day.txt").exists()
+    if us_missing:
+        skipped = [m for m in models
+                   if REGISTRY[m][1] == US and
+                   (REGISTRY[m][4] if len(REGISTRY[m]) > 4 else True)]
+        if skipped:
+            print(f"[gpu-run] WARNING us-qlib-dump missing at {US} — "
+                  f"skipping {skipped} (run us-alpaca-data to build it)")
+            models = [m for m in models if m not in skipped]
 
     results = {}
     failures = []

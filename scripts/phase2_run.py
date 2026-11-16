@@ -77,7 +77,12 @@ def ensure_concept_assets(spec: dict) -> None:
 def run_folds(spec: dict, models: dict, folds: list[wf.Fold],
               holdout_fold: wf.Fold, threads: int, market: str,
               include_holdout: bool) -> dict:
-    """Train each model on each fold; return {model: (OOF pred, OOF label)}."""
+    """Train each model on each fold; return {model: (OOF pred, OOF label)}.
+
+    Models sharing a feature set reuse one canonical handler (it also
+    provides the eval LABEL0). A model with `label:`/`infer_processors:`
+    overrides gets its own handler — its saved eval label is still LABEL0,
+    so candidate metrics stay comparable."""
     all_folds = folds + ([holdout_fold] if include_holdout else [])
     needed_fs = sorted({cfg["feature_set"] for cfg in models.values()})
     for fold in all_folds:
@@ -87,20 +92,27 @@ def run_folds(spec: dict, models: dict, folds: list[wf.Fold],
             if not todo:
                 continue
             t0 = time.time()
-            handler = wf.build_handler(spec, fs, fold)
+            canon = wf.build_handler(spec, fs, fold)
             wf.log(f"handler {fs} {fold.name} ready ({time.time()-t0:.0f}s)")
-            label = handler.fetch(
+            label = canon.fetch(
                 slice(pd.Timestamp(fold.eval[0]), pd.Timestamp(fold.eval[1])),
                 col_set="label", data_key="infer").iloc[:, 0]
+            segments = {"train": fold.train, "valid": fold.valid,
+                        "test": fold.eval}
             for m in todo:
                 cfg = models[m]
                 if cfg.get("needs_concept_assets"):
                     ensure_concept_assets(spec)
-                ts_step = cfg.get("step_len")
-                ds = wf.FoldDataset(handler, {"train": fold.train,
-                                              "valid": fold.valid,
-                                              "test": fold.eval},
-                                    ts_step=ts_step)
+                if cfg.get("label") or cfg.get("infer_processors"):
+                    handler = wf.build_handler(
+                        spec, fs, fold, label=cfg.get("label"),
+                        infer_processors=cfg.get("infer_processors"))
+                    wf.log(f"  {m}: own handler "
+                           f"(label={cfg.get('label')!r})")
+                else:
+                    handler = canon
+                ds = wf.make_dataset(cfg, handler, segments,
+                                     ts_step=cfg.get("step_len"))
                 t0 = time.time()
                 pred = wf.train_predict(cfg, ds, threads)
                 wf.save_fold_pred(market, m, fold.name, pred, label)
@@ -278,9 +290,14 @@ def main() -> None:
     model_preds = {m: p for m, (p, _l) in model_oof.items()}
     if len(model_preds) >= 2:
         ens_preds["rank_avg"] = wf.rank_average(model_preds)
+        ens_preds["ewic_avg"] = wf.ewic_rank_average(
+            model_preds, oof_label, spec["eval_folds"])
         meta = wf.fit_ridge(model_preds, oof_label,
                             spec["ensemble"]["ridge_alpha"])
         ens_preds["ridge_stack"] = wf.apply_ridge(meta, model_preds)
+        summary["ewic_weights_oof"] = {
+            k: float(v) for k, v in
+            wf.ewic_weights(model_preds, oof_label).items()}
         summary["ridge"] = {
             "alpha": spec["ensemble"]["ridge_alpha"],
             "coef": dict(zip(model_preds, meta.coef_.tolist())),
@@ -346,12 +363,17 @@ def main() -> None:
             hlab = panel["LABEL0"].loc[
                 pd.Timestamp(spec["holdout"][0]):
                 pd.Timestamp(spec["holdout"][1])]
-        elif sname in ("rank_avg", "ridge_stack"):
+        elif sname in ("rank_avg", "ridge_stack", "ewic_avg"):
             missing = set(model_oof) - set(hp)
             if missing:
                 sys.exit(f"holdout preds missing for {missing} (needed by {sname})")
             if sname == "rank_avg":
                 hsig = wf.rank_average(hp)
+            elif sname == "ewic_avg":
+                hw = wf.ewic_weights(model_preds, oof_label)
+                R = pd.DataFrame({k: wf.cs_rank(v) for k, v in hp.items()})
+                hsig = R.reindex(columns=hw.index).fillna(0.5) \
+                        .mul(hw, axis=1).sum(axis=1).rename("score")
             else:
                 with open(wf.oof_dir(run_key) / "ridge_meta.pkl", "rb") as f:
                     meta = pickle.load(f)

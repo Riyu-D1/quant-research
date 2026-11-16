@@ -104,6 +104,54 @@ models:
             max_depth: 8
             num_leaves: 210
             num_threads: 4
+    # ---- Phase-6 CPU additions -------------------------------------------
+    cat:
+        class: CatBoostModel
+        module_path: qlib.contrib.model.catboost_model
+        feature_set: alpha158
+        kwargs:
+            loss: RMSE
+            learning_rate: 0.0421
+            subsample: 0.8789
+            max_depth: 6
+            num_leaves: 100
+            thread_count: 4
+            grow_policy: Lossguide
+            bootstrap_type: MVS
+    lrn:
+        class: LinearModel
+        module_path: qlib.contrib.model.linear
+        feature_set: alpha158
+        kwargs:
+            estimator: ols
+    lgb5:
+        class: LGBModel
+        module_path: qlib.contrib.model.gbdt
+        feature_set: alpha158
+        label: "Ref($close, -6) / Ref($close, -1) - 1"
+        kwargs:
+            loss: mse
+            colsample_bytree: 0.8879
+            learning_rate: 0.2
+            subsample: 0.8789
+            lambda_l1: 205.6999
+            lambda_l2: 580.9768
+            max_depth: 8
+            num_leaves: 210
+            num_threads: 4
+    lgb_rank:
+        class: RankLGBModel
+        module_path: quant_research.models
+        feature_set: alpha158
+        kwargs:
+            grades: 10
+            eval_at: 50
+            colsample_bytree: 0.8879
+            learning_rate: 0.05
+            subsample: 0.8789
+            max_depth: 8
+            num_leaves: 210
+            num_threads: 4
     # GPU slots — filled only when run on a GPU box (Kaggle notebook path).
     transformer:
         class: TransformerModel
@@ -136,6 +184,109 @@ models:
             stock_index: configs/benchmarks/assets/qlib_sp500_stock_index.npy
             needs_concept_assets: true
             GPU: 0
+    # ---- Phase-6 GPU additions (Kaggle; official-config hyperparams) -----
+    tcn:
+        class: TCN
+        module_path: qlib.contrib.model.pytorch_tcn_ts
+        feature_set: alpha158
+        requires_gpu: true
+        step_len: 20
+        infer_processors: &feat20
+            - class: FilterCol
+              kwargs:
+                  fields_group: feature
+                  col_list: ["RESI5", "WVMA5", "RSQR5", "KLEN", "RSQR10",
+                             "CORR5", "CORD5", "CORR10", "ROC60", "RESI10",
+                             "VSTD5", "RSQR60", "CORR60", "WVMA60", "STD5",
+                             "RSQR20", "CORD60", "CORD10", "CORR20", "KLOW"]
+            - class: RobustZScoreNorm
+              kwargs: {fields_group: feature, clip_outlier: true}
+            - class: Fillna
+              kwargs: {fields_group: feature}
+        kwargs:
+            d_feat: 20
+            num_layers: 5
+            n_chans: 32
+            kernel_size: 7
+            dropout: 0.5
+            n_epochs: 200
+            lr: 0.0001
+            early_stop: 20
+            batch_size: 2000
+            metric: loss
+            loss: mse
+            optimizer: adam
+            n_jobs: 4
+            GPU: 0
+    alstm:
+        class: ALSTM
+        module_path: qlib.contrib.model.pytorch_alstm_ts
+        feature_set: alpha158
+        requires_gpu: true
+        step_len: 20
+        infer_processors: *feat20
+        kwargs:
+            d_feat: 20
+            hidden_size: 64
+            num_layers: 2
+            dropout: 0.0
+            n_epochs: 200
+            lr: 0.001
+            early_stop: 10
+            batch_size: 800
+            metric: loss
+            loss: mse
+            n_jobs: 4
+            GPU: 0
+            rnn_type: GRU
+    tra:
+        class: TRAModel
+        module_path: qlib.contrib.model.pytorch_tra
+        feature_set: alpha158
+        requires_gpu: true
+        infer_processors: *feat20
+        dataset:
+            class: MTSDatasetH
+            module_path: qlib.contrib.data.dataset
+            kwargs:
+                seq_len: 60
+                num_states: 3
+                batch_size: 1024
+                memory_mode: sample
+                drop_last: true
+        kwargs:
+            tra_config:
+                num_states: 3
+                rnn_arch: LSTM
+                hidden_size: 32
+                num_layers: 1
+                dropout: 0.0
+                tau: 1.0
+                src_info: LR_TPE
+            model_config:
+                input_size: 20
+                hidden_size: 64
+                num_layers: 2
+                rnn_arch: LSTM
+                use_attn: true
+                dropout: 0.0
+            model_type: RNN
+            lr: 0.001
+            n_epochs: 100
+            early_stop: 20
+            logdir: output/tra_wf
+            seed: 0
+            lamb: 1.0
+            rho: 0.99
+            alpha: 0.5
+            transport_method: router
+            memory_mode: sample
+            eval_train: false
+            eval_test: true
+            pretrain: true
+            init_state:
+            freeze_model: false
+            freeze_predictors: false
 
 strategies:
     topk:

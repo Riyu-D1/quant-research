@@ -1,0 +1,48 @@
+# Phase-6 US signal search — PREDECLARED grid (written before any run).
+#
+# OOF selection uses only pre-2025 eval days. The 2025+ window is a
+# re-viewed holdout: score the winner once, compare against SPY, gate on
+# positive return + beats-SPY-IR + DSR>0.5. Every row evaluated counts in
+# n_trials.
+
+provider: data/qlib/us_alpaca
+fundamentals: data/events/fundamentals.parquet
+event_features: data/events/features_us.parquet
+news_dir: results
+
+oof: ["2018-01-01", "2024-12-31"]
+holdout: ["2025-01-01", "2026-12-31"]
+# OOF fold windows for per-fold stability (same eval grid as walkforward_us)
+folds:
+    - ["2018-01-01", "2018-12-31"]
+    - ["2019-01-01", "2019-12-31"]
+    - ["2020-01-01", "2020-12-31"]
+    - ["2021-01-01", "2021-12-31"]
+    - ["2022-01-01", "2022-12-31"]
+    - ["2023-01-01", "2023-12-31"]
+    - ["2024-01-01", "2024-12-31"]
+
+signals: [srev5, rev, mom6, mom, lowvol, beta, amihud, pead, qual, vq, ins,
+          sn_mom, sn_mom6, sn_srev5, sn_rev]
+
+# Predeclared blends. Signals inside a combo are cross-sectionally rank
+# averaged (equal) or EW-IC weighted with fold-causal weights.
+combos:
+    - name: combo_eq_core
+      weight: equal
+      signals: [mom, rev, srev5, mom6, lowvol, ins, pead]
+    - name: combo_ewic_core
+      weight: ewic
+      signals: [mom, rev, srev5, mom6, lowvol, ins, pead]
+    - name: combo_eq_def
+      weight: equal
+      signals: [lowvol, beta, mom, vq, sn_mom]
+    - name: combo_eq_sn
+      weight: equal
+      signals: [sn_mom, sn_mom6, sn_srev5, sn_rev, lowvol, ins]
+
+portfolios:
+    - {name: top50_h5, topk: 50, hold: 5, cost_bps: 10}
+    - {name: top50_h10, topk: 50, hold: 10, cost_bps: 10}
+    - {name: top30_h5, topk: 30, hold: 5, cost_bps: 10}
+    - {name: top5_h20, topk: 5, hold: 20, cost_bps: 10}   # £10-feasible shape
