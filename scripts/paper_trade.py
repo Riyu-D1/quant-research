@@ -6,11 +6,14 @@
 Daily flow (config pinned in configs/live_signal.yaml):
   clock + stale-bars check -> fill reconciliation (actual Alpaca fills and
   positions -> journal Outcome/Lesson + equity-vs-SPY state) -> SPY regime
-  guard -> signal scores (mom/rev from Alpaca bars, vq/news from state/live
-  snapshots) -> adaptive weights (equal or trailing-EWIC) -> top-N
-  equal-weight targets -> reconcile vs paper positions (sells first, then
-  notional buys >= $1) -> Notion journal (trade pages + day summary +
-  what-changed on monthly weight shifts).
+  guard -> signal scores (mom/rev/srev5/mom6/lowvol/beta from Alpaca bars,
+  vq/news from state/live snapshots) -> adaptive weights (equal or
+  trailing-EWIC) -> portfolio: either the legacy top-N equal-weight book,
+  or (Phase-7 `core:`/`sleeve:` schema) a SPY core + top-N sleeve weight
+  map traded toward via the 2% rebalance band and $1 order floor
+  (coresat.build_targets + micro.weights_step — the same functions the
+  phase-7 simulator scores) -> reconcile vs paper positions (sells first,
+  then buys; breaker days still let the core buy) -> Notion journal.
 
 Honesty contract: `validated` from the pinned config is stamped on every
 log line and every journal entry — until the holdout gate passes it stays
@@ -49,6 +52,7 @@ sys.path.insert(0, str(REPO / "src"))
 import yaml
 
 from quant_research import alpaca_bot as AB
+from quant_research import coresat as CS
 from quant_research import live as LV
 from quant_research import micro as MC
 from quant_research import notion_journal as NJ
@@ -440,11 +444,20 @@ def risk_gate(cfg: dict, journal, equity: float, prev_state: dict,
     rk = cfg.get("risk", {})
     notes, checks = [], {}
     order_ok, buy_ok = True, True
+    # the SPY core is an index — exempt from the single-stock cap and the
+    # universe-size check (both exist to govern the stock sleeve)
+    core_sym = (cfg.get("core") or {}).get("symbol")
 
     # -- sanity: abort everything on failure ---------------------------------
     n_sig = len(step.get("trades", []))
-    if rk.get("min_universe") and len(prices) < int(rk["min_universe"]):
-        # prices covers scored+held names; a tiny count means broken data
+    # prices covers scored+held names; a tiny count means broken bars.
+    # Only enforced when a non-core trade is planned — a core-only run
+    # (pure SPY book, or signals dropped -> park in core) doesn't depend
+    # on the stock universe's data health.
+    noncore_trade = any(t["sym"] != core_sym
+                        for t in step.get("trades", []))
+    if rk.get("min_universe") and noncore_trade \
+            and len(prices) < int(rk["min_universe"]):
         order_ok = False
         checks["universe"] = (f"only {len(prices)} priced names < "
                               f"{rk['min_universe']} — data broken?")
@@ -494,7 +507,8 @@ def risk_gate(cfg: dict, journal, equity: float, prev_state: dict,
     max_w = float(rk.get("max_position_weight", 0.4))
     if equity > 0:
         for t in step.get("trades", []):
-            if t["side"] == "buy" and t["notional"] / equity > max_w:
+            if t["side"] == "buy" and t["sym"] != core_sym \
+                    and t["notional"] / equity > max_w:
                 t["notional"] = round(equity * max_w, 2)
                 notes.append(f"buy {t['sym']} clipped to {max_w:.0%} of "
                              "equity")
@@ -535,12 +549,15 @@ def corp_actions(journal, held: dict, day: pd.Timestamp,
 
 
 def drift_report(want: list[str], n_positions: int, exposure: float,
-                 held: dict, prices: dict, equity: float) -> str:
+                 held: dict, prices: dict, equity: float,
+                 targets: dict | None = None) -> str:
     """Actual vs target weights — logged every run so silent drift (missed
-    fills, stale positions) is visible in the journal."""
+    fills, stale positions) is visible in the journal. `targets` = the
+    explicit core+satellite map when the book runs that way."""
     if equity <= 0:
         return "drift n/a (no equity)"
-    tgt = {s: exposure / max(len(want), 1) for s in want}
+    tgt = dict(targets) if targets is not None else \
+        {s: exposure / max(len(want), 1) for s in want}
     act = {s: p["qty"] * prices.get(s, 0.0) / equity
            for s, p in held.items() if prices.get(s)}
     rows = []
@@ -572,10 +589,16 @@ def compute_signals(cfg: dict, closes: pd.DataFrame,
     sig_series: dict[str, pd.Series] = {}        # only populated for ewic
     days_lookback = closes.index[-min(len(closes.index), 260):]
     for sig in cfg["signals"]:
-        if sig in ("mom", "rev"):
-            fn = LV.momentum if sig == "mom" else LV.reversal
-            sig_scalars[sig] = pd.Series(
-                {s: fn(closes[s], day) for s in closes.columns})
+        if sig in LV._BARS_FNS or sig == "beta":
+            if sig == "beta":
+                mkt = closes.pct_change().mean(axis=1)
+                sig_scalars[sig] = pd.Series(
+                    {s: LV.lowbeta(closes[s], mkt, day)
+                     for s in closes.columns})
+            else:
+                sig_scalars[sig] = pd.Series(
+                    {s: LV._BARS_FNS[sig](closes[s], day)
+                     for s in closes.columns})
             if cfg["weighting"] == "ewic":
                 sig_series[sig] = LV.bars_signals(
                     closes, days_lookback, [sig])[sig]
@@ -641,9 +664,23 @@ def run_day(args) -> None:
             "base URLs are now permitted")
     validated = bool(cfg.get("validated"))
     banner = "VALIDATED" if validated else "UNVALIDATED"
+    # Phase-7 core+satellite schema: `core` pins a SPY share of equity,
+    # `sleeve` sizes/weights the signal book around it. Absent `core` the
+    # legacy top-N equal-weight path runs untouched.
+    core_cfg = cfg.get("core") or {}
+    use_core = bool(core_cfg)
+    # None in legacy mode — the core exemption must NOT apply to a
+    # top-N book where SPY is just another signal pick
+    core_sym = core_cfg.get("symbol", "SPY") if use_core else None
+    sleeve_cfg = cfg.get("sleeve") or {}
+    sleeve_n = int(sleeve_cfg.get("n", cfg["n_positions"])) \
+        if use_core else cfg["n_positions"]
     log(f"=== paper_trade {banner} config={args.config} "
         f"signals={cfg['signals']} weighting={cfg['weighting']} "
-        f"regime={cfg['regime']} ===")
+        f"regime={cfg['regime']}"
+        + (f" core={core_cfg.get('weight'):.0%}{core_sym} "
+           f"sleeve={sleeve_n}x{sleeve_cfg.get('weighting', 'equal')}"
+           if use_core else ""))
 
     universe = [l.strip() for l in
                 (REPO / cfg["universe"]).read_text().splitlines()
@@ -700,16 +737,20 @@ def run_day(args) -> None:
     sig_scalars, weights, notes = compute_signals(cfg, closes, day, state_dir)
     for n in notes:
         log(f"  {n}")
-    if not sig_scalars:
+    if not sig_scalars and not use_core:
         fail(journal, "no usable signals — nothing to trade")
+    if not sig_scalars:
+        log("no usable sleeve signals — book parks in the core")
+        notes.append("no usable sleeve signals — book parks in the core")
     weights_str = ", ".join(f"{k}:{v:.2f}" for k, v in weights.items())
-    log(f"weights: {weights_str}")
+    log(f"weights: {weights_str or '(none — pure core)'}")
 
     comp = LV.final_scores(sig_scalars, weights, day)
     held = broker.positions()
     # prices for every scored name AND every held name — held names that fell
     # out of the universe still need a price so they can be sold, not zombied
-    px_syms = set(comp.index) | set(held)
+    px_syms = set(comp.index) | set(held) \
+        | ({core_sym} if use_core else set())
     prices = {}
     for s in px_syms:
         if s in closes.columns:
@@ -717,8 +758,8 @@ def run_day(args) -> None:
             if len(ser):
                 prices[s] = float(ser.iloc[-1])
     scores = comp[comp.index.isin(prices)]
-    want = list(scores.head(cfg["n_positions"]).index)
-    log(f"top-{cfg['n_positions']}: {', '.join(want) or '(none — flat)'}")
+    want = list(scores.head(sleeve_n).index)
+    log(f"top-{sleeve_n}: {', '.join(want) or '(none — flat)'}")
 
     # -- budget --------------------------------------------------------------------
     fx = LV.gbpusd() if not dry else 1.27
@@ -817,10 +858,31 @@ def run_day(args) -> None:
             log(f"cancel_all failed (continuing): {e}")
 
     # -- trade ----------------------------------------------------------------------
-    step = MC.rebalance_step(
-        scores, budget_usd, cfg["n_positions"], prices,
-        {s: p["qty"] for s, p in held.items()},
-        cfg.get("cost_bps", 0.0) / 1e4, exposure)
+    if use_core:
+        iv = CS.invvol(closes, want, day) \
+            if sleeve_cfg.get("weighting") == "invvol" else None
+        targets = CS.build_targets(
+            want, float(core_cfg.get("weight", 0.0)), invvol_w=iv,
+            exposure=exposure,
+            risk_off=sleeve_cfg.get("risk_off", "to_core"),
+            core_sym=core_sym,
+            cap=float(cfg.get("risk", {}).get("max_position_weight",
+                                             0.20)))
+        log("targets: " + ", ".join(
+            f"{s} {v:.0%}" for s, v in sorted(
+                targets.items(), key=lambda kv: -kv[1])))
+        rec["targets"] = {s: round(v, 6) for s, v in targets.items()}
+        step = MC.weights_step(
+            targets, budget_usd, prices,
+            {s: p["qty"] for s, p in held.items()},
+            cfg.get("cost_bps", 0.0) / 1e4,
+            band=float(cfg.get("rebalance_band", 0.02)))
+    else:
+        targets = None
+        step = MC.rebalance_step(
+            scores, budget_usd, cfg["n_positions"], prices,
+            {s: p["qty"] for s, p in held.items()},
+            cfg.get("cost_bps", 0.0) / 1e4, exposure)
 
     # -- pre-order sanity + breakers -------------------------------------------------
     gate = risk_gate(cfg, journal, recon["equity"], recon["prev"],
@@ -856,16 +918,30 @@ def run_day(args) -> None:
 
     filled, skipped = [], []
     sells = [t for t in trades if t["side"] == "sell"]
+    # breaker day: sleeve buys halt but the SPY core still buys — freed
+    # sleeve cash migrates into the core instead of idling (phase-7 rule)
     buys = ([t for t in trades if t["side"] == "buy"]
-            if gate["buy_ok"] else [])
+            if gate["buy_ok"]
+            else [t for t in trades if t["side"] == "buy"
+                  and t["sym"] == core_sym])
     if not gate["buy_ok"]:
-        skipped.append("all buys (breaker active — sells still allowed)")
+        skipped.append("all buys" + (" except the core" if core_sym
+                                     else "") +
+                       " (breaker active — sells still allowed)")
     for t in sells + buys:                     # sells free cash first
         sym, side = t["sym"], t["side"]
         t["score"] = float(comp.get(sym, np.nan))
-        t["reason"] = ("exit top-5" if side == "sell" and sym not in want
-                       else "regime trim" if side == "sell" and
-                       exposure < 1 else "enter/rebalance")
+        if use_core:
+            t["reason"] = (
+                "exit sleeve" if side == "sell" and sym not in targets
+                else "regime->core" if side == "sell" and exposure < 1
+                and sym != core_sym
+                else "core rebalance" if sym == core_sym
+                else "enter/rebalance")
+        else:
+            t["reason"] = ("exit top-5" if side == "sell" and sym not in want
+                           else "regime trim" if side == "sell" and
+                           exposure < 1 else "enter/rebalance")
         coid = AB.client_order_id(day, sym, side)
         t["client_order_id"] = coid
         if side == "sell" and buys and t is sells[-1] and not dry:
@@ -904,7 +980,7 @@ def run_day(args) -> None:
     # -- drift: actual vs target weights, logged every run --------------------------
     held_after = broker.positions() if not dry else held
     drift = drift_report(want, cfg["n_positions"], exposure, held_after,
-                         prices, recon["equity"])
+                         prices, recon["equity"], targets=targets)
     log(drift)
     rec["gates"]["drift"] = drift
     ctx["summary"] += f" | {drift}"

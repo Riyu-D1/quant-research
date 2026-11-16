@@ -1,0 +1,118 @@
+name: live-trade
+# ─────────────────────────────────────────────────────────────────────────────
+# REAL-MONEY daily run — scaffolded but DISABLED. Nothing here trades
+# until the owner deliberately turns it on (docs/BOT_SETUP.md, "Going live").
+#
+# Every gate below must hold before a single network call is made:
+#   1. this file's cron is COMMENTED OUT — only workflow_dispatch works,
+#      and only inside the `live` GitHub Environment, which should carry a
+#      required-reviewer rule so each run needs an explicit owner click;
+#   2. configs/live_signal.yaml: live_trading: true   (repo flag)
+#   3. secret LIVE_TRADING_ACK == I_UNDERSTAND_LIVE_RISK  (typed ack)
+#   4. variable ALPACA_BASE_URL points at the LIVE endpoint and does NOT
+#      contain "paper" — paper-api URLs are hard-refused by the client;
+#   5. ALPACA_API_KEY / ALPACA_SECRET_KEY in the `live` environment are
+#      the LIVE account keys (the paper keys stay in ALPACA_API_KEY env);
+#   6. the bot's own interlock repeats all of this and exits on any miss.
+#
+# Kill switch: repo/environment variable BOT_HALT=1 makes every run
+# reconcile + journal but place zero orders — see docs/BOT_SETUP.md.
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "override signal day YYYY-MM-DD (default: latest bar)"
+        required: false
+      config:
+        description: "signal config"
+        required: false
+        default: "configs/live_signal.yaml"
+  # ── DISABLED — owner uncomments the whole block to enable daily runs ──
+  #   schedule:
+  #     - cron: "0 15 * * 1-5"   # ORDERS ~10:00-11:00 ET (past open+15m)
+
+permissions:
+  contents: read
+
+jobs:
+  live-day:
+    name: LIVE trading day (real money)
+    runs-on: ubuntu-latest
+    environment: live   # <- separate GitHub Environment; add a required
+                        #    reviewer so every run needs an owner click
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET }}
+      ALPACA_BASE_URL: ${{ vars.ALPACA_BASE_URL }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+      NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+      LIVE_TRADING_ACK: ${{ secrets.LIVE_TRADING_ACK }}
+      BOT_HALT: ${{ vars.BOT_HALT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: env (slim)
+        run: |
+          uv sync --no-install-package torch --no-install-package xgboost \
+            --no-install-package mlflow --no-install-package optuna \
+            --no-install-package cvxpy
+          uv cache clean
+
+      - name: preflight — every live gate must hold BEFORE any network call
+        env:
+          CFG: ${{ inputs.config }}
+        run: |
+          CFG="${CFG:-configs/live_signal.yaml}"   # inputs are empty on cron
+          CFG="$CFG" python - <<'PY'
+          import os, sys, yaml
+          errs = []
+          cfg = yaml.safe_load(open(os.environ["CFG"]))
+          if not cfg.get("live_trading"):
+              errs.append("config live_trading is not true")
+          if os.environ.get("LIVE_TRADING_ACK") != "I_UNDERSTAND_LIVE_RISK":
+              errs.append("LIVE_TRADING_ACK secret is not I_UNDERSTAND_LIVE_RISK")
+          base = os.environ.get("ALPACA_BASE_URL", "")
+          if not base:
+              errs.append("ALPACA_BASE_URL variable unset — live endpoint required")
+          elif "paper" in base:
+              errs.append("ALPACA_BASE_URL looks PAPER — refusing")
+          if not os.environ.get("ALPACA_API_KEY"):
+              errs.append("ALPACA_API_KEY missing (live env keys required)")
+          if not os.environ.get("ALPACA_SECRET_KEY"):
+              errs.append("ALPACA_SECRET_KEY missing")
+          if not cfg.get("validated"):
+              print("::warning::config `validated` is false — the holdout "
+                    "gate has not passed; live trading an unvalidated book "
+                    "is your explicit choice")
+          for e in errs:
+              print(f"PREFLIGHT FAIL: {e}")
+          sys.exit("; ".join(errs) if errs else 0)
+          PY
+
+      - name: LIVE paper_trade run
+        env:
+          CFG: ${{ inputs.config }}
+          DATE: ${{ inputs.date }}
+        run: |
+          set -x
+          CFG="${CFG:-configs/live_signal.yaml}"
+          ARGS="--config $CFG"
+          [ -n "$DATE" ] && ARGS="$ARGS --date $DATE"
+          uv run --no-sync python scripts/paper_trade.py $ARGS
+
+      - name: run record artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-run-${{ github.run_id }}
+          path: results/paper_run/
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: failure annotation
+        if: failure()
+        run: |
+          echo "::error::LIVE day failed — check the step log AND the"
+          echo "::error::Notion Trade Journal 'error' row before retrying"
