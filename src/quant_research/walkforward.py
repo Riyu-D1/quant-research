@@ -462,7 +462,12 @@ def load_fold_pred(market: str, model: str, fold: str):
         return None
     with open(p, "rb") as f:
         d = pickle.load(f)
-    return d["pred"], d["label"]
+    pred = d["pred"]
+    # qlib TRA predict() returns a frame (ensemble "score" + per-state score_i
+    # + label); downstream metric/ensemble code wants the score Series only.
+    if isinstance(pred, pd.DataFrame):
+        pred = pred["score"]
+    return pred, d["label"]
 
 
 def append_holdout_log(row: dict) -> None:
