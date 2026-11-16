@@ -1,61 +1,55 @@
-# Phase-6 outcome (re-viewed 2025+ holdout, run 43397877113): the
-# predeclared select winner `vq` PASSED the gate at top30_h5 — IR +1.167
-# vs SPY +0.867, +24.0%/yr, DSR 0.878 (n_trials 77). BUT the deployable
-# £10 shape (top5_h20, same signal) did NOT beat SPY on IR
-# (+0.559, +16.3%/yr) — the edge lives in diversification the micro
-# account can't hold. `validated` stays FALSE for the live config;
-# see results/phase6_us_holdout.json.
+# Phase-7 pin (2026-11-16): B50_momvq selected
+# by the predeclared OOF rule (configs/experiments/phase7_us.yaml).
+# OOF 2018-2024 IR +0.943 ret
+# +0.179 mdd -0.319;
+# roll-12m win 0.607687210072896; survivors ['B50_momvq', 'C50_momvq'].
+# `validated` flips true ONLY if the single 2026 holdout look clears the
+# match gate (see docs/BOT_SETUP.md).
 validated: false
 
 # Live-trading interlock (NEVER set true here — see docs/BOT_SETUP.md).
 # Going live additionally needs the LIVE_TRADING_ACK repo secret set to
-# I_UNDERSTAND_LIVE_RISK and ALPACA_BASE_URL + live keys pointed at the
-# real endpoint. With this false every path stays paper-only.
+# I_UNDERSTAND_LIVE_RISK, a non-paper ALPACA_BASE_URL + live keys, and the
+# `live` GitHub Environment approval click. With this false every path
+# stays paper-only.
 live_trading: false
 
-# Signal library to combine. Computable live: mom, rev (Alpaca bars),
-# vq, news (state/live snapshots). gbdt/ev need the monthly-retrain
-# store pipeline — the bot logs and drops them if pinned here.
-signals: [mom, vq]
+# Signal library for the sleeve. Computable live: mom, rev, srev5, mom6,
+# lowvol, beta (Alpaca bars); vq, news (state/live snapshots).
+signals: ['mom', 'vq']
+weighting: equal          # signal blend inside the sleeve (equal ranks)
+ic_months: 12
+halflife_frac: 0.5
 
-# Weighting: equal | ewic (trailing EW rank-IC; snapshot signals without
-# a live IC history force equal weighting — documented limitation).
-weighting: equal
-ic_months: 12           # ewic trailing window (when enabled)
-halflife_frac: 0.5      # ewic halflife = ic_months * 21 * frac days
-
-# Predeclared regime guard (same math as the research spec): exposure ->
-# actions[regime] when SPY < SMA(200) or 21d realised vol > 90th pct of
-# trailing 504d, all on lagged closes strictly before the day.
-regime: cash
+# Regime guard — on risk-off (SPY < SMA200 or top-decile trailing vol,
+# lagged) the sleeve's freed share routes per sleeve.risk_off. to_core:
+# sleeve -> SPY, never full cash.
+regime: none
 regime_cfg:
   sma: 200
   vol_win: 21
   vol_lookback: 504
   vol_q: 0.90
-  actions: {none: 1.0, half: 0.5, cash: 0.0}
+  actions: {none: 1.0, half: 0.5, cash: 0.0, to_core: 0.0}
 
-# Portfolio — mirrors the Phase-3/4 micro simulator.
-n_positions: 5
-budget_gbp: 10.0          # £10 account, converted to USD at run time
+# Portfolio — core+satellite (Phase-7): 50% SPY core +
+# 50% signal sleeve of up to 6 names (equal).
+core: {symbol: SPY, weight: 0.5}
+sleeve: {n: 6, weighting: equal, risk_off: to_core}
+n_positions: 6          # legacy mirror of sleeve.n
+budget_gbp: 10.0
 cost_bps: 10.0            # sizing conservatism (paper fills are free)
-snapshot_stale_days: 45   # vq/news snapshots older than this are dropped
-
-# Order timing — orders only during the regular session, at least this
-# many minutes after the open (calendar-API session times; half-days
-# handled automatically). Cron should land after this anyway.
+rebalance_band: 0.02   # skip |dw| < band or < $1
+snapshot_stale_days: 45
 order_after_open_min: 15
 
-# Risk controls — all gates below are enforced in paper_trade.py and
-# covered by tests. A sanity failure aborts the whole run (no orders);
-# a breaker blocks only new buys (sells still de-risk).
 risk:
   max_drawdown: 0.25          # equity vs running peak -> halt new buys
   daily_loss: 0.05            # equity vs prior day-summary -> halt buys
-  max_position_weight: 0.40   # clip any single buy to this share of equity
+  max_position_weight: 0.2   # per single stock (SPY core exempt)
   max_orders: 12              # per run (sells kept, excess buys dropped)
-  max_daily_notional_frac: 1.0  # total buys <= this * equity
-  max_price_move: 0.50        # |last/prior close - 1| bound for traded names
-  min_universe: 100           # priced-name floor — a tiny count = broken bars
+  max_daily_notional_frac: 1.0
+  max_price_move: 0.50
+  min_universe: 100
 
 universe: configs/live_universe.txt
