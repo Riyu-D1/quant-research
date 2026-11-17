@@ -6,10 +6,16 @@
 # -0.316;
 # gate passed=True match_frac=0.8
 # worst_xs_year=-0.019221077293544164.
-# `validated` is true only for a non-SPY winner that cleared every gate
-# leg; the 100% SPY fallback is the benchmark itself — nothing to
-# validate.
-validated: true
+#
+# Phase-8 audit (docs/PHASE8_AUDIT.md, results/phase8_audit.json):
+# the equity path reproduces exactly and PIT/look-ahead is clean, but
+# the reported DSR=0.998 is computed on total returns — on excess
+# returns vs SPY the same test gives 0.36; the edge is concentrated
+# (3 names = ~60% of 2024 sleeve P&L) and collapses at sleeve_n=8
+# (AR +7.7% < SPY). Demoted to false pending corroborating OOS
+# evidence; a walkforward re-run will re-pin true — flip back manually
+# if that happens.
+validated: false
 
 # Live-trading interlock (NEVER set true here — see docs/BOT_SETUP.md).
 live_trading: false

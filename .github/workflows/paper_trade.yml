@@ -181,8 +181,11 @@ jobs:
           echo "::error::writes an 'error' row to the Notion Trade Journal"
 
   # Rebuild state/live/{vq,news}_snapshot.parquet from the freshest store
-  # inputs and commit them to phase4/adaptive — keeps the snapshot signals
-  # inside their 45-day staleness window without any Mac-side work.
+  # inputs and commit them to master — post-merge the daily bot checks
+  # out master, so master is where the snapshots must land (phase-8 audit:
+  # this used to target phase4/adaptive, which post-merge the bot never
+  # reads). Keeps the snapshot signals inside their 45-day staleness
+  # window without any Mac-side work.
   snapshot:
     name: refresh live snapshots
     if: >-
@@ -191,12 +194,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
-      contents: write   # commits state/live/ back to phase4/adaptive
+      contents: write   # commits state/live/ back to master
       actions: read     # downloads the input artifacts
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: phase4/adaptive      # the snapshots live on the bot branch
+          ref: master               # the bot runs from master post-merge
       - uses: astral-sh/setup-uv@v5
       - name: env (slim)
         run: |
@@ -220,19 +223,20 @@ jobs:
           test -f data/events/fundamentals.parquet
       - name: Rebuild snapshots
         run: uv run --no-sync python scripts/live_snapshot.py
-      - name: Commit snapshots to phase4/adaptive
+      - name: Commit snapshots to master
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B master
           git add state/live/
           if git diff --cached --quiet; then
             echo "snapshots unchanged"; exit 0
           fi
           git commit -m "live snapshot refresh — run ${{ github.run_id }}"
-          git fetch origin phase4/adaptive || true
+          git fetch origin master || true
           for i in 1 2 3; do
-            git push origin "phase4/adaptive:phase4/adaptive" && break
-            git pull --rebase origin phase4/adaptive
+            git push origin "master:master" && break
+            git pull --rebase origin master
           done
 
   # ── weekly Notion rollup (Saturday cron when enabled) ─────────────────

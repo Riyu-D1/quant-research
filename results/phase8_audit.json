@@ -1,0 +1,7432 @@
+{
+ "stage": "phase8_audit",
+ "git_sha": "fb224dc",
+ "ts": "2026-11-17T18:39:12.697917",
+ "item1_return_arithmetic": {
+  "reproduce_stored": {
+   "2017": {
+    "audit_ar": 0.38560541451342734,
+    "stored_ar": 0.38560541451342734,
+    "audit_ir": 2.680451283602029,
+    "stored_ir": 2.680451283602029,
+    "match": true
+   },
+   "2018": {
+    "audit_ar": 0.033671653870802176,
+    "stored_ar": 0.033671653870802176,
+    "audit_ir": 0.2634465778832711,
+    "stored_ir": 0.2634465778832711,
+    "match": true
+   },
+   "2019": {
+    "audit_ar": 0.29288796368033365,
+    "stored_ar": 0.29288796368033365,
+    "audit_ir": 1.836593291380506,
+    "stored_ir": 1.836593291380506,
+    "match": true
+   },
+   "2020": {
+    "audit_ar": 0.23376873249293717,
+    "stored_ar": 0.23376873249293717,
+    "audit_ir": 0.8200075354452953,
+    "stored_ir": 0.8200075354452953,
+    "match": true
+   },
+   "2021": {
+    "audit_ar": 0.3241483591544836,
+    "stored_ar": 0.3241483591544836,
+    "audit_ir": 1.6633002761323816,
+    "stored_ir": 1.6633002761323816,
+    "match": true
+   },
+   "2022": {
+    "audit_ar": -0.12429944820035299,
+    "stored_ar": -0.12429944820035299,
+    "audit_ir": -0.5124172633191403,
+    "stored_ir": -0.5124172633191403,
+    "match": true
+   },
+   "2023": {
+    "audit_ar": 0.4693260240883108,
+    "stored_ar": 0.4693260240883108,
+    "audit_ir": 2.0372573929268967,
+    "stored_ir": 2.0372573929268967,
+    "match": true
+   },
+   "2024": {
+    "audit_ar": 0.9613831955041889,
+    "stored_ar": 0.9613831955041889,
+    "audit_ir": 2.9434733099831423,
+    "stored_ir": 2.9434733099831423,
+    "match": true
+   },
+   "2025": {
+    "audit_ar": 0.3400055289443238,
+    "stored_ar": 0.3400055289443238,
+    "audit_ir": 1.2368400870021148,
+    "stored_ir": 1.2368400870021148,
+    "match": true
+   },
+   "2026": {
+    "audit_ar": 0.11415138745463538,
+    "stored_ar": 0.11415138745463538,
+    "audit_ir": 0.6825448300165238,
+    "stored_ir": 0.6825448300165238,
+    "match": true
+   }
+  },
+  "all_match_0p5pt": true,
+  "decomp": {
+   "2017": {
+    "sleeve_contrib_ann": 0.24268407420247218,
+    "core_contrib_ann": 0.09008713738030201,
+    "book_ann_decomp": 0.33277121158277423,
+    "spy_ann": 0.19979410638085318,
+    "sleeve_only_ann": 0.42585656259877736,
+    "max_executed_wsum": 1.0719673547649498,
+    "min_cash_usd": -1.2252494235462728,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.5318899546970833
+   },
+   "2018": {
+    "sleeve_contrib_ann": 0.07578423897240787,
+    "core_contrib_ann": -0.021572995604073823,
+    "book_ann_decomp": 0.054211243368334015,
+    "spy_ann": -0.03677653311082114,
+    "sleeve_only_ann": 0.0761039398496467,
+    "max_executed_wsum": 1.0043526664763704,
+    "min_cash_usd": -0.05856497781000791,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.4956098401066145
+   },
+   "2019": {
+    "sleeve_contrib_ann": 0.1227932496576524,
+    "core_contrib_ann": 0.14375548377394792,
+    "book_ann_decomp": 0.26654873343160035,
+    "spy_ann": 0.2788249880601291,
+    "sleeve_only_ann": 0.20721405270859833,
+    "max_executed_wsum": 1.0696614795908506,
+    "min_cash_usd": -1.1053987856750878,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.53431691051182
+   },
+   "2020": {
+    "sleeve_contrib_ann": 0.15769408218220554,
+    "core_contrib_ann": 0.10270154000773823,
+    "book_ann_decomp": 0.26039562218994383,
+    "spy_ann": 0.22062244264662934,
+    "sleeve_only_ann": 0.305225518245528,
+    "max_executed_wsum": 1.0441308357889552,
+    "min_cash_usd": -0.5220348823772767,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.443640765477491
+   },
+   "2021": {
+    "sleeve_contrib_ann": 0.16027732075024803,
+    "core_contrib_ann": 0.13533202175768505,
+    "book_ann_decomp": 0.29560934250793314,
+    "spy_ann": 0.26003918613308485,
+    "sleeve_only_ann": 0.2659961712553872,
+    "max_executed_wsum": 0.9999532224396231,
+    "min_cash_usd": 0.0007376451924252514,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.48487738680770737
+   },
+   "2022": {
+    "sleeve_contrib_ann": -0.020747255193359244,
+    "core_contrib_ann": -0.08856098240596748,
+    "book_ann_decomp": -0.10930823759932672,
+    "spy_ann": -0.17203157109662678,
+    "sleeve_only_ann": 0.05258174200376959,
+    "max_executed_wsum": 1.033255051637274,
+    "min_cash_usd": -0.39129580815803366,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.3004646686913572
+   },
+   "2023": {
+    "sleeve_contrib_ann": 0.2859786258054802,
+    "core_contrib_ann": 0.1171301949347137,
+    "book_ann_decomp": 0.4031088207401939,
+    "spy_ann": 0.24299294960103,
+    "sleeve_only_ann": 0.4984660752823533,
+    "max_executed_wsum": 1.0488799817262928,
+    "min_cash_usd": -0.7925054829718161,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.5149993477981054
+   },
+   "2024": {
+    "sleeve_contrib_ann": 0.5832018838436448,
+    "core_contrib_ann": 0.11677650764149343,
+    "book_ann_decomp": 0.6999783914851384,
+    "spy_ann": 0.230207618790068,
+    "sleeve_only_ann": 1.0299365930931885,
+    "max_executed_wsum": 1.0421555478102171,
+    "min_cash_usd": -0.85521609003456,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.4971433413128387
+   },
+   "2025": {
+    "sleeve_contrib_ann": 0.24213651085366122,
+    "core_contrib_ann": 0.08414738959682166,
+    "book_ann_decomp": 0.32628390045048294,
+    "spy_ann": 0.18318538741310705,
+    "sleeve_only_ann": 0.3590914625225479,
+    "max_executed_wsum": 1.049654352158672,
+    "min_cash_usd": -0.8373295314806231,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.5137208485243384
+   },
+   "2026": {
+    "sleeve_contrib_ann": 0.058480177510742304,
+    "core_contrib_ann": 0.06579793106510974,
+    "book_ann_decomp": 0.12427810857585206,
+    "spy_ann": 0.13499769262456354,
+    "sleeve_only_ann": 0.07094810207936107,
+    "max_executed_wsum": 1.0615168510812827,
+    "min_cash_usd": -0.8091778227433793,
+    "unpriced_hold_days": 0,
+    "mean_sleeve_frac": 0.46770952393869314
+   }
+  },
+  "rebuilt_year_end_equity": {
+   "2017": 17.551699270868014,
+   "2018": 13.124180060450035,
+   "2019": 16.402948122280247,
+   "2020": 15.668862902660326,
+   "2021": 16.79795803928897,
+   "2022": 11.133118697074115,
+   "2023": 18.575152571542084,
+   "2024": 24.843066903494844,
+   "2025": 16.95887884439698,
+   "2026": 13.944860831225238
+  },
+  "min_cash_any_day": -1.2252494235462728,
+  "max_executed_weight_sum": 1.0719673547649498,
+  "trade_reasons": [
+   "rebalance"
+  ],
+  "n_trades": 2053,
+  "cash_yield_in_code": false,
+  "dividend_stream_in_code": false,
+  "note": "returns are pure adjusted-price moves; cash earns 0; no dividend leg exists to double-count (adjustment lives inside the price series once)."
+ },
+ "item2_lookahead": {
+  "n_dates": 20,
+  "records": [
+   {
+    "signal_day": "2017-08-25",
+    "fill_day": "2017-08-28",
+    "picks": {
+     "NVDA": {
+      "mom": {
+       "num_date": "2017-07-27",
+       "den_date": "2016-08-25",
+       "mom": 1.6377483875561922,
+       "latest_bar_used": "2017-08-25",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2017-07-30",
+        "filed": "2017-08-23",
+        "val": 5973000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2016-10-30",
+         "filed": "2017-03-01",
+         "val": 542000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-01-29",
+         "filed": "2017-03-01",
+         "val": 655000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2017-04-30",
+         "filed": "2017-05-23",
+         "val": 507000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-07-30",
+         "filed": "2017-08-23",
+         "val": 583000000.0,
+         "form": "10-Q",
+         "n_versions": 3
+        }
+       ],
+       "shares": {
+        "filed": "2017-08-23",
+        "shares": 600171277.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 4.057000160217285
+     },
+     "ANET": {
+      "mom": {
+       "num_date": "2017-07-27",
+       "den_date": "2016-08-25",
+       "mom": 0.9299351485942406,
+       "latest_bar_used": "2017-08-25",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2017-06-30",
+        "filed": "2017-08-04",
+        "val": 1357749000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2016-09-30",
+         "filed": "2017-02-17",
+         "val": 51257000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2016-12-31",
+         "filed": "2017-02-17",
+         "val": 58783000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2017-03-31",
+         "filed": "2017-05-08",
+         "val": 82961000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-06-30",
+         "filed": "2017-08-04",
+         "val": 102685000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2017-08-04",
+        "shares": 72529963.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 10.890000343322754
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2017-07-27",
+       "den_date": "2016-08-25",
+       "mom": 0.7885180519588695,
+       "latest_bar_used": "2017-08-25",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2017-06-25",
+        "filed": "2017-08-15",
+        "val": 6817451000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2016-03-27",
+         "filed": "2017-04-24",
+         "val": 143451000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2016-09-25",
+         "filed": "2016-10-25",
+         "val": 263835000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2016-12-25",
+         "filed": "2017-01-30",
+         "val": 332791000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2017-03-26",
+         "filed": "2017-04-24",
+         "val": 574713000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2017-08-15",
+        "shares": 162454686.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 14.010000228881836
+     },
+     "KLAC": {
+      "mom": {
+       "num_date": "2017-07-27",
+       "den_date": "2016-08-25",
+       "mom": 0.5129859373349366,
+       "latest_bar_used": "2017-08-25",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2017-06-30",
+        "filed": "2017-08-04",
+        "val": 1326417000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2016-09-30",
+         "filed": "2017-08-04",
+         "val": 178101000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2016-12-31",
+         "filed": "2017-08-04",
+         "val": 238251000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-03-31",
+         "filed": "2017-08-04",
+         "val": 253562000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-06-30",
+         "filed": "2017-08-04",
+         "val": 256162000.0,
+         "form": "10-K",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2017-08-04",
+        "shares": 156840420.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 7.921999931335449
+     },
+     "CSX": {
+      "mom": {
+       "num_date": "2017-07-27",
+       "den_date": "2016-08-25",
+       "mom": 0.8172838979987676,
+       "latest_bar_used": "2017-08-25",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2009-06-26",
+        "filed": "2009-07-15",
+        "val": 8456000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2016-09-23",
+         "filed": "2017-02-14",
+         "val": 455000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2016-12-30",
+         "filed": "2017-02-14",
+         "val": 458000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2017-03-31",
+         "filed": "2017-04-20",
+         "val": 362000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-06-30",
+         "filed": "2017-07-19",
+         "val": 510000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2017-07-19",
+        "shares": 913313010.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 14.420000076293945
+     },
+     "LNC": {
+      "mom": {
+       "num_date": "2017-07-27",
+       "den_date": "2016-08-25",
+       "mom": 0.587026304996445,
+       "latest_bar_used": "2017-08-25",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2017-06-30",
+        "filed": "2017-08-03",
+        "val": 15996000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2016-09-30",
+         "filed": "2017-02-23",
+         "val": 467000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2016-12-31",
+         "filed": "2017-02-23",
+         "val": 189000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2017-03-31",
+         "filed": "2017-05-04",
+         "val": 435000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-06-30",
+         "filed": "2017-08-03",
+         "val": 411000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2017-08-03",
+        "shares": 221444368.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2023-09-18",
+      "fill_open": 46.56999969482422
+     }
+    }
+   },
+   {
+    "signal_day": "2018-09-04",
+    "fill_day": "2018-09-05",
+    "picks": {
+     "M": {
+      "mom": {
+       "num_date": "2018-08-03",
+       "den_date": "2017-09-01",
+       "mom": 0.9207782300348553,
+       "latest_bar_used": "2018-09-04",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-08-04",
+        "filed": "2018-08-31",
+        "val": 5916000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-10-28",
+         "filed": "2018-04-04",
+         "val": 36000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-02-03",
+         "filed": "2018-04-04",
+         "val": 1325000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-05-05",
+         "filed": "2018-06-01",
+         "val": 139000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-08-04",
+         "filed": "2018-08-31",
+         "val": 166000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-08-31",
+        "shares": 306972712.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2020-04-06",
+      "fill_open": 25.559999465942383
+     },
+     "HFC": {
+      "mom": {
+       "num_date": "2018-08-03",
+       "den_date": "2017-09-01",
+       "mom": 1.1222724287386625,
+       "latest_bar_used": "2018-09-04",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-06-30",
+        "filed": "2018-08-02",
+        "val": 5840361000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-09-30",
+         "filed": "2018-02-21",
+         "val": 272014000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-12-31",
+         "filed": "2018-02-21",
+         "val": 521082000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-03-31",
+         "filed": "2018-05-02",
+         "val": 268091000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-08-02",
+         "val": 345507000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-08-02",
+        "shares": 176175461.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2018-06-18..2021-06-04",
+      "fill_open": 58.029998779296875
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2018-08-03",
+       "den_date": "2017-09-01",
+       "mom": 0.7566331406091091,
+       "latest_bar_used": "2018-09-04",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-06-30",
+        "filed": "2018-08-09",
+        "val": 902151000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2015-12-31",
+         "filed": "2017-02-09",
+         "val": 156921000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        },
+        {
+         "end": "2016-12-31",
+         "filed": "2017-02-09",
+         "val": 41027000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        },
+        {
+         "end": "2017-06-30",
+         "filed": "2018-08-09",
+         "val": -42121000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-08-09",
+         "val": -30407000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        }
+       ],
+       "shares": {
+        "filed": "2018-08-09",
+        "shares": 30074045.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 20.079999923706055
+     },
+     "MU": {
+      "mom": {
+       "num_date": "2018-08-03",
+       "den_date": "2017-09-01",
+       "mom": 0.6202014023273374,
+       "latest_bar_used": "2018-09-04",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-05-31",
+        "filed": "2018-06-22",
+        "val": 28649000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-08-31",
+         "filed": "2017-10-26",
+         "val": 2368000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2017-11-30",
+         "filed": "2017-12-20",
+         "val": 2678000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-03-01",
+         "filed": "2018-03-23",
+         "val": 3309000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-05-31",
+         "filed": "2018-06-22",
+         "val": 3823000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-06-22",
+        "shares": 1159810627.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 50.099998474121094
+     },
+     "NVDA": {
+      "mom": {
+       "num_date": "2018-08-03",
+       "den_date": "2017-09-01",
+       "mom": 0.4816753029566967,
+       "latest_bar_used": "2018-09-04",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-07-29",
+        "filed": "2018-08-16",
+        "val": 8795000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-10-29",
+         "filed": "2018-02-28",
+         "val": 838000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-01-28",
+         "filed": "2018-02-28",
+         "val": 1118000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-04-29",
+         "filed": "2018-05-22",
+         "val": 1244000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-07-29",
+         "filed": "2018-08-16",
+         "val": 1101000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-08-16",
+        "shares": 608000000.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 6.993000030517578
+     },
+     "AMZN": {
+      "mom": {
+       "num_date": "2018-08-03",
+       "den_date": "2017-09-01",
+       "mom": 0.8638316079842059,
+       "latest_bar_used": "2018-09-04",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-06-30",
+        "filed": "2018-07-27",
+        "val": 34995000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-09-30",
+         "filed": "2018-02-02",
+         "val": 256000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2017-12-31",
+         "filed": "2018-02-02",
+         "val": 1856000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-03-31",
+         "filed": "2018-04-27",
+         "val": 1629000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-07-27",
+         "val": 2534000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-07-27",
+        "shares": 487741189.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 101.91000366210938
+     }
+    }
+   },
+   {
+    "signal_day": "2018-11-20",
+    "fill_day": "2018-11-21",
+    "picks": {
+     "M": {
+      "mom": {
+       "num_date": "2018-10-22",
+       "den_date": "2017-11-20",
+       "mom": 0.6582278115971489,
+       "latest_bar_used": "2018-11-20",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-08-04",
+        "filed": "2018-08-31",
+        "val": 5916000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-10-28",
+         "filed": "2018-04-04",
+         "val": 36000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-02-03",
+         "filed": "2018-04-04",
+         "val": 1325000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-05-05",
+         "filed": "2018-06-01",
+         "val": 139000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-08-04",
+         "filed": "2018-08-31",
+         "val": 166000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-08-31",
+        "shares": 306972712.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2020-04-06",
+      "fill_open": 23.09000015258789
+     },
+     "MTCH": {
+      "mom": {
+       "num_date": "2018-10-22",
+       "den_date": "2017-11-20",
+       "mom": 0.8233269981154812,
+       "latest_bar_used": "2018-11-20",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-09-30",
+        "filed": "2018-11-09",
+        "val": 2600482000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-09-30",
+         "filed": "2018-11-09",
+         "val": 179643000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-03-31",
+         "filed": "2018-05-10",
+         "val": 71082000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-08-09",
+         "val": 218353000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2018-11-09",
+         "val": 145774000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2011-05-06",
+        "shares": 89888134.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 33.63999938964844
+     },
+     "AMZN": {
+      "mom": {
+       "num_date": "2018-10-22",
+       "den_date": "2017-11-20",
+       "mom": 0.5886008825551428,
+       "latest_bar_used": "2018-11-20",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-09-30",
+        "filed": "2018-10-26",
+        "val": 39125000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-12-31",
+         "filed": "2018-02-02",
+         "val": 1856000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-03-31",
+         "filed": "2018-04-27",
+         "val": 1629000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-07-27",
+         "val": 2534000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2018-10-26",
+         "val": 2883000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-10-26",
+        "shares": 488968628.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 77.1500015258789
+     },
+     "CMG": {
+      "mom": {
+       "num_date": "2018-10-22",
+       "den_date": "2017-11-20",
+       "mom": 0.5223300359601717,
+       "latest_bar_used": "2018-11-20",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-09-30",
+        "filed": "2018-10-26",
+        "val": 1435837000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-12-31",
+         "filed": "2018-02-08",
+         "val": 43793000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-03-31",
+         "filed": "2018-04-26",
+         "val": 59446000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-07-27",
+         "val": 46884000.0,
+         "form": "10-Q",
+         "n_versions": 5
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2018-10-26",
+         "val": 38204000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-10-26",
+        "shares": 27787300.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 9.239999771118164
+     },
+     "HFC": {
+      "mom": {
+       "num_date": "2018-10-22",
+       "den_date": "2017-11-20",
+       "mom": 0.4871103028384731,
+       "latest_bar_used": "2018-11-20",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-09-30",
+        "filed": "2018-10-31",
+        "val": 6012286000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-12-31",
+         "filed": "2018-02-21",
+         "val": 521082000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-03-31",
+         "filed": "2018-05-02",
+         "val": 268091000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-08-02",
+         "val": 345507000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2018-10-31",
+         "val": 342466000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-10-31",
+        "shares": 173272653.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2018-06-18..2021-06-04",
+      "fill_open": 45.90999984741211
+     },
+     "ORLY": {
+      "mom": {
+       "num_date": "2018-10-22",
+       "den_date": "2017-11-20",
+       "mom": 0.5650102401513,
+       "latest_bar_used": "2018-11-20",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-09-30",
+        "filed": "2018-11-07",
+        "val": 498379000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-12-31",
+         "filed": "2018-02-28",
+         "val": 302315000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-03-31",
+         "filed": "2018-05-07",
+         "val": 304906000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-08-08",
+         "val": 353073000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2018-11-07",
+         "val": 366151000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2018-11-07",
+        "shares": 80104348.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 22.510000228881836
+     }
+    }
+   },
+   {
+    "signal_day": "2019-04-23",
+    "fill_day": "2019-04-24",
+    "picks": {
+     "DECK": {
+      "mom": {
+       "num_date": "2019-03-22",
+       "den_date": "2018-04-20",
+       "mom": 0.579231301198903,
+       "latest_bar_used": "2019-04-23",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-12-31",
+        "filed": "2019-02-07",
+        "val": 1017881000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-12-31",
+         "filed": "2019-02-07",
+         "val": 86341000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2019-02-07",
+         "val": -30407000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-02-07",
+         "val": 74372000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-07",
+         "val": 196374000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2019-02-07",
+        "shares": 29130988.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 25.34000015258789
+     },
+     "CMG": {
+      "mom": {
+       "num_date": "2019-03-22",
+       "den_date": "2018-04-20",
+       "mom": 1.0228950788738511,
+       "latest_bar_used": "2019-04-23",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-12-31",
+        "filed": "2019-02-08",
+        "val": 1441339000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-03-31",
+         "filed": "2019-02-08",
+         "val": 59446000.0,
+         "form": "10-K",
+         "n_versions": 6
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2019-02-08",
+         "val": 46884000.0,
+         "form": "10-K",
+         "n_versions": 5
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-02-08",
+         "val": 38204000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-08",
+         "val": 32019000.0,
+         "form": "10-K",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2019-02-08",
+        "shares": 27659270.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 14.109999656677246
+     },
+     "TSCO": {
+      "mom": {
+       "num_date": "2019-03-22",
+       "den_date": "2018-04-20",
+       "mom": 0.5575642704790893,
+       "latest_bar_used": "2019-04-23",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-12-29",
+        "filed": "2019-02-21",
+        "val": 1561820000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2017-09-30",
+         "filed": "2018-11-08",
+         "val": 91896000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-03-31",
+         "filed": "2018-05-11",
+         "val": 71433000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-08-09",
+         "val": 207289000.0,
+         "form": "10-Q",
+         "n_versions": 3
+        },
+        {
+         "end": "2018-09-29",
+         "filed": "2018-11-08",
+         "val": 116784000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2019-02-21",
+        "shares": 121279792.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 18.270000457763672
+     },
+     "ERIE": {
+      "mom": {
+       "num_date": "2019-03-22",
+       "den_date": "2018-04-20",
+       "mom": 0.524093995871878,
+       "latest_bar_used": "2019-04-23",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-12-31",
+        "filed": "2019-02-21",
+        "val": 973672000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-03-31",
+         "filed": "2019-02-21",
+         "val": 65758000.0,
+         "form": "10-K",
+         "n_versions": 6
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2019-02-21",
+         "val": 79706000.0,
+         "form": "10-K",
+         "n_versions": 5
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-02-21",
+         "val": 80446000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-21",
+         "val": 62314000.0,
+         "form": "10-K",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 155.60000610351562
+     },
+     "DOC": {
+      "mom": {
+       "num_date": "2019-03-22",
+       "den_date": "2018-04-20",
+       "mom": 0.5970614317110858,
+       "latest_bar_used": "2019-04-23",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-12-31",
+        "filed": "2019-02-14",
+        "val": 5944439000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-03-31",
+         "filed": "2019-02-14",
+         "val": 40232000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2019-02-14",
+         "val": 89942000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-02-14",
+         "val": 99371000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-14",
+         "val": 831548000.0,
+         "form": "10-K",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2019-02-14",
+        "shares": 477771756.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 15.069999694824219
+     },
+     "AES": {
+      "mom": {
+       "num_date": "2019-03-22",
+       "den_date": "2018-04-20",
+       "mom": 0.6133651877241859,
+       "latest_bar_used": "2019-04-23",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2018-12-31",
+        "filed": "2019-02-27",
+        "val": 3208000000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-03-31",
+         "filed": "2019-02-27",
+         "val": 684000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2019-02-27",
+         "val": 290000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-02-27",
+         "val": 101000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-27",
+         "val": 128000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2019-02-27",
+        "shares": 662358244.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 13.300000190734863
+     }
+    }
+   },
+   {
+    "signal_day": "2019-06-27",
+    "fill_day": "2019-06-28",
+    "picks": {
+     "ERIE": {
+      "mom": {
+       "num_date": "2019-05-29",
+       "den_date": "2018-06-26",
+       "mom": 0.7779237728400805,
+       "latest_bar_used": "2019-06-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-03-31",
+        "filed": "2019-05-02",
+        "val": 1013804000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-06-30",
+         "filed": "2019-02-21",
+         "val": 79706000.0,
+         "form": "10-K",
+         "n_versions": 5
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-02-21",
+         "val": 80446000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-21",
+         "val": 62314000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-03-31",
+         "filed": "2019-05-02",
+         "val": 75311000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 215.1199951171875
+     },
+     "CMG": {
+      "mom": {
+       "num_date": "2019-05-29",
+       "den_date": "2018-06-26",
+       "mom": 0.4468268744466206,
+       "latest_bar_used": "2019-06-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-03-31",
+        "filed": "2019-04-25",
+        "val": 1483799000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-06-30",
+         "filed": "2019-02-08",
+         "val": 46884000.0,
+         "form": "10-K",
+         "n_versions": 5
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-02-08",
+         "val": 38204000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-08",
+         "val": 32019000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-03-31",
+         "filed": "2019-04-25",
+         "val": 88132000.0,
+         "form": "10-Q",
+         "n_versions": 8
+        }
+       ],
+       "shares": {
+        "filed": "2019-04-25",
+        "shares": 27713556.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 14.460000038146973
+     },
+     "TSCO": {
+      "mom": {
+       "num_date": "2019-05-29",
+       "den_date": "2018-06-26",
+       "mom": 0.30855023279225846,
+       "latest_bar_used": "2019-06-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-03-30",
+        "filed": "2019-05-09",
+        "val": 1485576000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-03-31",
+         "filed": "2019-05-09",
+         "val": 71433000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-06-30",
+         "filed": "2018-08-09",
+         "val": 207289000.0,
+         "form": "10-Q",
+         "n_versions": 3
+        },
+        {
+         "end": "2018-09-29",
+         "filed": "2018-11-08",
+         "val": 116784000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-03-30",
+         "filed": "2019-05-09",
+         "val": 76832000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        }
+       ],
+       "shares": {
+        "filed": "2019-05-09",
+        "shares": 120641792.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 19.229999542236328
+     },
+     "DOC": {
+      "mom": {
+       "num_date": "2019-05-29",
+       "den_date": "2018-06-26",
+       "mom": 0.38308891075089635,
+       "latest_bar_used": "2019-06-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-03-31",
+        "filed": "2019-05-02",
+        "val": 5836882000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-06-30",
+         "filed": "2019-02-14",
+         "val": 89942000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-02-14",
+         "val": 99371000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-14",
+         "val": 831548000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-03-31",
+         "filed": "2019-05-02",
+         "val": 61470000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2019-05-02",
+        "shares": 477983011.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 16.34000015258789
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2019-05-29",
+       "den_date": "2018-06-26",
+       "mom": 0.27451962635639426,
+       "latest_bar_used": "2019-06-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-03-31",
+        "filed": "2019-05-30",
+        "val": 1045130000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-06-30",
+         "filed": "2019-05-30",
+         "val": -30407000.0,
+         "form": "10-K",
+         "n_versions": 7
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-05-30",
+         "val": 74372000.0,
+         "form": "10-K",
+         "n_versions": 6
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-05-30",
+         "val": 196374000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2019-03-31",
+         "filed": "2019-05-30",
+         "val": 23969000.0,
+         "form": "10-K",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2019-05-30",
+        "shares": 29142002.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 29.260000228881836
+     },
+     "CMCSA": {
+      "mom": {
+       "num_date": "2019-05-29",
+       "den_date": "2018-06-26",
+       "mom": 0.30724392256958755,
+       "latest_bar_used": "2019-06-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-03-31",
+        "filed": "2019-04-25",
+        "val": 74959000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-06-30",
+         "filed": "2019-01-31",
+         "val": 3216000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-09-30",
+         "filed": "2019-01-31",
+         "val": 2886000000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2018-12-31",
+         "filed": "2019-01-31",
+         "val": 2511000000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-03-31",
+         "filed": "2019-04-25",
+         "val": 3553000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2010-02-23",
+        "shares": 2063073161.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 31.59000015258789
+     }
+    }
+   },
+   {
+    "signal_day": "2019-11-26",
+    "fill_day": "2019-11-27",
+    "picks": {
+     "LRCX": {
+      "mom": {
+       "num_date": "2019-10-28",
+       "den_date": "2018-11-26",
+       "mom": 0.9615384449412756,
+       "latest_bar_used": "2019-11-26",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-09-29",
+        "filed": "2019-10-29",
+        "val": 4936393000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-09-23",
+         "filed": "2019-10-29",
+         "val": 533360000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2018-12-23",
+         "filed": "2019-01-30",
+         "val": 568855000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-03-31",
+         "filed": "2019-04-30",
+         "val": 547390000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-09-29",
+         "filed": "2019-10-29",
+         "val": 465789000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2019-10-29",
+        "shares": 145078888.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 25.040000915527344
+     },
+     "KLAC": {
+      "mom": {
+       "num_date": "2019-10-28",
+       "den_date": "2018-11-26",
+       "mom": 0.8591224786546541,
+       "latest_bar_used": "2019-11-26",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-09-30",
+        "filed": "2019-10-31",
+        "val": 2661163000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-12-31",
+         "filed": "2019-08-16",
+         "val": 369100000.0,
+         "form": "10-K",
+         "n_versions": 5
+        },
+        {
+         "end": "2019-03-31",
+         "filed": "2019-08-16",
+         "val": 192728000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2019-06-30",
+         "filed": "2019-08-16",
+         "val": 217845000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-09-30",
+         "filed": "2019-10-31",
+         "val": 346525000.0,
+         "form": "10-Q",
+         "n_versions": 8
+        }
+       ],
+       "shares": {
+        "filed": "2019-10-31",
+        "shares": 157794495.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 15.119999885559082
+     },
+     "CMG": {
+      "mom": {
+       "num_date": "2019-10-28",
+       "den_date": "2018-11-26",
+       "mom": 0.6791845634095208,
+       "latest_bar_used": "2019-11-26",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-09-30",
+        "filed": "2019-10-23",
+        "val": 1622447000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-12-31",
+         "filed": "2019-02-08",
+         "val": 32019000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-03-31",
+         "filed": "2019-10-23",
+         "val": 88132000.0,
+         "form": "10-Q",
+         "n_versions": 8
+        },
+        {
+         "end": "2019-06-30",
+         "filed": "2019-10-23",
+         "val": 91028000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2019-09-30",
+         "filed": "2019-10-23",
+         "val": 98582000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2019-10-23",
+        "shares": 27795204.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 16.34000015258789
+     },
+     "CPRT": {
+      "mom": {
+       "num_date": "2019-10-28",
+       "den_date": "2018-11-26",
+       "mom": 0.6733067474774554,
+       "latest_bar_used": "2019-11-26",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-10-31",
+        "filed": "2019-11-25",
+        "val": 1926599000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2019-01-31",
+         "filed": "2019-09-30",
+         "val": 131373000.0,
+         "form": "10-K",
+         "n_versions": 5
+        },
+        {
+         "end": "2019-04-30",
+         "filed": "2019-09-30",
+         "val": 192741000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2019-07-31",
+         "filed": "2019-09-30",
+         "val": 153496000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-10-31",
+         "filed": "2019-11-25",
+         "val": 218180000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        }
+       ],
+       "shares": {
+        "filed": "2019-11-25",
+        "shares": 232454206.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2018-07-02..2026-11-13",
+      "fill_open": 22.790000915527344
+     },
+     "CTAS": {
+      "mom": {
+       "num_date": "2019-10-28",
+       "den_date": "2018-11-26",
+       "mom": 0.4912405107828861,
+       "latest_bar_used": "2019-11-26",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-08-31",
+        "filed": "2019-10-08",
+        "val": 3050706000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-08-31",
+         "filed": "2019-10-08",
+         "val": 212515000.0,
+         "form": "10-Q",
+         "n_versions": 5
+        },
+        {
+         "end": "2018-11-30",
+         "filed": "2019-04-05",
+         "val": 243013000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2019-02-28",
+         "filed": "2019-04-05",
+         "val": 203334000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-08-31",
+         "filed": "2019-10-08",
+         "val": 250812000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        }
+       ],
+       "shares": {
+        "filed": "2019-10-08",
+        "shares": 103499651.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 59.849998474121094
+     },
+     "BF-B": {
+      "mom": {
+       "num_date": "2019-10-28",
+       "den_date": "2018-11-26",
+       "mom": 0.37565214737601904,
+       "latest_bar_used": "2019-11-26",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2019-07-31",
+        "filed": "2019-08-28",
+        "val": 1663000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2018-07-31",
+         "filed": "2019-08-28",
+         "val": 200000000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2018-10-31",
+         "filed": "2019-03-06",
+         "val": 249000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2019-01-31",
+         "filed": "2019-03-06",
+         "val": 227000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2019-07-31",
+         "filed": "2019-08-28",
+         "val": 186000000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 60.09000015258789
+     }
+    }
+   },
+   {
+    "signal_day": "2021-07-15",
+    "fill_day": "2021-07-16",
+    "picks": {
+     "EXE": {
+      "mom": {
+       "num_date": "2021-06-15",
+       "den_date": "2020-07-15",
+       "mom": 3.755124018806004,
+       "latest_bar_used": "2021-07-15",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-03-31",
+        "filed": "2021-05-13",
+        "val": 3881000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-09-30",
+         "filed": "2021-03-01",
+         "val": -745000000.0,
+         "form": "10-K",
+         "n_versions": 3
+        },
+        {
+         "end": "2020-12-31",
+         "filed": "2021-03-01",
+         "val": -416000000.0,
+         "form": "10-K",
+         "n_versions": 1
+        },
+        {
+         "end": "2021-02-09",
+         "filed": "2021-05-13",
+         "val": 5383000000.0,
+         "form": "10-Q",
+         "n_versions": 9
+        },
+        {
+         "end": "2021-03-31",
+         "filed": "2021-05-13",
+         "val": 295000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2021-05-13",
+        "shares": 97914260.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 40.189998626708984
+     },
+     "SPG": {
+      "mom": {
+       "num_date": "2021-06-15",
+       "den_date": "2020-07-15",
+       "mom": 1.0628535518284532,
+       "latest_bar_used": "2021-07-15",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-03-31",
+        "filed": "2021-05-10",
+        "val": 3064233000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-06-30",
+         "filed": "2021-02-25",
+         "val": 290548000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2020-09-30",
+         "filed": "2021-02-25",
+         "val": 168646000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2020-12-31",
+         "filed": "2021-02-25",
+         "val": 312726000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2021-03-31",
+         "filed": "2021-05-10",
+         "val": 510460000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2010-05-10",
+        "shares": 0.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 96.75
+     },
+     "TPL": {
+      "mom": {
+       "num_date": "2021-06-15",
+       "den_date": "2020-07-15",
+       "mom": 1.6684917970717783,
+       "latest_bar_used": "2021-07-15",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-03-31",
+        "filed": "2021-05-06",
+        "val": 513935000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-06-30",
+         "filed": "2021-02-25",
+         "val": 27583000.0,
+         "form": "10-K",
+         "n_versions": 3
+        },
+        {
+         "end": "2020-09-30",
+         "filed": "2021-02-25",
+         "val": 46275000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2020-12-31",
+         "filed": "2021-02-25",
+         "val": 44791000.0,
+         "form": "10-K",
+         "n_versions": 1
+        },
+        {
+         "end": "2021-03-31",
+         "filed": "2021-05-06",
+         "val": 50052000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        }
+       ],
+       "shares": {
+        "filed": "2021-05-06",
+        "shares": 7756156.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 153.6199951171875
+     },
+     "F": {
+      "mom": {
+       "num_date": "2021-06-15",
+       "den_date": "2020-07-15",
+       "mom": 1.225859265337148,
+       "latest_bar_used": "2021-07-15",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-03-31",
+        "filed": "2021-04-29",
+        "val": 33828000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2015-12-31",
+         "filed": "2016-02-11",
+         "val": 1868000000.0,
+         "form": "10-K",
+         "n_versions": 1
+        },
+        {
+         "end": "2016-03-31",
+         "filed": "2016-04-28",
+         "val": 2452000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        },
+        {
+         "end": "2016-06-30",
+         "filed": "2016-07-28",
+         "val": 1970000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        },
+        {
+         "end": "2016-09-30",
+         "filed": "2016-10-27",
+         "val": 957000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        }
+       ],
+       "shares": {
+        "filed": "2011-05-10",
+        "shares": 3727332952.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 10.239999771118164
+     },
+     "DELL": {
+      "mom": {
+       "num_date": "2021-06-15",
+       "den_date": "2020-07-15",
+       "mom": 0.9529314854678852,
+       "latest_bar_used": "2021-07-15",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-04-30",
+        "filed": "2021-06-07",
+        "val": 3487000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-05-01",
+         "filed": "2021-06-07",
+         "val": 143000000.0,
+         "form": "10-Q",
+         "n_versions": 3
+        },
+        {
+         "end": "2020-07-31",
+         "filed": "2020-09-04",
+         "val": 1048000000.0,
+         "form": "10-Q",
+         "n_versions": 3
+        },
+        {
+         "end": "2020-10-30",
+         "filed": "2020-12-07",
+         "val": 832000000.0,
+         "form": "10-Q",
+         "n_versions": 3
+        },
+        {
+         "end": "2021-04-30",
+         "filed": "2021-06-07",
+         "val": 887000000.0,
+         "form": "10-Q",
+         "n_versions": 3
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 43.31999969482422
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2021-06-15",
+       "den_date": "2020-07-15",
+       "mom": 0.8950310252164515,
+       "latest_bar_used": "2021-07-15",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-03-28",
+        "filed": "2021-04-28",
+        "val": 5371616000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-03-29",
+         "filed": "2021-04-28",
+         "val": 574781000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2020-09-27",
+         "filed": "2020-10-27",
+         "val": 823451000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2020-12-27",
+         "filed": "2021-02-02",
+         "val": 869229000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2021-03-28",
+         "filed": "2021-04-28",
+         "val": 1071121000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2021-04-28",
+        "shares": 142619346.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 58.11000061035156
+     }
+    }
+   },
+   {
+    "signal_day": "2021-08-02",
+    "fill_day": "2021-08-03",
+    "picks": {
+     "EXE": {
+      "mom": {
+       "num_date": "2021-07-01",
+       "den_date": "2020-07-31",
+       "mom": 3.5879176568624427,
+       "latest_bar_used": "2021-08-02",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-03-31",
+        "filed": "2021-05-13",
+        "val": 3881000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-09-30",
+         "filed": "2021-03-01",
+         "val": -745000000.0,
+         "form": "10-K",
+         "n_versions": 3
+        },
+        {
+         "end": "2020-12-31",
+         "filed": "2021-03-01",
+         "val": -416000000.0,
+         "form": "10-K",
+         "n_versions": 1
+        },
+        {
+         "end": "2021-02-09",
+         "filed": "2021-05-13",
+         "val": 5383000000.0,
+         "form": "10-Q",
+         "n_versions": 9
+        },
+        {
+         "end": "2021-03-31",
+         "filed": "2021-05-13",
+         "val": 295000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2021-05-13",
+        "shares": 97914260.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 41.900001525878906
+     },
+     "SPG": {
+      "mom": {
+       "num_date": "2021-07-01",
+       "den_date": "2020-07-31",
+       "mom": 1.2313717673982083,
+       "latest_bar_used": "2021-08-02",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-03-31",
+        "filed": "2021-05-10",
+        "val": 3064233000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-06-30",
+         "filed": "2021-02-25",
+         "val": 290548000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2020-09-30",
+         "filed": "2021-02-25",
+         "val": 168646000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2020-12-31",
+         "filed": "2021-02-25",
+         "val": 312726000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2021-03-31",
+         "filed": "2021-05-10",
+         "val": 510460000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2010-05-10",
+        "shares": 0.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 97.79000091552734
+     },
+     "TPL": {
+      "mom": {
+       "num_date": "2021-07-01",
+       "den_date": "2020-07-31",
+       "mom": 2.13521550099112,
+       "latest_bar_used": "2021-08-02",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-03-31",
+        "filed": "2021-05-06",
+        "val": 513935000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-06-30",
+         "filed": "2021-02-25",
+         "val": 27583000.0,
+         "form": "10-K",
+         "n_versions": 3
+        },
+        {
+         "end": "2020-09-30",
+         "filed": "2021-02-25",
+         "val": 46275000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2020-12-31",
+         "filed": "2021-02-25",
+         "val": 44791000.0,
+         "form": "10-K",
+         "n_versions": 1
+        },
+        {
+         "end": "2021-03-31",
+         "filed": "2021-05-06",
+         "val": 50052000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        }
+       ],
+       "shares": {
+        "filed": "2021-05-06",
+        "shares": 7756156.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 153.3300018310547
+     },
+     "F": {
+      "mom": {
+       "num_date": "2021-07-01",
+       "den_date": "2020-07-31",
+       "mom": 1.254901978337032,
+       "latest_bar_used": "2021-08-02",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-06-30",
+        "filed": "2021-07-29",
+        "val": 34664000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2015-12-31",
+         "filed": "2016-02-11",
+         "val": 1868000000.0,
+         "form": "10-K",
+         "n_versions": 1
+        },
+        {
+         "end": "2016-03-31",
+         "filed": "2016-04-28",
+         "val": 2452000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        },
+        {
+         "end": "2016-06-30",
+         "filed": "2016-07-28",
+         "val": 1970000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        },
+        {
+         "end": "2016-09-30",
+         "filed": "2016-10-27",
+         "val": 957000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        }
+       ],
+       "shares": {
+        "filed": "2011-05-10",
+        "shares": 3727332952.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 10.130000114440918
+     },
+     "DFS": {
+      "mom": {
+       "num_date": "2021-07-01",
+       "den_date": "2020-07-31",
+       "mom": 1.477431006490725,
+       "latest_bar_used": "2021-08-02",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-06-30",
+        "filed": "2021-07-29",
+        "val": 13171000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-09-30",
+         "filed": "2021-02-17",
+         "val": 771000000.0,
+         "form": "10-K",
+         "n_versions": 3
+        },
+        {
+         "end": "2020-12-31",
+         "filed": "2021-02-17",
+         "val": 799000000.0,
+         "form": "10-K",
+         "n_versions": 1
+        },
+        {
+         "end": "2021-03-31",
+         "filed": "2021-05-04",
+         "val": 1593000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2021-06-30",
+         "filed": "2021-07-29",
+         "val": 1698000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2021-07-29",
+        "shares": 299468440.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2025-05-19",
+      "fill_open": 114.75
+     },
+     "COF": {
+      "mom": {
+       "num_date": "2021-07-01",
+       "den_date": "2020-07-31",
+       "mom": 1.484890733743859,
+       "latest_bar_used": "2021-08-02",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2021-06-30",
+        "filed": "2021-07-30",
+        "val": 64624000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2020-06-30",
+         "filed": "2021-07-30",
+         "val": -918000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2020-09-30",
+         "filed": "2020-11-02",
+         "val": 2406000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2021-03-31",
+         "filed": "2021-05-07",
+         "val": 3325000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2021-06-30",
+         "filed": "2021-07-30",
+         "val": 3536000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2021-07-30",
+        "shares": 446113769.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 145.7899932861328
+     }
+    }
+   },
+   {
+    "signal_day": "2023-04-03",
+    "fill_day": "2023-04-04",
+    "picks": {
+     "SMCI": {
+      "mom": {
+       "num_date": "2023-03-03",
+       "den_date": "2022-03-31",
+       "mom": 1.5697400035008138,
+       "latest_bar_used": "2023-04-03",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2022-12-31",
+        "filed": "2023-02-03",
+        "val": 1818677000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2021-12-31",
+         "filed": "2023-02-03",
+         "val": 41932000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-03-31",
+         "filed": "2022-05-06",
+         "val": 76972000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-11-04",
+         "val": 184416000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-02-03",
+         "val": 176167000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-02-03",
+        "shares": 53637158.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 11.380000114440918
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2023-03-03",
+       "den_date": "2022-03-31",
+       "mom": 0.5647600231105607,
+       "latest_bar_used": "2023-04-03",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2022-12-31",
+        "filed": "2023-02-06",
+        "val": 1769172000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-03-31",
+         "filed": "2022-05-27",
+         "val": 68819000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-06-30",
+         "filed": "2023-02-06",
+         "val": 44849000.0,
+         "form": "10-Q",
+         "n_versions": 8
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2023-02-06",
+         "val": 101524000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-02-06",
+         "val": 278662000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "shares": {
+        "filed": "2023-02-06",
+        "shares": 26359258.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 75.95999908447266
+     },
+     "MPC": {
+      "mom": {
+       "num_date": "2023-03-03",
+       "den_date": "2022-03-31",
+       "mom": 0.59976834045806,
+       "latest_bar_used": "2023-04-03",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2022-12-31",
+        "filed": "2023-02-23",
+        "val": 27715000000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2021-09-30",
+         "filed": "2022-11-01",
+         "val": 694000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-03-31",
+         "filed": "2022-05-03",
+         "val": 845000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-06-30",
+         "filed": "2022-08-02",
+         "val": 5873000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-11-01",
+         "val": 4477000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-02-23",
+        "shares": 445546907.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 125.06999969482422
+     },
+     "VLO": {
+      "mom": {
+       "num_date": "2023-03-03",
+       "den_date": "2022-03-31",
+       "mom": 0.43411897831188306,
+       "latest_bar_used": "2023-04-03",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2022-12-31",
+        "filed": "2023-02-23",
+        "val": 23561000000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2021-09-30",
+         "filed": "2022-10-26",
+         "val": 463000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-03-31",
+         "filed": "2022-04-28",
+         "val": 905000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-06-30",
+         "filed": "2022-07-28",
+         "val": 4693000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-10-26",
+         "val": 2817000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-02-23",
+        "shares": 371150836.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 123.5999984741211
+     },
+     "TPL": {
+      "mom": {
+       "num_date": "2023-03-03",
+       "den_date": "2022-03-31",
+       "mom": 0.36627048974498644,
+       "latest_bar_used": "2023-04-03",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2022-12-31",
+        "filed": "2023-02-22",
+        "val": 772887000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2021-09-30",
+         "filed": "2022-11-02",
+         "val": 83837000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-03-31",
+         "filed": "2022-11-02",
+         "val": 97900000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2022-06-30",
+         "filed": "2022-11-02",
+         "val": 118894000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-11-02",
+         "val": 129837000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-02-22",
+        "shares": 7695496.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 192.41000366210938
+     },
+     "BLDR": {
+      "mom": {
+       "num_date": "2023-03-03",
+       "den_date": "2022-03-31",
+       "mom": 0.3817787269928661,
+       "latest_bar_used": "2023-04-03",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2022-12-31",
+        "filed": "2023-02-28",
+        "val": 4962566000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2021-09-30",
+         "filed": "2022-11-08",
+         "val": 613145000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-03-31",
+         "filed": "2022-11-08",
+         "val": 639640000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2022-06-30",
+         "filed": "2022-11-08",
+         "val": 987209000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-11-08",
+         "val": 738007000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-02-28",
+        "shares": 138012302.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 89.8499984741211
+     }
+    }
+   },
+   {
+    "signal_day": "2023-07-27",
+    "fill_day": "2023-07-28",
+    "picks": {
+     "SMCI": {
+      "mom": {
+       "num_date": "2023-06-27",
+       "den_date": "2022-07-26",
+       "mom": 3.375241877258982,
+       "latest_bar_used": "2023-07-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-03-31",
+        "filed": "2023-05-05",
+        "val": 1768407000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-03-31",
+         "filed": "2023-05-05",
+         "val": 76972000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-11-04",
+         "val": 184416000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-02-03",
+         "val": 176167000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-05",
+         "val": 85846000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-05-05",
+        "shares": 52488494.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 33.45000076293945
+     },
+     "NFLX": {
+      "mom": {
+       "num_date": "2023-06-27",
+       "den_date": "2022-07-26",
+       "mom": 0.9499766374307594,
+       "latest_bar_used": "2023-07-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-06-30",
+        "filed": "2023-07-21",
+        "val": 22832215000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-06-30",
+         "filed": "2023-07-21",
+         "val": 1440951000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-10-20",
+         "val": 1398242000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-04-21",
+         "val": 1305120000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-21",
+         "val": 1487610000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-07-21",
+        "shares": 443146751.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 41.560001373291016
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2023-06-27",
+       "den_date": "2022-07-26",
+       "mom": 0.8552173116932744,
+       "latest_bar_used": "2023-07-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-03-31",
+        "filed": "2023-05-26",
+        "val": 1765733000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-06-30",
+         "filed": "2023-05-26",
+         "val": 44849000.0,
+         "form": "10-K",
+         "n_versions": 8
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2023-05-26",
+         "val": 101524000.0,
+         "form": "10-K",
+         "n_versions": 6
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-05-26",
+         "val": 278662000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-26",
+         "val": 91787000.0,
+         "form": "10-K",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-05-26",
+        "shares": 26159846.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 86.33000183105469
+     },
+     "CMG": {
+      "mom": {
+       "num_date": "2023-06-27",
+       "den_date": "2022-07-26",
+       "mom": 0.5696924402131682,
+       "latest_bar_used": "2023-07-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-03-31",
+        "filed": "2023-04-27",
+        "val": 2481685000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-03-31",
+         "filed": "2023-04-27",
+         "val": 158294000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2022-06-30",
+         "filed": "2022-10-26",
+         "val": 259942000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-10-26",
+         "val": 257138000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-04-27",
+         "val": 291644000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        }
+       ],
+       "shares": {
+        "filed": "2023-04-27",
+        "shares": 27589840.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 37.959999084472656
+     },
+     "PHM": {
+      "mom": {
+       "num_date": "2023-06-27",
+       "den_date": "2022-07-26",
+       "mom": 0.8609897334487306,
+       "latest_bar_used": "2023-07-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-06-30",
+        "filed": "2023-07-25",
+        "val": 9705025000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-06-30",
+         "filed": "2023-07-25",
+         "val": 652435000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-10-25",
+         "val": 627928000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-04-25",
+         "val": 532259000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-25",
+         "val": 720345000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-07-25",
+        "shares": 219445457.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 82.72000122070312
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2023-06-27",
+       "den_date": "2022-07-26",
+       "mom": 0.471904918780478,
+       "latest_bar_used": "2023-07-27",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-03-26",
+        "filed": "2023-04-24",
+        "val": 8407388000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-03-27",
+         "filed": "2023-04-24",
+         "val": 1021778000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-25",
+         "filed": "2022-10-24",
+         "val": 1425879000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-25",
+         "filed": "2023-01-30",
+         "val": 1468507000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-26",
+         "filed": "2023-04-24",
+         "val": 814008000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-04-24",
+        "shares": 134340474.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 69.06999969482422
+     }
+    }
+   },
+   {
+    "signal_day": "2023-09-06",
+    "fill_day": "2023-09-07",
+    "picks": {
+     "SMCI": {
+      "mom": {
+       "num_date": "2023-08-07",
+       "den_date": "2022-09-02",
+       "mom": 4.474124860851691,
+       "latest_bar_used": "2023-09-06",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-06-30",
+        "filed": "2023-08-28",
+        "val": 1972005000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-03-31",
+         "filed": "2023-05-05",
+         "val": 76972000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-11-04",
+         "val": 184416000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-02-03",
+         "val": 176167000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-05",
+         "val": 85846000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-08-28",
+        "shares": 52905947.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 26.510000228881836
+     },
+     "NFLX": {
+      "mom": {
+       "num_date": "2023-08-07",
+       "den_date": "2022-09-02",
+       "mom": 0.9495798602886145,
+       "latest_bar_used": "2023-09-06",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-06-30",
+        "filed": "2023-07-21",
+        "val": 22832215000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-06-30",
+         "filed": "2023-07-21",
+         "val": 1440951000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-10-20",
+         "val": 1398242000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-04-21",
+         "val": 1305120000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-21",
+         "val": 1487610000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-07-21",
+        "shares": 443146751.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 44.11000061035156
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2023-08-07",
+       "den_date": "2022-09-02",
+       "mom": 0.6623848552629279,
+       "latest_bar_used": "2023-09-06",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-06-25",
+        "filed": "2023-08-15",
+        "val": 8210172000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-03-27",
+         "filed": "2023-04-24",
+         "val": 1021778000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-25",
+         "filed": "2022-10-24",
+         "val": 1425879000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-25",
+         "filed": "2023-01-30",
+         "val": 1468507000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-26",
+         "filed": "2023-04-24",
+         "val": 814008000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-08-15",
+        "shares": 132511701.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 66.22000122070312
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2023-08-07",
+       "den_date": "2022-09-02",
+       "mom": 0.7821895107580379,
+       "latest_bar_used": "2023-09-06",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-06-30",
+        "filed": "2023-08-03",
+        "val": 1802121000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-05-26",
+         "val": 101524000.0,
+         "form": "10-K",
+         "n_versions": 6
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-05-26",
+         "val": 278662000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-26",
+         "val": 91787000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-08-03",
+         "val": 63552000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        }
+       ],
+       "shares": {
+        "filed": "2023-08-03",
+        "shares": 26134458.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 87.05000305175781
+     },
+     "PHM": {
+      "mom": {
+       "num_date": "2023-08-07",
+       "den_date": "2022-09-02",
+       "mom": 1.1432238696658126,
+       "latest_bar_used": "2023-09-06",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-06-30",
+        "filed": "2023-07-25",
+        "val": 9705025000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-06-30",
+         "filed": "2023-07-25",
+         "val": 652435000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2022-10-25",
+         "val": 627928000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-04-25",
+         "val": 532259000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-25",
+         "val": 720345000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-07-25",
+        "shares": 219445457.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 77.13999938964844
+     },
+     "KLAC": {
+      "mom": {
+       "num_date": "2023-08-07",
+       "den_date": "2022-09-02",
+       "mom": 0.5258754564603794,
+       "latest_bar_used": "2023-09-06",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-06-30",
+        "filed": "2023-08-04",
+        "val": 2919753000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-03-31",
+         "filed": "2023-04-28",
+         "val": 730572000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-09-30",
+         "filed": "2023-04-28",
+         "val": 1025991000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-04-28",
+         "val": 978795000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-04-28",
+         "val": 697837000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-08-04",
+        "shares": 136720074.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 49.06999969482422
+     }
+    }
+   },
+   {
+    "signal_day": "2023-11-21",
+    "fill_day": "2023-11-22",
+    "picks": {
+     "CVNA": {
+      "mom": {
+       "num_date": "2023-10-23",
+       "den_date": "2022-11-18",
+       "mom": 2.9392059241397037,
+       "latest_bar_used": "2023-11-21",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 339000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-02",
+         "val": -283000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-04",
+         "val": -160000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-19",
+         "val": -58000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 782000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 6.328000068664551
+     },
+     "SMCI": {
+      "mom": {
+       "num_date": "2023-10-23",
+       "den_date": "2022-11-18",
+       "mom": 1.9471614379057582,
+       "latest_bar_used": "2023-11-21",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-03",
+        "val": 2165378000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-03",
+         "val": 184416000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-02-03",
+         "val": 176167000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-05",
+         "val": 85846000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-03",
+         "val": 156995000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-03",
+        "shares": 53313542.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 29.31999969482422
+     },
+     "NFLX": {
+      "mom": {
+       "num_date": "2023-10-23",
+       "den_date": "2022-11-18",
+       "mom": 0.41250004801485396,
+       "latest_bar_used": "2023-11-21",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-10-20",
+        "val": 22107627000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-10-20",
+         "val": 1398242000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-04-21",
+         "val": 1305120000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-21",
+         "val": 1487610000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-10-20",
+         "val": 1677422000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-20",
+        "shares": 437679669.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 47.68000030517578
+     },
+     "PHM": {
+      "mom": {
+       "num_date": "2023-10-23",
+       "den_date": "2022-11-18",
+       "mom": 0.6642528708750306,
+       "latest_bar_used": "2023-11-21",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-10-24",
+        "val": 10012501000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-10-24",
+         "val": 627928000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-04-25",
+         "val": 532259000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-25",
+         "val": 720345000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-10-24",
+         "val": 638775000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-24",
+        "shares": 215594980.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 86.37999725341797
+     },
+     "VST": {
+      "mom": {
+       "num_date": "2023-10-23",
+       "den_date": "2022-11-18",
+       "mom": 0.43470235547433256,
+       "latest_bar_used": "2023-11-21",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-07",
+        "val": 5506000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-07",
+         "val": 668000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-09",
+         "val": 699000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-08-09",
+         "val": 476000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-07",
+         "val": 502000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-07",
+        "shares": 357552337.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 33.68000030517578
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2023-10-23",
+       "den_date": "2022-11-18",
+       "mom": 0.32999767838762817,
+       "latest_bar_used": "2023-11-21",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-24",
+        "filed": "2023-10-23",
+        "val": 8047330000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-25",
+         "filed": "2023-10-23",
+         "val": 1425879000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-25",
+         "filed": "2023-01-30",
+         "val": 1468507000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-26",
+         "filed": "2023-04-24",
+         "val": 814008000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-24",
+         "filed": "2023-10-23",
+         "val": 887398000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-23",
+        "shares": 131792000.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 69.73999786376953
+     }
+    }
+   },
+   {
+    "signal_day": "2024-01-19",
+    "fill_day": "2024-01-22",
+    "picks": {
+     "CVNA": {
+      "mom": {
+       "num_date": "2023-12-18",
+       "den_date": "2023-01-18",
+       "mom": 6.979942781250019,
+       "latest_bar_used": "2024-01-19",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 339000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-02",
+         "val": -283000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-04",
+         "val": -160000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-19",
+         "val": -58000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 782000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 9.26200008392334
+     },
+     "SMCI": {
+      "mom": {
+       "num_date": "2023-12-18",
+       "den_date": "2023-01-18",
+       "mom": 3.085203610734017,
+       "latest_bar_used": "2024-01-19",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-03",
+        "val": 2165378000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-03",
+         "val": 184416000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-02-03",
+         "val": 176167000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-05",
+         "val": 85846000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-03",
+         "val": 156995000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-03",
+        "shares": 53313542.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 45.63999938964844
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2023-12-18",
+       "den_date": "2023-01-18",
+       "mom": 0.6692529823304509,
+       "latest_bar_used": "2024-01-19",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-24",
+        "filed": "2023-10-23",
+        "val": 8047330000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-25",
+         "filed": "2023-10-23",
+         "val": 1425879000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-25",
+         "filed": "2023-01-30",
+         "val": 1468507000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-26",
+         "filed": "2023-04-24",
+         "val": 814008000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-24",
+         "filed": "2023-10-23",
+         "val": 887398000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-23",
+        "shares": 131792000.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 81.08999633789062
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2023-12-18",
+       "den_date": "2023-01-18",
+       "mom": 0.6812732660604968,
+       "latest_bar_used": "2024-01-19",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 1795130000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-12-31",
+         "filed": "2023-05-26",
+         "val": 278662000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-26",
+         "val": 91787000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-11-02",
+         "val": 63552000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 178547000.0,
+         "form": "10-Q",
+         "n_versions": 5
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-02",
+        "shares": 25730874.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 125.47000122070312
+     },
+     "VST": {
+      "mom": {
+       "num_date": "2023-12-18",
+       "den_date": "2023-01-18",
+       "mom": 0.7956098230873667,
+       "latest_bar_used": "2024-01-19",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-07",
+        "val": 5506000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-07",
+         "val": 668000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-09",
+         "val": 699000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-08-09",
+         "val": 476000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-07",
+         "val": 502000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-07",
+        "shares": 357552337.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 39.459999084472656
+     },
+     "CMG": {
+      "mom": {
+       "num_date": "2023-12-18",
+       "den_date": "2023-01-18",
+       "mom": 0.5191798602652666,
+       "latest_bar_used": "2024-01-19",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-10-27",
+        "val": 2886314000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-10-27",
+         "val": 257138000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-10-27",
+         "val": 291644000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-10-27",
+         "val": 341790000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-10-27",
+         "val": 313217000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-27",
+        "shares": 27444660.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 46.84000015258789
+     }
+    }
+   },
+   {
+    "signal_day": "2024-01-22",
+    "fill_day": "2024-01-23",
+    "picks": {
+     "CVNA": {
+      "mom": {
+       "num_date": "2023-12-19",
+       "den_date": "2023-01-19",
+       "mom": 8.373040614118416,
+       "latest_bar_used": "2024-01-22",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 339000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-02",
+         "val": -283000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-04",
+         "val": -160000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-19",
+         "val": -58000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 782000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 9.821999549865723
+     },
+     "SMCI": {
+      "mom": {
+       "num_date": "2023-12-19",
+       "den_date": "2023-01-19",
+       "mom": 3.458086410618705,
+       "latest_bar_used": "2024-01-22",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-03",
+        "val": 2165378000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-03",
+         "val": 184416000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-02-03",
+         "val": 176167000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-05",
+         "val": 85846000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-03",
+         "val": 156995000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-03",
+        "shares": 53313542.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 43.599998474121094
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2023-12-19",
+       "den_date": "2023-01-19",
+       "mom": 0.7416780284225384,
+       "latest_bar_used": "2024-01-22",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-24",
+        "filed": "2023-10-23",
+        "val": 8047330000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-25",
+         "filed": "2023-10-23",
+         "val": 1425879000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-25",
+         "filed": "2023-01-30",
+         "val": 1468507000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-26",
+         "filed": "2023-04-24",
+         "val": 814008000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-24",
+         "filed": "2023-10-23",
+         "val": 887398000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-23",
+        "shares": 131792000.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 81.13999938964844
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2023-12-19",
+       "den_date": "2023-01-19",
+       "mom": 0.7146352739780546,
+       "latest_bar_used": "2024-01-22",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 1795130000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-12-31",
+         "filed": "2023-05-26",
+         "val": 278662000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-26",
+         "val": 91787000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-11-02",
+         "val": 63552000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 178547000.0,
+         "form": "10-Q",
+         "n_versions": 5
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-02",
+        "shares": 25730874.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 127.43000030517578
+     },
+     "VST": {
+      "mom": {
+       "num_date": "2023-12-19",
+       "den_date": "2023-01-19",
+       "mom": 0.8136341662182822,
+       "latest_bar_used": "2024-01-22",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-07",
+        "val": 5506000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-07",
+         "val": 668000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-09",
+         "val": 699000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-08-09",
+         "val": 476000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-07",
+         "val": 502000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-07",
+        "shares": 357552337.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 39.27000045776367
+     },
+     "CMG": {
+      "mom": {
+       "num_date": "2023-12-19",
+       "den_date": "2023-01-19",
+       "mom": 0.5472074811692123,
+       "latest_bar_used": "2024-01-22",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-10-27",
+        "val": 2886314000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-10-27",
+         "val": 257138000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-10-27",
+         "val": 291644000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-10-27",
+         "val": 341790000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-10-27",
+         "val": 313217000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-27",
+        "shares": 27444660.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 46.400001525878906
+     }
+    }
+   },
+   {
+    "signal_day": "2024-01-24",
+    "fill_day": "2024-01-25",
+    "picks": {
+     "CVNA": {
+      "mom": {
+       "num_date": "2023-12-21",
+       "den_date": "2023-01-23",
+       "mom": 7.105849880471103,
+       "latest_bar_used": "2024-01-24",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 339000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-02",
+         "val": -283000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-04",
+         "val": -160000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-19",
+         "val": -58000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 782000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 8.522000312805176
+     },
+     "SMCI": {
+      "mom": {
+       "num_date": "2023-12-21",
+       "den_date": "2023-01-23",
+       "mom": 3.124745773056806,
+       "latest_bar_used": "2024-01-24",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-03",
+        "val": 2165378000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-03",
+         "val": 184416000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-31",
+         "filed": "2023-02-03",
+         "val": 176167000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-05",
+         "val": 85846000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-03",
+         "val": 156995000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-03",
+        "shares": 53313542.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 47.61000061035156
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2023-12-21",
+       "den_date": "2023-01-23",
+       "mom": 0.602488418346973,
+       "latest_bar_used": "2024-01-24",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-24",
+        "filed": "2023-10-23",
+        "val": 8047330000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-25",
+         "filed": "2023-10-23",
+         "val": 1425879000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2022-12-25",
+         "filed": "2023-01-30",
+         "val": 1468507000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-26",
+         "filed": "2023-04-24",
+         "val": 814008000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-24",
+         "filed": "2023-10-23",
+         "val": 887398000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-23",
+        "shares": 131792000.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 85.7699966430664
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2023-12-21",
+       "den_date": "2023-01-23",
+       "mom": 0.6675192553329068,
+       "latest_bar_used": "2024-01-24",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 1795130000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-12-31",
+         "filed": "2023-05-26",
+         "val": 278662000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-26",
+         "val": 91787000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-11-02",
+         "val": 63552000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 178547000.0,
+         "form": "10-Q",
+         "n_versions": 5
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-02",
+        "shares": 25730874.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 125.86000061035156
+     },
+     "VST": {
+      "mom": {
+       "num_date": "2023-12-21",
+       "den_date": "2023-01-23",
+       "mom": 0.7272726302683501,
+       "latest_bar_used": "2024-01-24",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-07",
+        "val": 5506000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-07",
+         "val": 668000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-09",
+         "val": 699000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-08-09",
+         "val": 476000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-07",
+         "val": 502000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-07",
+        "shares": 357552337.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 38.959999084472656
+     },
+     "CMG": {
+      "mom": {
+       "num_date": "2023-12-21",
+       "den_date": "2023-01-23",
+       "mom": 0.4441314018110678,
+       "latest_bar_used": "2024-01-24",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-10-27",
+        "val": 2886314000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-10-27",
+         "val": 257138000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-10-27",
+         "val": 291644000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-10-27",
+         "val": 341790000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-10-27",
+         "val": 313217000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-10-27",
+        "shares": 27444660.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 46.560001373291016
+     }
+    }
+   },
+   {
+    "signal_day": "2024-02-05",
+    "fill_day": "2024-02-06",
+    "picks": {
+     "CVNA": {
+      "mom": {
+       "num_date": "2024-01-04",
+       "den_date": "2023-02-02",
+       "mom": 2.2694737373979046,
+       "latest_bar_used": "2024-02-05",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 339000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-02",
+         "val": -283000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-04",
+         "val": -160000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-07-19",
+         "val": -58000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 782000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 8.892000198364258
+     },
+     "SMCI": {
+      "mom": {
+       "num_date": "2024-01-04",
+       "den_date": "2023-02-02",
+       "mom": 2.527112863888261,
+       "latest_bar_used": "2024-02-05",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-12-31",
+        "filed": "2024-02-02",
+        "val": 3076910000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-12-31",
+         "filed": "2024-02-02",
+         "val": 176167000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-05",
+         "val": 85846000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-03",
+         "val": 156995000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-12-31",
+         "filed": "2024-02-02",
+         "val": 295968000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2024-02-02",
+        "shares": 55933330.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 67.30000305175781
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2024-01-04",
+       "den_date": "2023-02-02",
+       "mom": 0.595556806719256,
+       "latest_bar_used": "2024-02-05",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-02",
+        "val": 1795130000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-12-31",
+         "filed": "2023-05-26",
+         "val": 278662000.0,
+         "form": "10-K",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-26",
+         "val": 91787000.0,
+         "form": "10-K",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-11-02",
+         "val": 63552000.0,
+         "form": "10-Q",
+         "n_versions": 7
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 178547000.0,
+         "form": "10-Q",
+         "n_versions": 5
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-02",
+        "shares": 25730874.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 141.89999389648438
+     },
+     "VST": {
+      "mom": {
+       "num_date": "2024-01-04",
+       "den_date": "2023-02-02",
+       "mom": 0.696259508055346,
+       "latest_bar_used": "2024-02-05",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-07",
+        "val": 5506000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-07",
+         "val": 668000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-09",
+         "val": 699000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-08-09",
+         "val": 476000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-07",
+         "val": 502000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-07",
+        "shares": 357552337.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 42.45000076293945
+     },
+     "PSX": {
+      "mom": {
+       "num_date": "2024-01-04",
+       "den_date": "2023-02-02",
+       "mom": 0.4217061265754922,
+       "latest_bar_used": "2024-02-05",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-09-30",
+        "filed": "2023-11-03",
+        "val": 30821000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-09-30",
+         "filed": "2023-11-03",
+         "val": 5391000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-31",
+         "filed": "2023-05-04",
+         "val": 1961000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-06-30",
+         "filed": "2023-08-04",
+         "val": 1697000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-03",
+         "val": 2097000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2023-11-03",
+        "shares": 439955575.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 135.2899932861328
+     },
+     "LRCX": {
+      "mom": {
+       "num_date": "2024-01-04",
+       "den_date": "2023-02-02",
+       "mom": 0.3676358391254273,
+       "latest_bar_used": "2024-02-05",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2023-12-24",
+        "filed": "2024-01-29",
+        "val": 8222478000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2022-12-25",
+         "filed": "2024-01-29",
+         "val": 1468507000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-03-26",
+         "filed": "2023-04-24",
+         "val": 814008000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-24",
+         "filed": "2023-10-23",
+         "val": 887398000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-12-24",
+         "filed": "2024-01-29",
+         "val": 954266000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2024-01-29",
+        "shares": 131103000.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 83.41999816894531
+     }
+    }
+   },
+   {
+    "signal_day": "2024-09-30",
+    "fill_day": "2024-10-01",
+    "picks": {
+     "CVNA": {
+      "mom": {
+       "num_date": "2024-08-29",
+       "den_date": "2023-09-28",
+       "mom": 2.639670214617186,
+       "latest_bar_used": "2024-09-30",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-06-30",
+        "filed": "2024-07-31",
+        "val": 526000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-06-30",
+         "filed": "2024-07-31",
+         "val": -58000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 782000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-05-01",
+         "val": 28000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-31",
+         "val": 18000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 34.86000061035156
+     },
+     "APP": {
+      "mom": {
+       "num_date": "2024-08-29",
+       "den_date": "2023-09-28",
+       "mom": 1.3052339391316794,
+       "latest_bar_used": "2024-09-30",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-06-30",
+        "filed": "2024-08-07",
+        "val": 814836000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-06-30",
+         "filed": "2024-08-07",
+         "val": 80357000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-08",
+         "val": 108639000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-08-07",
+         "val": 236183000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-08-07",
+         "val": 309969000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 130.7899932861328
+     },
+     "NFLX": {
+      "mom": {
+       "num_date": "2024-08-29",
+       "den_date": "2023-09-28",
+       "mom": 0.8397981169745923,
+       "latest_bar_used": "2024-09-30",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-06-30",
+        "filed": "2024-07-19",
+        "val": 22112693000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-06-30",
+         "filed": "2024-07-19",
+         "val": 1487610000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-10-20",
+         "val": 1677422000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-04-22",
+         "val": 2332209000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-19",
+         "val": 2147306000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2024-07-19",
+        "shares": 429164615.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 71.36000061035156
+     },
+     "DECK": {
+      "mom": {
+       "num_date": "2024-08-29",
+       "den_date": "2023-09-28",
+       "mom": 0.8545089531994674,
+       "latest_bar_used": "2024-09-30",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-06-30",
+        "filed": "2024-08-01",
+        "val": 2074482000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-09-30",
+         "filed": "2024-05-24",
+         "val": 178547000.0,
+         "form": "10-K",
+         "n_versions": 5
+        },
+        {
+         "end": "2023-12-31",
+         "filed": "2024-05-24",
+         "val": 389919000.0,
+         "form": "10-K",
+         "n_versions": 3
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-05-24",
+         "val": 127545000.0,
+         "form": "10-K",
+         "n_versions": 1
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-08-01",
+         "val": 115625000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        }
+       ],
+       "shares": {
+        "filed": "2024-08-01",
+        "shares": 25410572.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2024-03-18..2026-11-13",
+      "fill_open": 159.4199981689453
+     },
+     "KLAC": {
+      "mom": {
+       "num_date": "2024-08-29",
+       "den_date": "2023-09-28",
+       "mom": 0.7525749420171992,
+       "latest_bar_used": "2024-09-30",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-06-30",
+        "filed": "2024-08-05",
+        "val": 3368328000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-03-31",
+         "filed": "2024-04-26",
+         "val": 697837000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2024-04-26",
+         "val": 741375000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2023-12-31",
+         "filed": "2024-04-26",
+         "val": 582534000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-04-26",
+         "val": 601541000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2024-08-05",
+        "shares": 134425022.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 76.56999969482422
+     },
+     "SMCI": {
+      "mom": {
+       "num_date": "2024-08-29",
+       "den_date": "2023-09-28",
+       "mom": 0.6659242827919705,
+       "latest_bar_used": "2024-09-30",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-03-31",
+        "filed": "2024-05-06",
+        "val": 5093993000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-03-31",
+         "filed": "2024-05-06",
+         "val": 85846000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-03",
+         "val": 156995000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-12-31",
+         "filed": "2024-02-02",
+         "val": 295968000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-05-06",
+         "val": 402459000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2024-05-06",
+        "shares": 58556527.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2024-03-18..2026-11-13",
+      "fill_open": 41.75
+     }
+    }
+   },
+   {
+    "signal_day": "2024-10-29",
+    "fill_day": "2024-10-30",
+    "picks": {
+     "CVNA": {
+      "mom": {
+       "num_date": "2024-09-30",
+       "den_date": "2023-10-27",
+       "mom": 5.091672359487162,
+       "latest_bar_used": "2024-10-29",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-06-30",
+        "filed": "2024-07-31",
+        "val": 526000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-06-30",
+         "filed": "2024-07-31",
+         "val": -58000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-02",
+         "val": 782000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-05-01",
+         "val": 28000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-31",
+         "val": 18000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 42.08000183105469
+     },
+     "APP": {
+      "mom": {
+       "num_date": "2024-09-30",
+       "den_date": "2023-10-27",
+       "mom": 2.604362193591983,
+       "latest_bar_used": "2024-10-29",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-06-30",
+        "filed": "2024-08-07",
+        "val": 814836000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-06-30",
+         "filed": "2024-08-07",
+         "val": 80357000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-11-08",
+         "val": 108639000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-08-07",
+         "val": 236183000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-08-07",
+         "val": 309969000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 173.22000122070312
+     },
+     "SYF": {
+      "mom": {
+       "num_date": "2024-09-30",
+       "den_date": "2023-10-27",
+       "mom": 0.8232612008525146,
+       "latest_bar_used": "2024-10-29",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-09-30",
+        "filed": "2024-10-23",
+        "val": 15980000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-09-30",
+         "filed": "2024-10-23",
+         "val": 628000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-10-23",
+         "val": 1293000000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-10-23",
+         "val": 643000000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2024-09-30",
+         "filed": "2024-10-23",
+         "val": 789000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2024-10-23",
+        "shares": 389344383.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 53.97999954223633
+     },
+     "NFLX": {
+      "mom": {
+       "num_date": "2024-09-30",
+       "den_date": "2023-10-27",
+       "mom": 0.7826086623058257,
+       "latest_bar_used": "2024-10-29",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-09-30",
+        "filed": "2024-10-18",
+        "val": 22720736000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-09-30",
+         "filed": "2024-10-18",
+         "val": 1677422000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-04-22",
+         "val": 2332209000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-19",
+         "val": 2147306000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-09-30",
+         "filed": "2024-10-18",
+         "val": 2363509000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2024-10-18",
+        "shares": 427458114.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 75.80999755859375
+     },
+     "ERIE": {
+      "mom": {
+       "num_date": "2024-09-30",
+       "den_date": "2023-10-27",
+       "mom": 0.9962637388472886,
+       "latest_bar_used": "2024-10-29",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-06-30",
+        "filed": "2024-07-25",
+        "val": 1828813000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-06-30",
+         "filed": "2024-07-25",
+         "val": 117852000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2023-09-30",
+         "filed": "2023-10-26",
+         "val": 131040000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-07-25",
+         "val": 124552000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-25",
+         "val": 163903000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": "2024-09-23..2026-11-13",
+      "fill_open": 433.9599914550781
+     },
+     "PHM": {
+      "mom": {
+       "num_date": "2024-09-30",
+       "den_date": "2023-10-27",
+       "mom": 1.009534843599576,
+       "latest_bar_used": "2024-10-29",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-09-30",
+        "filed": "2024-10-22",
+        "val": 11564213000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-09-30",
+         "filed": "2024-10-22",
+         "val": 638775000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-04-23",
+         "val": 662976000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-23",
+         "val": 809133000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-09-30",
+         "filed": "2024-10-22",
+         "val": 697914000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2024-10-22",
+        "shares": 205082181.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 126.91999816894531
+     }
+    }
+   },
+   {
+    "signal_day": "2025-03-18",
+    "fill_day": "2025-03-19",
+    "picks": {
+     "APP": {
+      "mom": {
+       "num_date": "2025-02-14",
+       "den_date": "2024-03-14",
+       "mom": 7.0729548341403525,
+       "latest_bar_used": "2025-03-18",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-12-31",
+        "filed": "2025-02-27",
+        "val": 1089818000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-09-30",
+         "filed": "2024-11-06",
+         "val": 108639000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-11-06",
+         "val": 236183000.0,
+         "form": "10-Q",
+         "n_versions": 6
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-11-06",
+         "val": 309969000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2024-09-30",
+         "filed": "2024-11-06",
+         "val": 434420000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 286.19500732421875
+     },
+     "CVNA": {
+      "mom": {
+       "num_date": "2025-02-14",
+       "den_date": "2024-03-14",
+       "mom": 2.7203389261502964,
+       "latest_bar_used": "2025-03-18",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-12-31",
+        "filed": "2025-02-19",
+        "val": 1260000000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-09-30",
+         "filed": "2024-10-30",
+         "val": 782000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-05-01",
+         "val": 28000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-31",
+         "val": 18000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-09-30",
+         "filed": "2024-10-30",
+         "val": 85000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": null,
+      "fill_open": 33.560001373291016
+     },
+     "FOX": {
+      "mom": {
+       "num_date": "2025-02-14",
+       "den_date": "2024-03-14",
+       "mom": 0.975750682659029,
+       "latest_bar_used": "2025-03-18",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-12-31",
+        "filed": "2025-02-04",
+        "val": 11495000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [],
+       "shares": {
+        "filed": "2019-03-18",
+        "shares": 1.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 47.65999984741211
+     },
+     "UAL": {
+      "mom": {
+       "num_date": "2025-02-14",
+       "den_date": "2024-03-14",
+       "mom": 1.4331389929733005,
+       "latest_bar_used": "2025-03-18",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-12-31",
+        "filed": "2025-02-27",
+        "val": 12675000000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-09-30",
+         "filed": "2024-10-16",
+         "val": 1137000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-04-17",
+         "val": -124000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-18",
+         "val": 1323000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-09-30",
+         "filed": "2024-10-16",
+         "val": 965000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2025-02-27",
+        "shares": 327339564.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 71.33999633789062
+     },
+     "NFLX": {
+      "mom": {
+       "num_date": "2025-02-14",
+       "den_date": "2024-03-14",
+       "mom": 0.7269168340601069,
+       "latest_bar_used": "2025-03-18",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-12-31",
+        "filed": "2025-01-27",
+        "val": 24743567000.0,
+        "form": "10-K"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-09-30",
+         "filed": "2024-10-18",
+         "val": 1677422000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-03-31",
+         "filed": "2024-04-22",
+         "val": 2332209000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-30",
+         "filed": "2024-07-19",
+         "val": 2147306000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-09-30",
+         "filed": "2024-10-18",
+         "val": 2363509000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "shares": {
+        "filed": "2025-01-27",
+        "shares": 427757100.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 93.58000183105469
+     },
+     "RL": {
+      "mom": {
+       "num_date": "2025-02-14",
+       "den_date": "2024-03-14",
+       "mom": 0.5765288851786952,
+       "latest_bar_used": "2025-03-18",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2024-12-28",
+        "filed": "2025-02-06",
+        "val": 2539200000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2023-12-30",
+         "filed": "2025-02-06",
+         "val": 276600000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-06-29",
+         "filed": "2024-08-07",
+         "val": 168600000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-09-28",
+         "filed": "2024-11-07",
+         "val": 147900000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2024-12-28",
+         "filed": "2025-02-06",
+         "val": 297400000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 213.55999755859375
+     }
+    }
+   },
+   {
+    "signal_day": "2026-06-10",
+    "fill_day": "2026-06-11",
+    "picks": {
+     "GOOG": {
+      "mom": {
+       "num_date": "2026-05-11",
+       "den_date": "2025-06-09",
+       "mom": 1.1823062003993439,
+       "latest_bar_used": "2026-06-10",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2026-03-31",
+        "filed": "2026-04-30",
+        "val": 478746000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2025-03-31",
+         "filed": "2026-04-30",
+         "val": 34540000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-06-30",
+         "filed": "2025-07-24",
+         "val": 28196000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-09-30",
+         "filed": "2025-10-30",
+         "val": 34979000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2026-03-31",
+         "filed": "2026-04-30",
+         "val": 62578000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        }
+       ],
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 352.82000732421875
+     },
+     "APA": {
+      "mom": {
+       "num_date": "2026-05-11",
+       "den_date": "2025-06-09",
+       "mom": 1.052065544141088,
+       "latest_bar_used": "2026-06-10",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2026-03-31",
+        "filed": "2026-05-07",
+        "val": 6456000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2025-03-31",
+         "filed": "2026-05-07",
+         "val": 347000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        },
+        {
+         "end": "2025-06-30",
+         "filed": "2025-08-07",
+         "val": 603000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-09-30",
+         "filed": "2025-11-06",
+         "val": 205000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2026-03-31",
+         "filed": "2026-05-07",
+         "val": 446000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        }
+       ],
+       "shares": {
+        "filed": "2026-05-07",
+        "shares": 353470227.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 38.209999084472656
+     },
+     "KLAC": {
+      "mom": {
+       "num_date": "2026-05-11",
+       "den_date": "2025-06-09",
+       "mom": 1.2365539348894585,
+       "latest_bar_used": "2026-06-10",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2026-03-31",
+        "filed": "2026-04-30",
+        "val": 5830495000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2025-03-31",
+         "filed": "2026-04-30",
+         "val": 1088416000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-09-30",
+         "filed": "2026-04-30",
+         "val": 1121040000.0,
+         "form": "10-Q",
+         "n_versions": 4
+        },
+        {
+         "end": "2025-12-31",
+         "filed": "2026-04-30",
+         "val": 1145682000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2026-03-31",
+         "filed": "2026-04-30",
+         "val": 1200990000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        }
+       ],
+       "shares": {
+        "filed": "2026-04-30",
+        "shares": 130627521.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 220.75
+     },
+     "NEM": {
+      "mom": {
+       "num_date": "2026-05-11",
+       "den_date": "2025-06-09",
+       "mom": 1.2835962363781013,
+       "latest_bar_used": "2026-06-10",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2026-03-31",
+        "filed": "2026-04-23",
+        "val": 34926000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2025-03-31",
+         "filed": "2026-04-23",
+         "val": 1891000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-06-30",
+         "filed": "2025-07-24",
+         "val": 2061000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-09-30",
+         "filed": "2025-10-23",
+         "val": 1832000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2026-03-31",
+         "filed": "2026-04-23",
+         "val": 3262000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        }
+       ],
+       "shares": {
+        "filed": "2026-04-23",
+        "shares": 1067552764.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 93.29000091552734
+     },
+     "GM": {
+      "mom": {
+       "num_date": "2026-05-11",
+       "den_date": "2025-06-09",
+       "mom": 0.5816455444578807,
+       "latest_bar_used": "2026-06-10",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2026-03-31",
+        "filed": "2026-04-28",
+        "val": 62659000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2025-03-31",
+         "filed": "2026-04-28",
+         "val": 2784000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-06-30",
+         "filed": "2025-07-22",
+         "val": 1895000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-09-30",
+         "filed": "2025-10-21",
+         "val": 1327000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2026-03-31",
+         "filed": "2026-04-28",
+         "val": 2627000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        }
+       ],
+       "shares": {
+        "filed": "2026-04-28",
+        "shares": 901665195.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 79.87000274658203
+     },
+     "EIX": {
+      "mom": {
+       "num_date": "2026-05-11",
+       "den_date": "2025-06-09",
+       "mom": 0.5131202878813752,
+       "latest_bar_used": "2026-06-10",
+       "ok": true
+      },
+      "vq": {
+       "book_visible": {
+        "end": "2026-03-31",
+        "filed": "2026-04-28",
+        "val": 17320000000.0,
+        "form": "10-Q"
+       },
+       "ni_quarters_visible": [
+        {
+         "end": "2025-03-31",
+         "filed": "2026-04-28",
+         "val": 1436000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2025-06-30",
+         "filed": "2025-07-31",
+         "val": 343000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        },
+        {
+         "end": "2025-09-30",
+         "filed": "2025-10-28",
+         "val": 832000000.0,
+         "form": "10-Q",
+         "n_versions": 2
+        },
+        {
+         "end": "2026-03-31",
+         "filed": "2026-04-28",
+         "val": 531000000.0,
+         "form": "10-Q",
+         "n_versions": 1
+        }
+       ],
+       "shares": {
+        "filed": "2026-04-28",
+        "shares": 384793941.0
+       },
+       "all_filed_before_d": true
+      },
+      "membership_window": "2016-01-04..2026-11-13",
+      "fill_open": 70.0
+     }
+    }
+   }
+  ],
+  "violations": [],
+  "amendment_check": {
+   "n_tested": 30,
+   "failures": []
+  }
+ },
+ "item3_survivorship": {
+  "dead_names": 248,
+  "dead_with_prices": 247,
+  "ended_below_1usd": 0,
+  "ended_below_5usd": 5,
+  "tail60_down_over_50pct": 9,
+  "tail60_down_over_80pct": 4,
+  "worst_tails": [
+   {
+    "sym": "FRC",
+    "last_close": 3.509999990463257,
+    "last_day": "2023-04-28",
+    "tail_60d_ret": -0.9754854018018331,
+    "min_daily_move": -0.6182730153006869
+   },
+   {
+    "sym": "ARNC",
+    "last_close": 7.300000190734863,
+    "last_day": "2020-04-06",
+    "tail_60d_ret": -0.93865546058206,
+    "min_daily_move": -0.8922789491530053
+   },
+   {
+    "sym": "UTX",
+    "last_close": 43.02000045776367,
+    "last_day": "2020-04-03",
+    "tail_60d_ret": -0.8365004512918011,
+    "min_daily_move": -0.7097361952029483
+   },
+   {
+    "sym": "TGNA",
+    "last_close": 11.930000305175781,
+    "last_day": "2017-06-02",
+    "tail_60d_ret": -0.8110248676805233,
+    "min_daily_move": -0.7844797764347442
+   },
+   {
+    "sym": "M",
+    "last_close": 4.605000019073486,
+    "last_day": "2020-04-06",
+    "tail_60d_ret": -0.6689432013235985,
+    "min_daily_move": -0.20101527098775673
+   },
+   {
+    "sym": "CPRI",
+    "last_close": 13.399999618530273,
+    "last_day": "2020-05-12",
+    "tail_60d_ret": -0.5317959739483642,
+    "min_daily_move": -0.30653268946283696
+   },
+   {
+    "sym": "FI",
+    "last_close": 64.26000213623047,
+    "last_day": "2025-11-11",
+    "tail_60d_ret": -0.5311542150819094,
+    "min_daily_move": -0.4404375089267606
+   },
+   {
+    "sym": "LUMN",
+    "last_close": 2.490000009536743,
+    "last_day": "2023-03-20",
+    "tail_60d_ret": -0.5284091078422279,
+    "min_daily_move": -0.22464317284210777
+   }
+  ],
+  "worst_daily_moves": [
+   {
+    "sym": "ARNC",
+    "min_daily_move": -0.8922789491530053
+   },
+   {
+    "sym": "WRK",
+    "min_daily_move": -0.8448609214892617
+   },
+   {
+    "sym": "TGNA",
+    "min_daily_move": -0.7844797764347442
+   },
+   {
+    "sym": "UTX",
+    "min_daily_move": -0.7097361952029483
+   },
+   {
+    "sym": "FRC",
+    "min_daily_move": -0.6182730153006869
+   },
+   {
+    "sym": "SIVB",
+    "min_daily_move": -0.6040771898895805
+   },
+   {
+    "sym": "EQT",
+    "min_daily_move": -0.5713924888735585
+   },
+   {
+    "sym": "PCG",
+    "min_daily_move": -0.5236933802926573
+   }
+  ],
+  "delist_liquidations_in_sims": 0,
+  "liq_examples": []
+ },
+ "item4_picks": {
+  "snapshot_asof": "2026-11-06",
+  "pit_day": "2026-11-13",
+  "rank_corr": 0.7639593887059912,
+  "top6_snapshot_vq": [
+   "APA",
+   "VLO",
+   "MPC",
+   "LYB",
+   "PSX",
+   "SNDK"
+  ],
+  "top6_pit_vq": [
+   "APA",
+   "VLO",
+   "LYB",
+   "MPC",
+   "PSX",
+   "ABNB"
+  ],
+  "live_sleeve": [
+   "APA",
+   "FTI",
+   "VLO",
+   "MPC",
+   "OGN",
+   "LYB"
+  ],
+  "live_names_pit_vq_rank": {
+   "APA": 0.9554234769687965,
+   "FTI": 0.962852897473997,
+   "VLO": 0.9108469539375929,
+   "MPC": 0.9004457652303121,
+   "OGN": 0.974739970282318,
+   "LYB": 0.9732540861812778
+  },
+  "live_names_pit_comp_rank": {
+   "APA": 1.0,
+   "FTI": NaN,
+   "VLO": 0.997979797979798,
+   "MPC": 0.9939393939393939,
+   "OGN": NaN,
+   "LYB": 0.9959595959595959
+  },
+  "n_names": 702
+ },
+ "item5_dsr": {
+  "stored": {
+   "DSR": 0.9981844846749578,
+   "SR_daily": 0.07876267672109874,
+   "SR_ann": 1.2503187311868211,
+   "SR_star": 0.3042918813586176,
+   "n_trials": 392,
+   "skew": -0.2848740403047713,
+   "kurtosis": 10.343558999967403,
+   "T": 2471
+  },
+  "recompute_total_ret": {
+   "DSR": 0.9981844846749578,
+   "SR_daily": 0.07876267672109874,
+   "SR_ann": 1.2503187311868211,
+   "SR_star": 0.3042918813586176,
+   "n_trials": 392,
+   "skew": -0.2848740403047713,
+   "kurtosis": 10.343558999967403,
+   "T": 2471
+  },
+  "recompute_excess": {
+   "DSR": 0.36349081742469,
+   "SR_daily": 0.06614795217063717,
+   "SR_ann": 1.0500661870782066,
+   "SR_star": 1.1619110039052807,
+   "n_trials": 392,
+   "skew": 0.01964051371972974,
+   "kurtosis": 7.508414647424968,
+   "T": 2471
+  },
+  "note": "DSR on TOTAL returns tests SR>max(SR) \u2014 a 50% SPY book gets SPY's own IR 0.865 for free; the excess-vs-SPY variant is the honest question."
+ },
+ "item6_robustness": {
+  "costs_x2": {
+   "wf": {
+    "total_return": 8.66240518117951,
+    "annualized_return": 0.260265220889327,
+    "information_ratio": 1.1841175277554248,
+    "max_drawdown": -0.31658168464561964,
+    "n_days": 2471
+   },
+   "by_year": {
+    "2017": {
+     "ar": 0.3672995068862752,
+     "ir": 2.561183188157236,
+     "mdd": -0.05793812469142301,
+     "xs_ar": 0.12758982450333772,
+     "final": 17.321643463107705
+    },
+    "2018": {
+     "ar": 0.017342550841302984,
+     "ir": 0.18644536329447745,
+     "mdd": -0.1926318927489964,
+     "xs_ar": 0.08249479080543495,
+     "final": 12.918487426278054
+    },
+    "2019": {
+     "ar": 0.2715253097841197,
+     "ir": 1.7148306795279018,
+     "mdd": -0.08317458706137326,
+     "xs_ar": -0.028317474459759098,
+     "final": 16.1329854482766
+    },
+    "2020": {
+     "ar": 0.2209576455155282,
+     "ir": 0.7863580524135537,
+     "mdd": -0.31658168464561964,
+     "xs_ar": 0.03907950932744153,
+     "final": 15.506162098047215
+    },
+    "2021": {
+     "ar": 0.3042760757251015,
+     "ir": 1.5739227081119072,
+     "mdd": -0.07817707711694488,
+     "xs_ar": 0.006515381164437541,
+     "final": 16.546853943856437
+    },
+    "2022": {
+     "ar": -0.13515719499823764,
+     "ir": -0.5734338280678967,
+     "mdd": -0.20974590918539937,
+     "xs_ar": 0.056177641815923815,
+     "final": 10.99616875564509
+    },
+    "2023": {
+     "ar": 0.452123573211064,
+     "ir": 1.974892363945021,
+     "mdd": -0.16477719769395083,
+     "xs_ar": 0.14478633875078062,
+     "final": 18.36025389731011
+    },
+    "2024": {
+     "ar": 0.9364918887336862,
+     "ir": 2.885862390092341,
+     "mdd": -0.14034962036745524,
+     "xs_ar": 0.4532939962634101,
+     "final": 24.52903438735649
+    },
+    "2025": {
+     "ar": 0.3287086827250538,
+     "ir": 1.2032721360281788,
+     "mdd": -0.2695734534719979,
+     "xs_ar": 0.13283010045172786,
+     "final": 16.817602832849165
+    },
+    "2026": {
+     "ar": 0.08896173637699079,
+     "ir": 0.5577338772387904,
+     "mdd": -0.15324002451300955,
+     "xs_ar": -0.03154437021597455,
+     "final": 13.671701720520566
+    }
+   },
+   "spy_ar_by_year": {
+    "2017": 0.21841825247336177,
+    "2018": -0.0498094028971553,
+    "2019": 0.3113601294497832,
+    "2020": 0.18374074885199043,
+    "2021": 0.28601097058627567,
+    "2022": -0.1824065565817402,
+    "2023": 0.26411758132853613,
+    "2024": 0.24885382535972922,
+    "2025": 0.17872419399493245,
+    "2026": 0.13337246474817954
+   }
+  },
+  "costs_x3": {
+   "wf": {
+    "total_return": 7.512983781594066,
+    "annualized_return": 0.24409210899250278,
+    "information_ratio": 1.122014692149981,
+    "max_drawdown": -0.317247808797093,
+    "n_days": 2471
+   },
+   "by_year": {
+    "2017": {
+     "ar": 0.34831032916032956,
+     "ir": 2.444816501426226,
+     "mdd": -0.058477280662394326,
+     "xs_ar": 0.11361916637637025,
+     "final": 17.08297495879897
+    },
+    "2018": {
+     "ar": 0.0004092633809706925,
+     "ir": 0.10589790170662011,
+     "mdd": -0.1981716949035517,
+     "xs_ar": 0.06587921716547498,
+     "final": 12.705156385414863
+    },
+    "2019": {
+     "ar": 0.25063066127022804,
+     "ir": 1.595715483142593,
+     "mdd": -0.08348176489499637,
+     "xs_ar": -0.04481461930188157,
+     "final": 15.868919609514082
+    },
+    "2020": {
+     "ar": 0.20316250749781672,
+     "ir": 0.7393183657911478,
+     "mdd": -0.31724780879709324,
+     "xs_ar": 0.024644265928286835,
+     "final": 15.280163845222239
+    },
+    "2021": {
+     "ar": 0.28514887539255684,
+     "ir": 1.4878511908151053,
+     "mdd": -0.0792349411797646,
+     "xs_ar": -0.008187730736522403,
+     "final": 16.305150303384167
+    },
+    "2022": {
+     "ar": -0.13915839512210548,
+     "ir": -0.5930029469367104,
+     "mdd": -0.2108345211669438,
+     "xs_ar": 0.051665026034714644,
+     "final": 10.945697751345463
+    },
+    "2023": {
+     "ar": 0.4367531661983286,
+     "ir": 1.9175274766746535,
+     "mdd": -0.1672187027682699,
+     "xs_ar": 0.13421817323219246,
+     "final": 18.16821608887948
+    },
+    "2024": {
+     "ar": 0.911847842893527,
+     "ir": 2.8271271629762036,
+     "mdd": -0.14152910356876092,
+     "xs_ar": 0.440563081798535,
+     "final": 24.218105572568547
+    },
+    "2025": {
+     "ar": 0.3165738978863899,
+     "ir": 1.1684782101030233,
+     "mdd": -0.2699560053884834,
+     "xs_ar": 0.12365745388756094,
+     "final": 16.66583180096222
+    },
+    "2026": {
+     "ar": 0.07236475140976939,
+     "ir": 0.473250076415362,
+     "mdd": -0.15409824804957162,
+     "xs_ar": -0.046854564238647214,
+     "final": 13.491257074550303
+    }
+   },
+   "spy_ar_by_year": {
+    "2017": 0.21841825247336177,
+    "2018": -0.0498094028971553,
+    "2019": 0.3113601294497832,
+    "2020": 0.18374074885199043,
+    "2021": 0.28601097058627567,
+    "2022": -0.1824065565817402,
+    "2023": 0.26411758132853613,
+    "2024": 0.24885382535972922,
+    "2025": 0.17872419399493245,
+    "2026": 0.13337246474817954
+   }
+  },
+  "fill_next_close": {
+   "wf": {
+    "total_return": 10.55892617875996,
+    "annualized_return": 0.28351077058205876,
+    "information_ratio": 1.2694401971046585,
+    "max_drawdown": -0.3191890275664657,
+    "n_days": 2471
+   },
+   "by_year": {
+    "2017": {
+     "ar": 0.37801350722435845,
+     "ir": 2.611747627008821,
+     "mdd": -0.049746339958941066,
+     "xs_ar": 0.13547651775485903,
+     "final": 17.45629245074668
+    },
+    "2018": {
+     "ar": -0.009481852689237957,
+     "ir": 0.05567352313887922,
+     "mdd": -0.19947038707822118,
+     "xs_ar": 0.055223120303267356,
+     "final": 12.58053167201388
+    },
+    "2019": {
+     "ar": 0.3592684621833131,
+     "ir": 2.2087251925947404,
+     "mdd": -0.08011896007984698,
+     "xs_ar": 0.03808979120160442,
+     "final": 17.241695559896538
+    },
+    "2020": {
+     "ar": 0.2582155449621404,
+     "ir": 0.8792843030235736,
+     "mdd": -0.31918902756646594,
+     "xs_ar": 0.06942684464357574,
+     "final": 15.979337421019157
+    },
+    "2021": {
+     "ar": 0.3338659893559843,
+     "ir": 1.7039560413200117,
+     "mdd": -0.0703655880412426,
+     "xs_ar": 0.028878557722617323,
+     "final": 16.92074354009845
+    },
+    "2022": {
+     "ar": -0.1294828393762112,
+     "ir": -0.577093953666459,
+     "mdd": -0.1936842560836599,
+     "xs_ar": 0.06075870187378121,
+     "final": 11.06774171179124
+    },
+    "2023": {
+     "ar": 0.48434643829826585,
+     "ir": 2.1022538981509817,
+     "mdd": -0.16125071275814662,
+     "xs_ar": 0.16641731712711705,
+     "final": 18.76276802086359
+    },
+    "2024": {
+     "ar": 0.99616109426565,
+     "ir": 3.0436028432839812,
+     "mdd": -0.14189917179355882,
+     "xs_ar": 0.48313917244585464,
+     "final": 25.281803729509708
+    },
+    "2025": {
+     "ar": 0.3491224277177776,
+     "ir": 1.2242756373616235,
+     "mdd": -0.2739480896496622,
+     "xs_ar": 0.15065675180359694,
+     "final": 17.072882542199658
+    },
+    "2026": {
+     "ar": 0.09609239191237551,
+     "ir": 0.5834182892853451,
+     "mdd": -0.14253184530123497,
+     "xs_ar": -0.024175121246806656,
+     "final": 13.749112947594792
+    }
+   },
+   "spy_ar_by_year": {
+    "2017": 0.21841825247336177,
+    "2018": -0.0498094028971553,
+    "2019": 0.3113601294497832,
+    "2020": 0.18374074885199043,
+    "2021": 0.28601097058627567,
+    "2022": -0.1824065565817402,
+    "2023": 0.26411758132853613,
+    "2024": 0.24885382535972922,
+    "2025": 0.17872419399493245,
+    "2026": 0.13337246474817954
+   }
+  },
+  "sleeve_n5": {
+   "wf": {
+    "total_return": 16.83549440090456,
+    "annualized_return": 0.34155912394842125,
+    "information_ratio": 1.3540542987485276,
+    "max_drawdown": -0.3285513539669971,
+    "n_days": 2471
+   },
+   "by_year": {
+    "2017": {
+     "ar": 0.4552868017681029,
+     "ir": 2.94919317716929,
+     "mdd": -0.05742499033249071,
+     "xs_ar": 0.1906627802977013,
+     "final": 18.42718809223883
+    },
+    "2018": {
+     "ar": 0.010991434370217767,
+     "ir": 0.15782083670038236,
+     "mdd": -0.19480738691200206,
+     "xs_ar": 0.077556699349358,
+     "final": 12.838477331686674
+    },
+    "2019": {
+     "ar": 0.287821674641455,
+     "ir": 1.75403306713002,
+     "mdd": -0.09362003887858816,
+     "xs_ar": -0.0149201157640836,
+     "final": 16.33892637186103
+    },
+    "2020": {
+     "ar": 0.3182123303498443,
+     "ir": 0.9316078284555189,
+     "mdd": -0.32855135396699753,
+     "xs_ar": 0.1338810868550363,
+     "final": 16.741296595443032
+    },
+    "2021": {
+     "ar": 0.3292650261715817,
+     "ir": 1.6104904330303225,
+     "mdd": -0.07655682638211225,
+     "xs_ar": 0.02709671824718297,
+     "final": 16.86260927876943
+    },
+    "2022": {
+     "ar": 0.047622376907884956,
+     "ir": 0.3057791073792402,
+     "mdd": -0.22999195674277495,
+     "xs_ar": 0.26492839162688675,
+     "final": 13.299892538150763
+    },
+    "2023": {
+     "ar": 0.5358144963934788,
+     "ir": 2.176463618002945,
+     "mdd": -0.17272689898218352,
+     "xs_ar": 0.202539291525051,
+     "final": 19.405469958991063
+    },
+    "2024": {
+     "ar": 1.0201289131107099,
+     "ir": 2.9211312932794273,
+     "mdd": -0.14293153213974097,
+     "xs_ar": 0.4987412227668861,
+     "final": 25.584149472199535
+    },
+    "2025": {
+     "ar": 0.3812686377677168,
+     "ir": 1.2758314819307108,
+     "mdd": -0.2809849425576243,
+     "xs_ar": 0.17669533264671974,
+     "final": 17.474787129937948
+    },
+    "2026": {
+     "ar": 0.2553970534424135,
+     "ir": 1.2466919561819814,
+     "mdd": -0.14412043624796766,
+     "xs_ar": 0.11366587333989947,
+     "final": 15.461699075676783
+    }
+   },
+   "spy_ar_by_year": {
+    "2017": 0.21841825247336177,
+    "2018": -0.0498094028971553,
+    "2019": 0.3113601294497832,
+    "2020": 0.18374074885199043,
+    "2021": 0.28601097058627567,
+    "2022": -0.1824065565817402,
+    "2023": 0.26411758132853613,
+    "2024": 0.24885382535972922,
+    "2025": 0.17872419399493245,
+    "2026": 0.13337246474817954
+   }
+  },
+  "sleeve_n8": {
+   "wf": {
+    "total_return": 1.0727414089396574,
+    "annualized_return": 0.07716497193721072,
+    "information_ratio": 0.896351712980437,
+    "max_drawdown": -0.17331495305825106,
+    "n_days": 2471
+   },
+   "by_year": {
+    "2017": {
+     "ar": 0.10357309619651911,
+     "ir": 2.907233918184909,
+     "mdd": -0.013245486631388026,
+     "xs_ar": -0.09412423431213068,
+     "final": 14.004420225486527
+    },
+    "2018": {
+     "ar": -0.02889243484893056,
+     "ir": -0.3045204210755689,
+     "mdd": -0.10101786089133624,
+     "xs_ar": 0.018086553331847863,
+     "final": 12.335936104274902
+    },
+    "2019": {
+     "ar": 0.16074121633643945,
+     "ir": 2.3111482905619445,
+     "mdd": -0.035785516082083246,
+     "xs_ar": -0.12811302765516105,
+     "final": 14.732696434076317
+    },
+    "2020": {
+     "ar": 0.09318860969848575,
+     "ir": 0.6687119939362575,
+     "mdd": -0.17331495305825106,
+     "xs_ar": -0.11169938305832239,
+     "final": 13.883495343170775
+    },
+    "2021": {
+     "ar": 0.15401970401384357,
+     "ir": 2.1140112184448223,
+     "mdd": -0.02828612018529053,
+     "xs_ar": -0.129581575471774,
+     "final": 14.647721269616577
+    },
+    "2022": {
+     "ar": -0.09547876718732862,
+     "ir": -0.8457128876235737,
+     "mdd": -0.12389997407681685,
+     "xs_ar": 0.08439949616997788,
+     "final": 11.4965721645
+    },
+    "2023": {
+     "ar": 0.13091891086065033,
+     "ir": 1.8346025115885114,
+     "mdd": -0.054468095905816916,
+     "xs_ar": -0.1228281846682507,
+     "final": 14.341649298411744
+    },
+    "2024": {
+     "ar": 0.1310855154936308,
+     "ir": 1.8633748794481442,
+     "mdd": -0.045985616777243,
+     "xs_ar": -0.11128455384425377,
+     "final": 14.357766243458252
+    },
+    "2025": {
+     "ar": 0.0878811496600691,
+     "ir": 0.9346114421166817,
+     "mdd": -0.09572735676399047,
+     "xs_ar": -0.09769039626716627,
+     "final": 13.802243310897339
+    },
+    "2026": {
+     "ar": 0.061961655517390746,
+     "ir": 0.8721377550862632,
+     "mdd": -0.04467553128136725,
+     "xs_ar": -0.07079713011060544,
+     "final": 13.377961325350096
+    }
+   },
+   "spy_ar_by_year": {
+    "2017": 0.21841825247336177,
+    "2018": -0.0498094028971553,
+    "2019": 0.3113601294497832,
+    "2020": 0.18374074885199043,
+    "2021": 0.28601097058627567,
+    "2022": -0.1824065565817402,
+    "2023": 0.26411758132853613,
+    "2024": 0.24885382535972922,
+    "2025": 0.17872419399493245,
+    "2026": 0.13337246474817954
+   }
+  },
+  "pnl_2024_by_name": {
+   "ERIE": -0.17253387632652628,
+   "GM": -0.056720732138967556,
+   "VLO": -0.024430667775853898,
+   "MPC": -0.024349639761085617,
+   "ABNB": -0.018341871337689497,
+   "EXPE": -0.018147674850299556,
+   "SPG": -0.008479111945179696,
+   "PHM": 0.005966725003285767,
+   "PSX": 0.01801207952537842,
+   "KLAC": 0.02237489267217474,
+   "FOX": 0.03507609840303427,
+   "NRG": 0.04778606152089182,
+   "GDDY": 0.07464526775322167,
+   "WSM": 0.08796282597127347,
+   "CMG": 0.09525154631507404,
+   "NTAP": 0.10062126853278075,
+   "META": 0.23809872668177134,
+   "VST": 0.24282986363369918,
+   "NFLX": 0.321080345001304,
+   "LRCX": 0.3327147567036528,
+   "UAL": 0.4476643758648109,
+   "DECK": 0.4707910358507892,
+   "SYF": 0.5121848293409568,
+   "SMCI": 1.6305819996185356,
+   "CVNA": 2.8308737469705987,
+   "APP": 3.003384378844121
+  }
+ },
+ "item7_community": {
+  "provider": "data/qlib/us_data",
+  "n_inst": 745,
+  "membership_windows_per_name": 1.0134228187919463,
+  "median_span_days": 31193.0,
+  "spy_overlap": {
+   "n_days": 1224,
+   "ret_corr": 0.9926778450731291,
+   "community_total_2017_2020": 0.7005358084289659,
+   "honest_total_2017_2020": 0.7973141334948617
+  },
+  "one_day_moves_over_40pct_2017_2020": 248,
+  "honest_one_day_moves_over_40pct_2017_2020": 37,
+  "names_in_both_feeds": 615,
+  "honest_names": 744,
+  "community_names": 745,
+  "top6_mom_honest": [
+   "TTD",
+   "CVNA",
+   "ENPH",
+   "ETSY",
+   "AMD",
+   "PAYC"
+  ],
+  "top6_mom_community": [
+   "SGP",
+   "ETSY",
+   "AMD",
+   "PAYC",
+   "XLNX",
+   "CIEN"
+  ]
+ },
+ "runtime_s": 533.5
+}
