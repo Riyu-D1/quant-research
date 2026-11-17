@@ -583,29 +583,37 @@ def resolve_day(closes: pd.DataFrame, want: str) -> pd.Timestamp:
 
 def compute_signals(cfg: dict, closes: pd.DataFrame,
                     day: pd.Timestamp, state_dir: Path) -> tuple[dict, dict, list]:
-    """Per-signal {sym: score} for `day`, plus IC-history for ewic weights."""
+    """Per-signal {sym: score} for `day`, plus IC-history for ewic weights.
+
+    Phase-8 additions: `sn_<base>` legs are the base signal sector-
+    demeaned with cfg.sector_map; `sleeve.ic_gate` drops the mom leg on
+    days its trailing EW rank-IC has gone non-positive (vq is declared
+    ungateable — a snapshot signal has no live IC history)."""
     sig_scalars: dict[str, pd.Series] = {}
     notes: list[str] = []
     sig_series: dict[str, pd.Series] = {}        # only populated for ewic
     days_lookback = closes.index[-min(len(closes.index), 260):]
+    smap = LV.load_sector_map(REPO / cfg["sector_map"]) \
+        if cfg.get("sector_map") else {}
     for sig in cfg["signals"]:
-        if sig in LV._BARS_FNS or sig == "beta":
-            if sig == "beta":
+        base = sig[3:] if sig.startswith("sn_") else sig
+        if base in LV._BARS_FNS or base == "beta":
+            if base == "beta":
                 mkt = closes.pct_change().mean(axis=1)
                 sig_scalars[sig] = pd.Series(
                     {s: LV.lowbeta(closes[s], mkt, day)
                      for s in closes.columns})
             else:
                 sig_scalars[sig] = pd.Series(
-                    {s: LV._BARS_FNS[sig](closes[s], day)
+                    {s: LV._BARS_FNS[base](closes[s], day)
                      for s in closes.columns})
             if cfg["weighting"] == "ewic":
                 sig_series[sig] = LV.bars_signals(
-                    closes, days_lookback, [sig])[sig]
-        elif sig in ("vq", "news"):
-            snap = state_dir / f"{sig}_snapshot.parquet"
+                    closes, days_lookback, [base])[base]
+        elif base in ("vq", "news"):
+            snap = state_dir / f"{base}_snapshot.parquet"
             s_, note = LV.snapshot_signal(
-                snap, sig, stale_days=cfg.get("snapshot_stale_days", 45),
+                snap, base, stale_days=cfg.get("snapshot_stale_days", 45),
                 asof_day=day)
             notes.append(note or f"{sig}: snapshot fresh")
             if not s_.empty:
@@ -614,10 +622,21 @@ def compute_signals(cfg: dict, closes: pd.DataFrame,
             notes.append(f"{sig}: not computable live (needs the monthly-"
                          "retrain store pipeline) — dropped")
             log(f"DROPPED {sig}: no live source")
+        if sig.startswith("sn_") and sig in sig_scalars:
+            sig_scalars[sig] = LV.sector_neutralise(
+                sig_scalars[sig].dropna(), smap)
     scalars = {s: v.dropna() for s, v in sig_scalars.items()}
     for s in cfg["signals"]:
         if s not in scalars:
             log(f"signal {s}: no scores — excluded from weights")
+    gate_cfg = (cfg.get("sleeve") or {}).get("ic_gate")
+    if gate_cfg and "mom" in scalars:
+        gcfg = {**gate_cfg, "fwd_h": int(cfg.get("fwd_h", 21))}
+        if LV.leg_ic_on(closes, day, gcfg):
+            notes.append("ic_gate: mom trailing rank-IC positive — leg on")
+        else:
+            scalars.pop("mom")
+            notes.append("ic_gate: mom trailing rank-IC <= 0 — leg off")
     if cfg["weighting"] == "ewic" and scalars:
         labels = LV.labels_from_bars(closes, days_lookback)
         import quant_research.adaptive as ad
@@ -732,9 +751,28 @@ def run_day(args) -> None:
     rc["action"] = rc["actions"][cfg["regime"]]  # none/half/cash -> exposure
     exposure, why = LV.regime_state(spy, rc, day)
     log(f"regime: {why} -> exposure {exposure}")
+    shrink_cfg = sleeve_cfg.get("ic_shrink")
+    if shrink_cfg:
+        sc = LV.sleeve_ic_scale(
+            closes, day, {**shrink_cfg, "fwd_h": int(cfg.get("fwd_h", 21))})
+        exposure = round(exposure * sc, 4)
+        log(f"ic_shrink: trailing-IC sleeve scale {sc:.2f} "
+            f"-> exposure {exposure:.2f}")
 
     # -- signals + weights ---------------------------------------------------------
-    sig_scalars, weights, notes = compute_signals(cfg, closes, day, state_dir)
+    # pick_freeze: monthly — the sleeve list is fixed at the month's first
+    # trading day (recomputed there deterministically; needs no state).
+    pick_day = day
+    if sleeve_cfg.get("pick_freeze") == "monthly":
+        mdays = closes.index[(closes.index <= day)
+                             & (closes.index.year == day.year)
+                             & (closes.index.month == day.month)]
+        if len(mdays) and mdays[0] != day:
+            pick_day = mdays[0]
+            log(f"pick_freeze: sleeve list fixed at month open "
+                f"{pick_day.date()}")
+    sig_scalars, weights, notes = compute_signals(cfg, closes, pick_day,
+                                                  state_dir)
     for n in notes:
         log(f"  {n}")
     if not sig_scalars and not use_core:
@@ -745,7 +783,7 @@ def run_day(args) -> None:
     weights_str = ", ".join(f"{k}:{v:.2f}" for k, v in weights.items())
     log(f"weights: {weights_str or '(none — pure core)'}")
 
-    comp = LV.final_scores(sig_scalars, weights, day)
+    comp = LV.final_scores(sig_scalars, weights, pick_day)
     held = broker.positions()
     # prices for every scored name AND every held name — held names that fell
     # out of the universe still need a price so they can be sold, not zombied
@@ -758,8 +796,12 @@ def run_day(args) -> None:
             if len(ser):
                 prices[s] = float(ser.iloc[-1])
     scores = comp[comp.index.isin(prices)]
-    want = list(scores.head(sleeve_n).index)
-    log(f"top-{sleeve_n}: {', '.join(want) or '(none — flat)'}")
+    smap_w = LV.load_sector_map(REPO / cfg["sector_map"]) \
+        if cfg.get("sector_map") else {}
+    want = CS.pick_top(scores, sleeve_n, smap_w,
+                       sleeve_cfg.get("sector_max"))
+    log(f"top-{sleeve_n} (sector_max={sleeve_cfg.get('sector_max')}): "
+        f"{', '.join(want) or '(none — flat)'}")
 
     # -- budget --------------------------------------------------------------------
     fx = LV.gbpusd() if not dry else 1.27

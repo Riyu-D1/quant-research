@@ -19,6 +19,29 @@ import pandas as pd
 DEFAULT_CAP = 0.20
 
 
+def pick_top(scores: pd.Series, n: int,
+             sector_map: dict[str, str] | None = None,
+             sector_max: int | None = None) -> list[str]:
+    """Top-n names by score, optionally capped at `sector_max` picks per
+    sector (greedy in rank order). Unmapped names form their own
+    singleton sector ("UNK:SYM") so a missing label can never cap-deny
+    a pick. Shared by the walk-forward sim and the daily bot — the same
+    list the sim targets is the list the bot buys."""
+    desc = scores.dropna().sort_values(ascending=False)
+    if not sector_max:
+        return desc.head(n).index.tolist()
+    picks, cnt = [], {}
+    for s in desc.index:
+        sec = sector_map.get(s, f"UNK:{s}") if sector_map else f"UNK:{s}"
+        if cnt.get(sec, 0) >= sector_max:
+            continue
+        picks.append(s)
+        cnt[sec] = cnt.get(sec, 0) + 1
+        if len(picks) >= n:
+            break
+    return picks
+
+
 def invvol(closes: pd.DataFrame, picks: list[str], day: pd.Timestamp,
            win: int = 20) -> dict[str, float]:
     """Within-sleeve inverse-volatility weights: w_i ~ 1/sigma_i, where

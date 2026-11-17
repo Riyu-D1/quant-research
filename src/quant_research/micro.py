@@ -199,7 +199,8 @@ def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
                    rebalance: str = "daily",
                    cost_map: dict | None = None,
                    weight_targets: dict | None = None,
-                   band: float = 0.02) -> dict:
+                   band: float = 0.02,
+                   min_order: float = MIN_ORDER_USD) -> dict:
     """Daily rebalanced long-only top-N on (datetime, instrument) scores.
 
     When `weight_targets` is given ({sig_day: {sym: equity fraction}},
@@ -290,7 +291,7 @@ def micro_backtest(pred: pd.Series, closes: pd.DataFrame, n: int = 5,
             if weight_targets is not None:
                 step = weights_step(weight_targets.get(sig_day, {}),
                                     equity, deal, held, day_cost,
-                                    band=band)
+                                    band=band, min_order=min_order)
             else:
                 row = (sig.loc[sig_day].dropna() if sig_day in sig.index
                        else pd.Series(dtype=float))

@@ -276,6 +276,94 @@ def final_scores(signals: dict[str, pd.Series], weights: dict[str, float],
     return sum(parts).dropna().sort_values(ascending=False)
 
 
+# ---------------------------------------------------------------------------
+# phase-8 additions — sector-neutral legs + trailing-IC machinery, all
+# recomputed on the bot's own bars with the same math the walk-forward
+# gate uses (scripts/phase8_us.py).
+
+
+def load_sector_map(path: Path) -> dict[str, str]:
+    """symbol -> GICS sector from the sp500 sector csv; unmapped/blank
+    names map to their own singleton sector so a missing label can never
+    cap-deny a pick. Same convention as the walk-forward gate."""
+    if not path.exists():
+        return {}
+    sm = pd.read_csv(path)
+    out = {}
+    for r in sm.itertuples():
+        sec = r.sector if isinstance(r.sector, str) and r.sector.strip() \
+            else f"UNK:{r.symbol}"
+        out[str(r.symbol).upper().replace(".", "-")] = sec
+    return out
+
+
+def sector_neutralise(day_scores: pd.Series,
+                      smap: dict[str, str]) -> pd.Series:
+    """score minus its sector's same-day cross-sectional mean. A name
+    missing from the map is its own sector -> neutral 0 (it can never be
+    a top pick off a label it doesn't have)."""
+    sec = day_scores.index.map(lambda s: smap.get(s, f"UNK:{s}"))
+    return day_scores - day_scores.groupby(sec).transform("mean")
+
+
+def mom_wide(close: pd.DataFrame) -> pd.DataFrame:
+    """Vectorised 12-1 momentum — identical to momentum() evaluated per
+    day per column (positional on each column's own non-NaN history)."""
+    return pd.DataFrame(
+        {s: c.dropna().shift(21) / c.dropna().shift(252) - 1.0
+         for s, c in close.items()}).reindex(close.index)
+
+
+def trailing_mom_ic(close: pd.DataFrame, day: pd.Timestamp, h: int = 21,
+                    win: int = 252, hl: float = 63.0) -> tuple[float, int]:
+    """(EW rank-IC, n_obs) of momentum vs the h-day forward return, using
+    only signal days whose forward window has CLOSED by `day` — the sim's
+    ic.shift(h+1) boundary: the last usable signal day is the (h+1)-th
+    bar back. Returns (nan, n) when too few closed ICs exist."""
+    days = close.index[close.index <= day]
+    if len(days) <= h + 1:
+        return float("nan"), 0
+    end = days[-(h + 1)]
+    mom = mom_wide(close).loc[:end]
+    fwd = close.shift(-(h + 1)) / close.shift(-1) - 1.0
+    df = pd.concat([mom.stack().rename("s"),
+                    fwd.loc[:end].stack().rename("y")], axis=1).dropna()
+    if df.empty:
+        return float("nan"), 0
+    ic = df.groupby(level=0).apply(
+        lambda g: g["s"].corr(g["y"], method="spearman")
+        if len(g) > 20 else np.nan).dropna()
+    tail = ic.iloc[-win:]
+    if not len(tail):
+        return float("nan"), 0
+    age = np.arange(len(tail))[::-1].astype(float)
+    w = 0.5 ** (age / max(hl, 1e-9))
+    return float((tail.values * w).sum() / w.sum()), int(len(tail))
+
+
+def sleeve_ic_scale(close: pd.DataFrame, day: pd.Timestamp,
+                    cfg: dict) -> float:
+    """The ic_shrink sleeve scale on the bot's own bars — the same stat
+    the walk-forward gate scores: clip(EW_ic / full_at, 0, 1), falling
+    back to prior_scale while history is thinner than min_obs."""
+    ew, n = trailing_mom_ic(close, day, h=int(cfg.get("fwd_h", 21)),
+                            win=int(cfg["ic_days"]),
+                            hl=float(cfg["halflife_days"]))
+    if n < int(cfg["min_obs"]):
+        return float(cfg["prior_scale"])
+    return float(np.clip(ew / cfg["full_at"], 0.0, 1.0))
+
+
+def leg_ic_on(close: pd.DataFrame, day: pd.Timestamp, cfg: dict) -> bool:
+    """ic_gate mask for the momentum leg: ON while its trailing EW
+    rank-IC is positive, or while fewer than min_obs closed ICs exist
+    (no evidence -> don't gate)."""
+    ew, n = trailing_mom_ic(close, day, h=int(cfg.get("fwd_h", 21)),
+                            win=int(cfg["ic_days"]),
+                            hl=float(cfg["halflife_days"]))
+    return bool(n < int(cfg["min_obs"]) or ew > 0)
+
+
 def gbpusd() -> float:
     """GBP->USD from a free FX endpoint; falls back to the research static."""
     try:
