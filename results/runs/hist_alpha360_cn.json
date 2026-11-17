@@ -1,0 +1,18 @@
+{
+  "metrics": {
+    "IC": 0.0528,
+    "ICIR": 0.3636,
+    "Rank IC": 0.0651,
+    "Rank ICIR": 0.4595,
+    "1day.excess_return_with_cost.annualized_return": 0.0964,
+    "1day.excess_return_with_cost.information_ratio": 1.3604,
+    "1day.excess_return_with_cost.max_drawdown": -0.065
+  },
+  "turnover": 0.1598,
+  "backtest_days": 871,
+  "config": "configs/benchmarks/hist_alpha360_cn.yaml",
+  "experiment": "benchmarks",
+  "train_minutes": 35.68,
+  "model_class": "HIST",
+  "source": "results/kaggle-2026-11-10 (reconstructed: runs/*.json were gitignored upstream)"
+}

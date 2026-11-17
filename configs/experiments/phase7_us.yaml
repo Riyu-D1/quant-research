@@ -1,0 +1,109 @@
+# Phase-7 US live-bot selection — PREDECLARED 2026-11-16, committed BEFORE
+# the 2026 window is scored.
+#
+# Goal: a £10-deployable daily US bot that, on honest unseen data, MATCHES
+# OR BEATS SPY on return or risk-adjusted return (IR) with a max drawdown
+# no worse than SPY's. "Matches SPY" is an acceptable outcome.
+#
+# Honesty protocol:
+#   * selection uses ONLY the pre-2025 OOF window;
+#   * the 2025 window is RE-VIEWED (already looked at in phases 2/4/5/6) —
+#    every candidate is reported on it, never tuned on it;
+#   * 2026-01-01 -> latest bar is the FRESH holdout: scored ONCE, on the
+#    selected candidate plus the SPY baseline, after the selection and the
+#    deployed config yaml are committed;
+#   * n_trials continues the results/holdout_log.jsonl running total and
+#    counts every scored candidate-window (OOF + re-viewed + holdout).
+#
+# Live-realistic sim spec (matches what the Alpaca bot can actually do):
+#   * next-open fills — signals on day t's close, fills at day t+1's open;
+#   * liquidity-bucket half-spread + 5 bps flat slippage, per side;
+#   * fractional shares: buy notional rounded to cents, sell qty to 6dp;
+#   * Alpaca $1 notional minimum; rebalance band: a trade is skipped when
+#     |target_w - actual_w| < 2% or the notional is < $1 (outright exits
+#     always trade);
+#   * at most one order per symbol per day — the effect of the PDT guard;
+#   * delisted names are liquidated at their last close;
+#   * max single-stock weight 20% of equity (the SPY core is exempt — it
+#     is an index, not a single stock);
+#   * sleeve size rule: n = min(8, floor((1-core_w) * budget_usd / $1)) so
+#     every order clears the $1 minimum at the ~$12.70 book.
+
+provider: data/qlib/us_alpaca
+fundamentals: data/events/fundamentals.parquet
+account: {cash_gbp: 10.0, gbpusd: 1.27}   # ~$12.70 book
+costs: {flat_bps: 5.0, spread: liquidity_buckets}
+fill: next_open
+delist_liquidate: true
+rebalance_band: 0.02
+min_order_usd: 1.0
+max_stock_weight: 0.20
+core_symbol: SPY
+
+oof: ["2018-01-01", "2024-12-31"]
+reviewed: ["2025-01-01", "2025-12-31"]   # re-viewed window (already seen)
+holdout: ["2026-01-01", "2026-12-31"]    # FRESH — scored once, selected only
+
+# Sleeve signals — every leg is computable by the live bot today:
+#   vq      PIT XBRL value/quality composite (phase-6 OOF winner; the
+#           ancestor of state/live/vq_snapshot.parquet)
+#   mom     12-1 momentum (Alpaca bars)
+#   lowvol  -20d realised vol; beta -60d beta vs equal-weight universe
+#   ens_def phase-6 defensive ensemble restricted to live-computable legs
+#           (combo_eq_def minus sn_mom, which has no live signal path)
+signals:
+  vq: [vq]
+  momvq: [mom, vq]
+  ens_def: [lowvol, beta, mom, vq]
+
+# Candidates — the predeclared grid. `guard: to_core` = on a risk-off
+# regime day the sleeve moves into the SPY core, never into cash.
+# Sleeve n per the rule above (0.50->6, 0.70->3, 0.85->1 at $12.70).
+candidates:
+  - {name: A_spy,               core: 1.00, sleeve_signal: null,    guard: none}
+  - {name: B50_vq,              core: 0.50, sleeve_signal: vq,      guard: none}
+  - {name: B50_momvq,           core: 0.50, sleeve_signal: momvq,   guard: none}
+  - {name: B50_ens,             core: 0.50, sleeve_signal: ens_def, guard: none}
+  - {name: B70_vq,              core: 0.70, sleeve_signal: vq,      guard: none}
+  - {name: B70_momvq,           core: 0.70, sleeve_signal: momvq,   guard: none}
+  - {name: B70_ens,             core: 0.70, sleeve_signal: ens_def, guard: none}
+  - {name: B85_vq,              core: 0.85, sleeve_signal: vq,      guard: none}
+  - {name: B85_momvq,           core: 0.85, sleeve_signal: momvq,   guard: none}
+  - {name: B85_ens,             core: 0.85, sleeve_signal: ens_def, guard: none}
+  - {name: C50_vq,              core: 0.50, sleeve_signal: vq,      guard: to_core}
+  - {name: C50_momvq,           core: 0.50, sleeve_signal: momvq,   guard: to_core}
+  - {name: C50_ens,             core: 0.50, sleeve_signal: ens_def, guard: to_core}
+  - {name: C70_vq,              core: 0.70, sleeve_signal: vq,      guard: to_core}
+  - {name: C70_momvq,           core: 0.70, sleeve_signal: momvq,   guard: to_core}
+  - {name: C70_ens,             core: 0.70, sleeve_signal: ens_def, guard: to_core}
+  - {name: C85_vq,              core: 0.85, sleeve_signal: vq,      guard: to_core}
+  - {name: C85_momvq,           core: 0.85, sleeve_signal: momvq,   guard: to_core}
+  - {name: C85_ens,             core: 0.85, sleeve_signal: ens_def, guard: to_core}
+  - {name: D_vq,                core: 0.00, sleeve_signal: vq,      guard: none,
+     sleeve: {n: 8, weighting: invvol}}
+  - {name: D_momvq,             core: 0.00, sleeve_signal: momvq,   guard: none,
+     sleeve: {n: 8, weighting: invvol}}
+  - {name: D_ens,               core: 0.00, sleeve_signal: ens_def, guard: none,
+     sleeve: {n: 8, weighting: invvol}}
+
+# Selection rule (OOF only, applied in this order):
+#   1. drop candidates with OOF max drawdown deeper than SPY's;
+#   2. drop candidates beating SPY in < 50% of rolling 12-month OOF
+#      windows (rolling-252d excess-IR > 0);
+#   3. winner = highest OOF IR among the survivors;
+#   4. if no signal candidate survives -> candidate A (100% SPY) deploys.
+selection:
+  mdd_not_worse_than_spy: true
+  rolling_12m_min_win_rate: 0.50
+  pick: highest_oof_ir
+  fallback: A_spy
+
+# Match gate on the single 2026 look — `validated` flips true only if ALL
+# hold: the selected candidate MATCHES or beats SPY (IR within tol OR
+# annualised return within tol) AND its max drawdown is no deeper than
+# SPY's plus tol. DSR is reported (honesty) but is not a gate leg — the
+# goal is tracking/beating SPY, not harvesting alpha.
+match_gate:
+  ir_tol: 0.05      # selected.IR >= SPY.IR - tol, or
+  ret_tol: 0.005    # selected.ann_ret >= SPY.ann_ret - tol
+  mdd_tol: 0.02     # ... and selected.mdd >= SPY.mdd - tol

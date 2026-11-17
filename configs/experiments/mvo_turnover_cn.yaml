@@ -1,5 +1,7 @@
 # Phase 2 (d): LightGBM Alpha158 signal + turnover-penalised mean-variance
 # portfolio construction (src/quant_research/strategy.py) instead of top-k.
+# NOTE: single-split reference config — the `mvo` strategy is compared against
+# TopkDropout on OOF folds by scripts/phase2_run.py (walkforward_cn.yaml).
 qlib_init:
     provider_uri: "~/.qlib/qlib_data/cn_data"   # overridden at runtime
     region: cn

@@ -30,7 +30,7 @@ on:
         description: "fetch, store, preds, smoke, select, holdout, livebot_holdout, or news_smoke"
         required: true
         type: choice
-        options: [fetch, store, preds, smoke, select, holdout, livebot_holdout, news_smoke]
+        options: [fetch, store, preds, smoke, select, holdout, livebot_holdout, honest_holdout, news_smoke]
         default: smoke
       signals:
         description: "preds only: comma list of model signals (gbdt,ev)"
@@ -280,7 +280,7 @@ jobs:
           exit $RC
 
   eval-run:
-    if: inputs.job == 'smoke' || inputs.job == 'select' || inputs.job == 'holdout' || inputs.job == 'livebot_holdout'
+    if: inputs.job == 'smoke' || inputs.job == 'select' || inputs.job == 'holdout' || inputs.job == 'livebot_holdout' || inputs.job == 'honest_holdout'
     runs-on: ubuntu-latest
     timeout-minutes: 350
     steps:
@@ -320,7 +320,8 @@ jobs:
           if [ -f results/news_sentiment/daily_sentiment.parquet ]; then
             echo "sentiment present:"; ls -la results/news_sentiment/
           elif [ "${{ inputs.allow_missing_news }}" = "true" ] || \
-               [ "${{ inputs.job }}" = "livebot_holdout" ]; then
+               [ "${{ inputs.job }}" = "livebot_holdout" ] || \
+               [ "${{ inputs.job }}" = "honest_holdout" ]; then
             echo "::warning::news sentiment absent — 'news' signal dead (dev run)"
           else
             echo "::error::no news sentiment — run Kaggle MODELS=phase4_news_score or set allow_missing_news"
@@ -345,6 +346,7 @@ jobs:
             # `git add` (phase4_us.json / news_sentiment don't exist pre-holdout)
             for p in results/oof/us_adaptive results/phase4_us_select.json \
                      results/phase4_us.json results/live_holdout_us.json \
+                     results/honest_holdout_us.json \
                      results/holdout_log.jsonl results/news_sentiment; do
               git add "$p" 2>/dev/null || true
             done
@@ -358,6 +360,17 @@ jobs:
             ARGS=(--eval-start 2025-01-01)
             # the pinned live config carries no news signal; --with-news only
             # matters once the Kaggle sentiment branch has landed
+            if [ -f results/news_sentiment/daily_sentiment.parquet ]; then
+              ARGS+=(--with-news)
+            fi
+            uv run --no-sync python scripts/live_holdout.py "${ARGS[@]}" &
+          elif [ "${{ inputs.job }}" = "honest_holdout" ]; then
+            # the Phase-5 honest rescore: PIT universe (delisted included),
+            # liquidity-bucket costs + flat-bps sweep, next-open fills,
+            # delist liquidation, robustness block — all variants count in
+            # n_trials. Writes results/honest_holdout_us.json.
+            ARGS=(--eval-start 2025-01-01
+                  --out results/honest_holdout_us.json)
             if [ -f results/news_sentiment/daily_sentiment.parquet ]; then
               ARGS+=(--with-news)
             fi
@@ -386,6 +399,7 @@ jobs:
             results/phase4_us_select.json
             results/phase4_us.json
             results/live_holdout_us.json
+            results/honest_holdout_us.json
             results/holdout_log.jsonl
           if-no-files-found: ignore
 
@@ -397,6 +411,7 @@ jobs:
           git checkout -B phase4/adaptive
           for p in results/oof/us_adaptive results/phase4_us_select.json \
                    results/phase4_us.json results/live_holdout_us.json \
+                   results/honest_holdout_us.json \
                    results/holdout_log.jsonl results/news_sentiment; do
             git add "$p" 2>/dev/null || true
           done

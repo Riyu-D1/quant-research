@@ -39,11 +39,37 @@ REGISTRY = {
     "doubleensemble_us":("configs/benchmarks/doubleensemble_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500 PIT"),
     "transformer_us":   ("configs/benchmarks/transformer_alpha158_us.yaml", US, "benchmarks_us", "Alpha158 sp500 PIT"),
     "hist_us":          ("configs/benchmarks/hist_alpha360_us.yaml", US, "benchmarks_us", "Alpha360 sp500 PIT"),
-    # Phase 2 experiments (do not run until baselines complete)
-    "lgb_combined_cn":  ("configs/experiments/lightgbm_alpha158_360_cn.yaml", CN, "phase2", "Alpha158+Alpha360 concat"),
-    "lgb_tuned_cn":     ("scripts/tune_lgbm.py", CN, "phase2", "Optuna-tuned LightGBM"),
-    "stacked_cn":       ("scripts/stack_ensemble.py --config configs/experiments/stacked_ensemble_cn.yaml", CN, "phase2", "stacked ensemble"),
-    "mvo_cn":           ("configs/experiments/mvo_turnover_cn.yaml", CN, "phase2", "turnover-penalised MVO"),
+    # Phase 2 — walk-forward pipeline (scripts/phase2_run.py). The main entry
+    # runs OOF folds + tuning + ensemble + TopkDropout-vs-MVO comparison.
+    # Holdout scoring is a separate, deliberate step: append
+    # `--holdout <signal>@<strategy>` (e.g. via MODELS="phase2_cn" then edit).
+    "phase2_cn":        ("scripts/phase2_run.py --market cn --tune-trials 25", CN, "phase2", "walk-forward pipeline cn"),
+    "phase2_us":        ("scripts/phase2_run.py --market us --tune-trials 25", US, "phase2", "walk-forward pipeline us"),
+    "lgb_tuned_cn":     ("scripts/tune_lgbm.py --market cn --trials 25", CN, "phase2", "Optuna-tuned LightGBM"),
+    "lgb_tuned_us":     ("scripts/tune_lgbm.py --market us --trials 25", US, "phase2", "Optuna-tuned LightGBM"),
+    "stacked_cn":       ("scripts/stack_ensemble.py --market cn", CN, "phase2", "stacked ensemble"),
+    "stacked_us":       ("scripts/stack_ensemble.py --market us", US, "phase2", "stacked ensemble"),
+    # GPU OOF preds for the stacker (run on Kaggle; merge results/oof pkls)
+    "transformer_cn_wf":("scripts/phase2_run.py --market cn --models transformer", CN, "phase2", "Transformer OOF preds"),
+    "hist_cn_wf":       ("scripts/phase2_run.py --market cn --models hist", CN, "phase2", "HIST OOF preds"),
+    "transformer_us_wf":("scripts/phase2_run.py --market us --models transformer", US, "phase2", "Transformer OOF preds"),
+    "hist_us_wf":       ("scripts/phase2_run.py --market us --models hist", US, "phase2", "HIST OOF preds"),
+    # Holdout-fold preds only (no scoring) — needed when a stack that includes
+    # a GPU model wins validation; the CI holdout run then scores once.
+    "hist_cn_ho":       ("scripts/phase2_run.py --market cn --models hist --train-holdout", CN, "phase2", "HIST holdout-fold preds"),
+    "transformer_cn_ho":("scripts/phase2_run.py --market cn --models transformer --train-holdout", CN, "phase2", "Transformer holdout-fold preds"),
+    # Phase 6 — remaining published-GPU models on the walk-forward grids.
+    # --train-holdout trains the 4 OOF folds AND the holdout fold in one
+    # pass so CI can score any candidate without a second GPU session.
+    "tcn_cn_wf":        ("scripts/phase2_run.py --market cn --models tcn --train-holdout", CN, "phase6", "TCN Alpha158-20 OOF+holdout preds"),
+    "alstm_cn_wf":      ("scripts/phase2_run.py --market cn --models alstm --train-holdout", CN, "phase6", "ALSTM Alpha158-20 OOF+holdout preds"),
+    "tra_cn_wf":        ("scripts/phase2_run.py --market cn --models tra --train-holdout", CN, "phase6", "TRA MTSDatasetH OOF+holdout preds"),
+    "igmtf_cn_wf":      ("scripts/phase2_run.py --market cn --models igmtf --train-holdout", CN, "phase6", "IGMTF Alpha360 OOF+holdout preds"),
+    "tcn_us_wf":        ("scripts/phase2_run.py --market us --models tcn --train-holdout", US, "phase6", "TCN US OOF+holdout preds"),
+    # Phase 4 — FinBERT news sentiment on GPU (downloads the phase4-news
+    # artifact itself; output lands under results/news_sentiment/ which the
+    # PUSH_RESULTS=1 commit picks up).
+    "phase4_news_score":("scripts/phase4_score_news.py", CN, "phase4", "FinBERT news sentiment scoring", False),
 }
 
 
@@ -81,8 +107,10 @@ def ensure_us_concepts() -> None:
 
 def run_one(name: str) -> Path:
     entry = REGISTRY[name]
-    config, provider, experiment, _ = entry
-    ensure_data(provider)
+    config, provider, experiment = entry[0], entry[1], entry[2]
+    needs_data = entry[4] if len(entry) > 4 else True
+    if needs_data:
+        ensure_data(provider)
     if name == "hist_us":
         ensure_us_concepts()
     out = REPO / "results/runs" / f"{name}.json"
@@ -94,10 +122,39 @@ def run_one(name: str) -> Path:
     return out
 
 
+AUTO_BEGIN = "<!-- BEGIN AUTO-GENERATED (make_table.py) -->"
+AUTO_END = "<!-- END AUTO-GENERATED (make_table.py) -->"
+
+
 def rebuild_table() -> None:
+    """Refresh the auto block of results/LEADERBOARD.md in place.
+
+    make_table.py only knows results/runs/*.json — overwriting the file with
+    its output would silently delete the hand-curated Phase-2/3/4 holdout
+    sections (exactly what happened on results/kaggle-wf-2026-11-12-0929).
+    Splice the generated table between AUTO markers instead; outside the
+    markers the file is left byte-identical."""
+    import tempfile
+    tmp = Path(tempfile.mkstemp(prefix="lb_", suffix=".md")[1])
     subprocess.run([PY, "scripts/make_table.py", "--runs", "results/runs",
                     "--published", "results/published_leaderboard.csv",
-                    "--out", "results/LEADERBOARD.md"], cwd=REPO, check=False)
+                    "--out", str(tmp)], cwd=REPO, check=False)
+    gen = tmp.read_text().strip() if tmp.exists() else ""
+    tmp.unlink(missing_ok=True)
+    if not gen:
+        print("[gpu-run] make_table produced nothing — LEADERBOARD untouched")
+        return
+    lb = REPO / "results" / "LEADERBOARD.md"
+    old = lb.read_text() if lb.exists() else ""
+    block = f"{AUTO_BEGIN}\n{gen}\n{AUTO_END}"
+    if AUTO_BEGIN in old and AUTO_END in old:
+        head, _, rest = old.partition(AUTO_BEGIN)
+        _, _, tail = rest.partition(AUTO_END)
+        new = head + block + tail
+    else:
+        new = block + ("\n\n" + old if old.strip() else "")
+    lb.write_text(new)
+    print("[gpu-run] LEADERBOARD.md auto block regenerated")
 
 
 def append_experiments(results: dict[str, Path]) -> None:
@@ -142,6 +199,16 @@ def main() -> None:
     if unknown:
         sys.exit(f"unknown model(s) {unknown}; run --list")
 
+    us_missing = not (US / "calendars/day.txt").exists()
+    if us_missing:
+        skipped = [m for m in models
+                   if REGISTRY[m][1] == US and
+                   (REGISTRY[m][4] if len(REGISTRY[m]) > 4 else True)]
+        if skipped:
+            print(f"[gpu-run] WARNING us-qlib-dump missing at {US} — "
+                  f"skipping {skipped} (run us-alpaca-data to build it)")
+            models = [m for m in models if m not in skipped]
+
     results = {}
     failures = []
     for name in models:
@@ -150,7 +217,11 @@ def main() -> None:
         except subprocess.CalledProcessError as e:
             failures.append((name, e.returncode))
             print(f"[gpu-run] FAILED {name} (exit {e.returncode}) — continuing")
-    rebuild_table()
+    # Only refresh the leaderboard when this run actually produced a run
+    # json — script-style entries (phase4_news_score, phase2_*) don't write
+    # results/runs/*.json, and an empty run set has nothing to tabulate.
+    if any(o.exists() for o in results.values()):
+        rebuild_table()
     append_experiments(results)
     if failures:
         sys.exit(f"failed: {failures}")

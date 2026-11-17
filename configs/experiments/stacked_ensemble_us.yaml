@@ -1,0 +1,3 @@
+# Phase 2 (c): stacked ensemble — US twin of stacked_ensemble_cn.yaml.
+#   python scripts/stack_ensemble.py --market us
+# Components are auto-discovered from results/oof/us/*__fold*.pkl.

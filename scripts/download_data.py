@@ -1,5 +1,6 @@
 """Download a qlib community data dump (wraps qlib.tests.data.GetData)."""
 import argparse
+
 from qlib.tests.data import GetData
 
 

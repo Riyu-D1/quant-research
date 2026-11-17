@@ -1,0 +1,29 @@
+{
+  "metrics": {
+    "1day.excess_return_without_cost.std": 0.008245258514423683,
+    "1day.pos": 0.0,
+    "1day.pa": 0.0,
+    "Rank IC": 0.007940383540321495,
+    "1day.ffr": 1.0,
+    "1day.excess_return_without_cost.information_ratio": 0.07365736289810752,
+    "1day.excess_return_with_cost.information_ratio": -0.03763840282419528,
+    "ICIR": 0.059981630533469055,
+    "1day.excess_return_without_cost.max_drawdown": -0.20910992790765176,
+    "1day.excess_return_with_cost.max_drawdown": -0.2228780881503584,
+    "1day.excess_return_without_cost.mean": 3.9366967728578575e-05,
+    "IC": 0.006993960265217985,
+    "1day.excess_return_with_cost.mean": -2.011474810664187e-05,
+    "1day.excess_return_with_cost.annualized_return": -0.004787310049380765,
+    "1day.excess_return_without_cost.annualized_return": 0.009369338319401701,
+    "Rank ICIR": 0.07008413854407551,
+    "1day.excess_return_with_cost.std": 0.008244643680290526
+  },
+  "turnover": 0.11896343167044057,
+  "backtest_days": 901,
+  "config": "configs/benchmarks/doubleensemble_alpha158_us.yaml",
+  "experiment": "benchmarks_us",
+  "recorder_id": "4b2acd0b858a4b5aad41327dcb9cabd2",
+  "provider_uri": "/Users/deepakdiwan/quant-research/data/qlib/us_data",
+  "train_minutes": 122.91,
+  "model_class": "DEnsembleModel"
+}

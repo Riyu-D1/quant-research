@@ -1,0 +1,66 @@
+# Phase-8 pin (2026-11-17): B50_momvq selected by the
+# predeclared walk-forward gate (configs/experiments/phase8_us.yaml).
+# Walk-forward 2471d OOS IR
+# +1.250 AR
+# +0.278 mdd
+# -0.316;
+# gate passed=True match_frac=0.8
+# worst_xs_year=-0.019221077293544164.
+#
+# Phase-8 audit (docs/PHASE8_AUDIT.md, results/phase8_audit.json):
+# the equity path reproduces exactly and PIT/look-ahead is clean, but
+# the reported DSR=0.998 is computed on total returns — on excess
+# returns vs SPY the same test gives 0.36; the edge is concentrated
+# (3 names = ~60% of 2024 sleeve P&L) and collapses at sleeve_n=8
+# (AR +7.7% < SPY). Demoted to false pending corroborating OOS
+# evidence; a walkforward re-run will re-pin true — flip back manually
+# if that happens.
+validated: false
+
+# Live-trading interlock (NEVER set true here — see docs/BOT_SETUP.md).
+live_trading: false
+
+# Signal library for the sleeve. Computable live: mom, rev, srev5, mom6,
+# lowvol, beta (Alpaca bars); vq, news (state/live snapshots); sn_* legs
+# are sector-neutralised with the sector_map path below.
+signals: [mom, vq]
+weighting: equal          # signal blend inside the sleeve (equal ranks)
+ic_months: 12
+halflife_frac: 0.5
+
+# Regime guard — on risk-off (SPY < SMA200 or top-decile trailing vol,
+# lagged) the sleeve's freed share routes per sleeve.risk_off.
+regime: none
+regime_cfg:
+  sma: 200
+  vol_win: 21
+  vol_lookback: 504
+  vol_q: 0.90
+  actions: {none: 1.0, half: 0.5, cash: 0.0, to_core: 0.0}
+
+# Portfolio — core+satellite: 50% SPY core +
+# 50% signal sleeve of up to 6 names (equal).
+core: {symbol: SPY, weight: 0.5}
+sleeve:
+  n: 6
+  weighting: equal
+  risk_off: to_core
+n_positions: 6          # legacy mirror of sleeve.n
+budget_gbp: 10.0
+cost_bps: 10.0            # sizing conservatism (paper fills are free)
+rebalance_band: 0.02   # skip |dw| < band or < $1
+snapshot_stale_days: 45
+order_after_open_min: 15
+sector_map: configs/benchmarks/assets/sp500_sector_map.csv
+fwd_h: 21
+
+risk:
+  max_drawdown: 0.25          # equity vs running peak -> halt new buys
+  daily_loss: 0.05            # equity vs prior day-summary -> halt buys
+  max_position_weight: 0.2   # per single stock (SPY core exempt)
+  max_orders: 12              # per run (sells kept, excess buys dropped)
+  max_daily_notional_frac: 1.0
+  max_price_move: 0.50
+  min_universe: 100
+
+universe: configs/live_universe.txt

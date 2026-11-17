@@ -1,0 +1,98 @@
+{
+  "market": "cn",
+  "git_sha": "a62b4ae",
+  "folds": {
+    "fold0": {
+      "name": "fold0",
+      "train": [
+        "2008-01-01",
+        "2013-12-31"
+      ],
+      "valid": [
+        "2014-01-01",
+        "2014-12-31"
+      ],
+      "eval": [
+        "2015-01-01",
+        "2015-12-31"
+      ]
+    },
+    "fold1": {
+      "name": "fold1",
+      "train": [
+        "2008-01-01",
+        "2014-12-31"
+      ],
+      "valid": [
+        "2015-01-01",
+        "2015-12-31"
+      ],
+      "eval": [
+        "2016-01-01",
+        "2016-12-31"
+      ]
+    },
+    "fold2": {
+      "name": "fold2",
+      "train": [
+        "2008-01-01",
+        "2016-01-01"
+      ],
+      "valid": [
+        "2016-01-02",
+        "2016-12-31"
+      ],
+      "eval": [
+        "2017-01-01",
+        "2017-12-31"
+      ]
+    },
+    "fold3": {
+      "name": "fold3",
+      "train": [
+        "2008-01-01",
+        "2016-12-31"
+      ],
+      "valid": [
+        "2017-01-01",
+        "2017-12-31"
+      ],
+      "eval": [
+        "2018-01-01",
+        "2018-07-31"
+      ]
+    }
+  },
+  "holdout_fold": {
+    "name": "holdout",
+    "train": [
+      "2008-01-01",
+      "2017-07-31"
+    ],
+    "valid": [
+      "2017-08-01",
+      "2018-07-31"
+    ],
+    "eval": [
+      "2018-08-01",
+      "2020-08-01"
+    ]
+  },
+  "threads": 4,
+  "started": "2026-11-16T14:37:32.673419",
+  "holdout_preds": [
+    "alstm__holdout.pkl",
+    "cat__holdout.pkl",
+    "de__holdout.pkl",
+    "hist__holdout.pkl",
+    "igmtf__holdout.pkl",
+    "lgb5__holdout.pkl",
+    "lgb__holdout.pkl",
+    "lgb_rank__holdout.pkl",
+    "lgb_tuned__holdout.pkl",
+    "lrn__holdout.pkl",
+    "tcn__holdout.pkl",
+    "tra__holdout.pkl",
+    "xgb__holdout.pkl"
+  ]
+}

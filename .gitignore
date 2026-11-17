@@ -8,7 +8,7 @@ __pycache__/
 data/
 mlruns/
 third_party/qlib/
-runs/
+/runs/
 build/
 fetch.log
 probe.out
@@ -30,3 +30,6 @@ configs/benchmarks/assets/qlib_sp500_stock2concept.npy
 
 # run logs
 *.log
+results/oof/**/*.tmp
+results/paper_dryrun/
+results/paper_run/

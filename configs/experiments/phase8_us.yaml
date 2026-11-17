@@ -1,0 +1,155 @@
+# Phase-8 US diagnose+fix — PREDECLARED 2026-11-17, committed BEFORE any
+# phase-8 run. This file is the method contract: every choice below was
+# written down before the walk-forward gate executed.
+#
+# Context: phase-7's OOF winner B50_momvq (50% SPY + 6-name mom+vq sleeve)
+# failed the fresh-2026 match gate (AR +0.9% vs SPY +13.3%, mdd -15.9% vs
+# -8.9%). The 2026 sleeve was APA/FTI/VLO/MPC/OGN/LYB — concentrated
+# energy/materials/value. 2025 AND 2026 have both been viewed, so the new
+# gate is a strict expanding-window walk-forward, not a holdout window.
+#
+# Honesty protocol:
+#   * GATE YEARS: every calendar year the honest feed covers — the Alpaca
+#     PIT dump (membership-windowed, delisted names included) starts
+#     2016-01-04, so test years are 2017..2026 (12-1 momentum needs 252d of
+#     history; 2016 is the lookback year, not a test year).
+#   * 2012..2016 honest data DOES NOT EXIST (SIP floor 2016; Stooq gated;
+#     ohlcvault listed-only). Supplementary years 2012..2020 run on the
+#     qlib community dump — flagged survivorship-biased (its instruments
+#     file has no membership windows and contains no delisted names, so
+#     sleeve returns there are inflated). Supplementary years are REPORTED
+#     for every year 2012-2020 but are NOT part of the deploy gate.
+#   * Each test year is an independent episode: book starts flat at
+#     £10≈$12.70; every signal, weight, exposure and pick at day t uses
+#     data ≤ t only (a stronger condition than "< year start"). The only
+#     frozen choices are the predeclared candidate hyperparameters below —
+#     there is nothing to "refit" because no candidate estimates
+#     parameters from data (signals are causal transforms; thresholds are
+#     constants). This is stated so the yearly structure is unambiguous:
+#     refits are per-year by construction, not skipped.
+#   * n_trials continues the results/holdout_log.jsonl running total
+#     (phase 7 ended at 155) and counts every scored candidate-window
+#     (diagnostic backtests + every candidate x gate-year + every
+#     candidate x supplementary-year). DSR is reported on the deployed
+#     pick's concatenated out-of-sample daily returns.
+#
+# Sim spec — identical to phase 7 / what the Alpaca bot actually does:
+#   * next-open fills — signals on day t's close, fills at day t+1's open;
+#   * liquidity-bucket half-spread + 5 bps flat slippage, per side;
+#   * fractional shares; Alpaca $1 notional minimum; 2% rebalance band
+#     (outright exits always trade); ≤1 order/symbol/day (PDT);
+#   * delisted names liquidated at last close;
+#   * max single-stock weight 20% of equity (SPY core exempt);
+#   * sleeve size rule: n = min(8, floor((1-core_w) * budget_usd / $1));
+#   * priced-today pick eligibility — a name must have a finite close ON
+#     the pick day. AMENDMENT 2026-11-17 (post-diagnosis, pre-candidates):
+#     the diagnosis found the phase-7 ever-priced rule let stale vq rank
+#     dead names (CELG/CSRA/BCR — no prices since 2017-2019) into sleeve
+#     slots the sim can never fill; the live bot cannot pick unlisted
+#     names at all, so this is the honest PIT convention, not a tuning
+#     knob — it binds no candidate parameter and predates the first
+#     candidate score. The item-1 rerun of the failed 2026 config keeps
+#     the phase-7 rule so the recorded failure reproduces exactly.
+
+provider: data/qlib/us_alpaca          # honest PIT feed 2016-01 -> gate feed
+provider_supp: data/qlib/us_data       # community dump -> 2012..2020 supplementary (biased)
+fundamentals: data/events/fundamentals.parquet
+sector_map: configs/benchmarks/assets/sp500_sector_map.csv
+account: {cash_gbp: 10.0, gbpusd: 1.27}   # ~$12.70 book
+costs: {flat_bps: 5.0, spread: liquidity_buckets}
+fill: next_open
+delist_liquidate: true
+rebalance_band: 0.02
+min_order_usd: 1.0
+max_stock_weight: 0.20
+core_symbol: SPY
+fwd_h: 21                    # IC/scale forward-return horizon (trading days)
+
+# Walk-forward structure: gate years = every calendar year from
+# gate_start_year onward on the honest feed; supplementary years run on
+# the biased community dump at a flat cost (its normalised prices make
+# dollar-volume spread buckets meaningless) and are reported, not gated.
+walkforward:
+  gate_start_year: 2017
+  supp_years: [2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020]
+  supp_flat_bps: 10.0
+
+# Sleeve signal legs (same live-computable legs as phase 7):
+#   mom     12-1 momentum (bars)          vq   PIT XBRL value/quality
+#   lowvol  -20d realised vol             beta -60d beta vs equal-weight
+#   sn_X    sector-neutral X: X minus its sector's mean that day (sector
+#           map = sp500_sector_map.csv; unmapped names form their own
+#           singleton sectors). Sector-neutral sleeves diversify by
+#           construction instead of by cap.
+signals:
+  vq: [vq]
+  momvq: [mom, vq]
+  sn_momvq: [sn_mom, sn_vq]
+  ens_def: [lowvol, beta, mom, vq]
+
+# Per-leg and sleeve-level IC machinery (all causal, all live-computable):
+#   ic_of(mom) = per-day Spearman rank-IC of the mom score vs the
+#     21d-forward return (fwd = close[t+22]/close[t+1]-1, the next-open
+#     convention), EW-mean with halflife 63d over trailing 252 IC days.
+#   ic_shrink sleeve_scale = clip(ic_of(mom) / 0.02, 0, 1) — needs >= 63
+#     trailing IC observations or the scale defaults to 0.5 (skeptical
+#     prior, never zero-blocks a fresh start). Freed sleeve share always
+#     routes to the SPY core.
+#   ic_gate: a leg is switched OFF for day t when its ic_of() <= 0 (same
+#     trailing EW stat). Only live-computable legs can be gated — vq is a
+#     snapshot signal with no live IC history, so vq is UNGATEABLE in
+#     sim and in the bot (parity by construction); mom is the only
+#     gateable leg. If every leg is off the sleeve is empty -> all core.
+ic_shrink: {ic_signal: mom, halflife_days: 63, ic_days: 252,
+            full_at: 0.02, min_obs: 63, prior_scale: 0.5}
+ic_gate:   {halflife_days: 63, ic_days: 252, min_obs: 63,
+            ungateable: [vq, sn_vq]}
+
+# Candidates — the small predeclared fix list. `pick: {sector_max: k}`
+# caps picks per GICS sector (unmapped = own sector). `pick_freeze:
+# monthly` only re-picks on the first trading day of each month (held
+# names keep their targets between reviews; a delisted name is liquidated
+# by the same rule as always). band overrides spec.rebalance_band.
+candidates:
+  - {name: A_spy,          core: 1.00, sleeve_signal: null,     guard: none}
+  - {name: B50_momvq,      core: 0.50, sleeve_signal: momvq,    guard: none}      # phase-7 control, verbatim
+  - {name: C50_momvq,      core: 0.50, sleeve_signal: momvq,    guard: to_core}   # phase-7 survivor #2
+  - {name: S50_sec2,       core: 0.50, sleeve_signal: momvq,    guard: none,
+     pick: {sector_max: 2}}
+  - {name: S50_sec1,       core: 0.50, sleeve_signal: momvq,    guard: none,
+     pick: {sector_max: 1}}
+  - {name: S50_sn,         core: 0.50, sleeve_signal: sn_momvq, guard: none}
+  - {name: K50_ic,         core: 0.50, sleeve_signal: momvq,    guard: none,
+     ic_shrink: true}
+  - {name: G50_gate,       core: 0.50, sleeve_signal: momvq,    guard: none,
+     ic_gate: true}
+  - {name: M50_month,      core: 0.50, sleeve_signal: momvq,    guard: none,
+     pick_freeze: monthly}
+  - {name: N35_n8,         core: 0.35, sleeve_signal: momvq,    guard: none,
+     sleeve: {weighting: equal}, band: 0.01}                   # breadth: n=8 via $1 rule
+  - {name: S50_sec2_ic,    core: 0.50, sleeve_signal: momvq,    guard: none,
+     pick: {sector_max: 2}, ic_shrink: true}
+
+# Deploy rule (evaluated on GATE YEARS only, every candidate incl. A_spy):
+#   pass = (candidate OOS-curve mdd >= SPY OOS-curve mdd - 0.02)
+#        AND (>= 60% of gate years have candidate AR >= SPY AR - 0.005)
+#        AND (every gate year: candidate AR - SPY AR >= -0.05)
+#   winner = highest walk-forward IR among passers;
+#   if none passes -> deploy A_spy (100% SPY) and say so plainly.
+deploy_gate:
+  mdd_tol: 0.02
+  match_tol: 0.005        # per-year AR within 0.5pt of SPY counts as match
+  min_match_frac: 0.60
+  worst_year_tol: 0.05    # never lose > 5pt to SPY in a single year
+  pick: highest_wf_ir
+  fallback: A_spy
+
+# Diagnosis block (Part 1) — what `diagnose` must produce, all on the
+# honest feed unless noted:
+diagnose:
+  holdout_window: ["2026-01-01", "2026-12-31"]   # the failed window
+  oof_window: ["2018-01-01", "2024-12-31"]       # phase-7 selection window (CSCV)
+  ic_horizons: [5, 21]      # forward-return horizons for IC/RankIC decay
+  ic_years: [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+  bootstrap: {block: 21, n_boot: 2000, seed: 0}
+  cscv: {blocks: 16}        # S contiguous blocks, C(16,8) train/test splits

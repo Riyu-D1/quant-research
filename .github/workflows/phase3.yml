@@ -140,12 +140,23 @@ jobs:
           uv run python scripts/phase3_build.py --market us
           uv run python -m pytest tests/test_phase3.py -x -q
 
+      - name: Swap headroom (alpha158_events handler peaks ~7.4GB)
+        run: |
+          nproc; free -h; swapon --show
+          if ! swapon --show --noheadings | grep -q /mnt/swapfile2; then
+            sudo fallocate -l 8G /mnt/swapfile2 \
+              || sudo dd if=/dev/zero of=/mnt/swapfile2 bs=1M count=8192
+            sudo chmod 600 /mnt/swapfile2
+            sudo mkswap /mnt/swapfile2 && sudo swapon /mnt/swapfile2
+          fi
+          free -h
+
       - name: Restore OOF checkpoints (resume on rerun)
         uses: actions/cache@v4
         with:
           path: results/oof/us_events
-          key: phase3-oof-us-${{ github.run_id }}
-          restore-keys: phase3-oof-us-
+          key: phase3-oof-v2-us-${{ github.run_id }}
+          restore-keys: phase3-oof-v2-us-
 
       - name: Run Phase-3 pipeline (us events)
         run: |

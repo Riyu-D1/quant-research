@@ -1,0 +1,31 @@
+{
+  "metrics": {
+    "1day.excess_return_without_cost.std": 0.005718460332956046,
+    "1day.pos": 0.0,
+    "1day.pa": 0.0,
+    "Rank IC": 0.049049290457489736,
+    "1day.ffr": 1.0,
+    "1day.excess_return_without_cost.information_ratio": 1.4285742844475515,
+    "1day.excess_return_with_cost.information_ratio": 0.9144858856010762,
+    "ICIR": 0.3815683918932706,
+    "l2.train": 0.964544327493836,
+    "1day.excess_return_without_cost.max_drawdown": -0.07230960299230471,
+    "1day.excess_return_with_cost.max_drawdown": -0.08608280684938402,
+    "1day.excess_return_without_cost.mean": 0.0005295335272821734,
+    "IC": 0.04680587323833807,
+    "l2.valid": 0.9950544899629342,
+    "1day.excess_return_with_cost.mean": 0.00033888340258759336,
+    "1day.excess_return_with_cost.annualized_return": 0.08065424981584722,
+    "1day.excess_return_without_cost.annualized_return": 0.12602897949315728,
+    "Rank ICIR": 0.406748756941287,
+    "1day.excess_return_with_cost.std": 0.005716915468473919
+  },
+  "turnover": 0.19110870080956172,
+  "backtest_days": 871,
+  "config": "configs/benchmarks/lightgbm_alpha158_cn.yaml",
+  "experiment": "benchmarks",
+  "recorder_id": "0b64cdc82dc24ecabc7e4171caa47e5a",
+  "provider_uri": "/Users/deepakdiwan/quant-research/data/qlib/cn_data",
+  "train_minutes": 191.38,
+  "model_class": "LGBModel"
+}

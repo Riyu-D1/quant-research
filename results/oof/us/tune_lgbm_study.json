@@ -1,0 +1,18 @@
+{
+  "best_mean_ic": 0.011363052542041275,
+  "best_params": {
+    "learning_rate": 0.010077343383440466,
+    "num_leaves": 338,
+    "max_depth": 9,
+    "colsample_bytree": 0.8274328488972353,
+    "subsample": 0.9356680020181061,
+    "lambda_l1": 0.08266495901067962,
+    "lambda_l2": 0.23586503101953632,
+    "min_data_in_leaf": 56
+  },
+  "n_trials": 25,
+  "folds": [
+    "fold2",
+    "fold3"
+  ]
+}
