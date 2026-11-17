@@ -993,7 +993,7 @@ live_trading: false
 
 # Signal library for the sleeve. Computable live: mom, rev, srev5, mom6,
 # lowvol, beta (Alpaca bars); vq, news (state/live snapshots); sn_* legs
-# are sector-neutralised with configs/sector_map.csv.
+# are sector-neutralised with the sector_map path below.
 signals: {signals_yaml}
 weighting: equal          # signal blend inside the sleeve (equal ranks)
 ic_months: 12
@@ -1019,7 +1019,7 @@ sleeve:
 {extra}n_positions: {n}          # legacy mirror of sleeve.n
 budget_gbp: {spec['account']['cash_gbp']}
 cost_bps: 10.0            # sizing conservatism (paper fills are free)
-rebalance_band: {winner.get('band', spec['rebalance_band'])}   # skip |dw| < band or < $1
+rebalance_band: {winner.get('band') or spec['rebalance_band']}   # skip |dw| < band or < $1
 snapshot_stale_days: 45
 order_after_open_min: 15
 sector_map: {spec['sector_map']}

@@ -284,3 +284,49 @@ on all legs; DSR 0.422. `validated` stays **false** — the deployed
 `configs/live_signal.yaml` is B50_momvq, paper-only, honestly flagged.
 If all signal candidates had failed, A_spy would have deployed by the
 same rule.
+
+---
+
+## Phase 8 — Diagnose the 2026 failure + strict yearly walk-forward
+
+Part 1 diagnosis (`docs/PHASE8_DIAGNOSIS.md`,
+`results/phase8_diagnosis.json`) found the recorded phase-7 failure was
+dominated by a **point-in-time fundamentals/vq bug**: the fact frame
+deduplicated each report period before the `filed < D` cutoff, so later
+amendments overwrote AND hid the visible version (7,361 cells; 56/60
+sampled symbols differ). Rerun of the failed 2026 config on identical
+feed+eligibility with fixed vq: excess-IR **+0.023 vs recorded -1.187**
+(Δ +1.21 — the single largest measured cause). Sector concentration cost
+-4.1pt/yr; dead-name targets wasted 272 pick-days; the $1 floor makes
+the 2% band inert on a £10 book; OOF→fresh IR gap was selection noise
+(CSCV PBO 0.25 total-ret / 0.00 excess).
+
+Part 2 — strict expanding yearly walk-forward on the honest Alpaca PIT
+feed (gate years 2017–2026; it only starts 2016-01-04), 11 predeclared
+candidates (`configs/experiments/phase8_us.yaml`, committed before any
+run). Deploy rule: per-year AR within 0.5pt of SPY in ≥60% of years AND
+worst year ≥ -5pt AND OOS mdd ≤ SPY mdd +2pt → highest walk-forward IR;
+else 100% SPY.
+
+## phase8_B50_momvq  (same shape as phase 7, fixed pipeline)
+| metric | wf OOS 17–26 | worst gate year | fresh 2026 | SPY wf |
+|---|---|---|---|---|
+| annualized_return | 0.278 | 2019: -0.012 xs | 0.114 | 0.149 |
+| information_ratio | 1.250 | — | 0.683 | 0.865 |
+| max_drawdown | -0.316 | — | -0.143 | -0.338 |
+| match years | 8/10 (≥ -0.5pt) | worst xs -1.9pt | xs -0.9pt | — |
+| verdict | **GATE PASSED — deployed, `validated: true`** | — | matched SPY | — |
+
+Every enhancement candidate failed the worst-year leg (each fixed one
+window while breaking another): C50_momvq -7.3pt, G50_gate -5.7pt,
+N35_n8 -6.0pt, M50_month -11.2pt, S50_sn -12.0pt, S50_sec1 -13.1pt,
+K50_ic -13.2pt, S50_sec2 -19.1pt, S50_sec2_ic -22.4pt. DSR 0.998
+(n_trials 392 incl. every scored window). The gate picked the plain
+phase-7 shape — the mechanisms stay in the code but none deploys.
+
+**Supplementary years 2012–2020 (biased community dump, never gated):**
+B50 wf IR +0.400, xs negative 2016–2020 — the survivorship-biased feed
+does **not** corroborate; the only supporting evidence is the honest
+feed. Caveat: gate years 2018–2024 overlap the window B50's *shape* was
+phase-7-selected on (with the buggy signal, so fixed-vq scores are new
+information, but the reuse is disclosed). `live_trading: false` always.

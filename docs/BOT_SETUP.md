@@ -1,17 +1,43 @@
-# Paper bot setup — Phase-7 core+satellite book
+# Paper bot setup — Phase-8 core+satellite book
 
 `scripts/paper_trade.py` runs one trading day end-to-end on an **Alpaca
 paper account** and journals every decision to a Notion "Trade Journal"
-database. It is armed manually (`workflow_dispatch`) — the daily crons in
-`paper_trade.yml` are commented out until you enable them.
+database. It runs on the daily cron (`paper_trade.yml`: orders 15:00 UTC,
+reconciliation 22:00 UTC, Mon–Fri) and can also be armed manually with
+`workflow_dispatch`. GitHub schedules only fire from the default branch
+(`master`), so the cron goes live when the phase-8 branch merges.
 
-**Book shape (Phase 7):** the config may pin a `core:`/`sleeve:` schema —
+**Book shape (Phase 8):** the config pins a `core:`/`sleeve:` schema —
 a fixed % of the book in an SPY core plus a signal sleeve of up to 8
 names (equal or inverse-volatility weights, 20% single-stock cap, 2%
 rebalance band, $1 order floor). With no `core:` key the legacy top-N
 equal-weight book runs unchanged. On a risk-off regime day the sleeve's
 freed share moves into the SPY core (`risk_off: to_core`) — never to a
 sideline.
+
+Phase 8 adds four optional mechanisms, each pinned in
+`configs/live_signal.yaml` only when the predeclared walk-forward gate
+(`configs/experiments/phase8_us.yaml`) selected them:
+
+- `sleeve.sector_max` — cap on sleeve picks per GICS sector
+  (`sector_map` points at the CSV; unmapped names are their own sector).
+- `sn_<base>` signals — sector-neutralised signal legs: the signal's
+  cross-sectional rank is computed within each sector, so the sleeve
+  can't concentrate in one hot sector's momentum.
+- `sleeve.pick_freeze: monthly` — the sleeve list is fixed at the month's
+  first trading day and recomputed only there (deterministic; needs no
+  persisted state).
+- `sleeve.ic_shrink` / `sleeve.ic_gate` — trailing-EW rank-IC of the mom
+  leg scales sleeve exposure toward the core when momentum stops paying
+  (`full_at` ⇒ scale 1, decays to `prior_scale`) and can switch the mom
+  leg off entirely when its trailing IC ≤ 0. vq is a snapshot signal
+  with no live IC history, so it is ungateable by construction — same
+  convention as the walk-forward simulator.
+
+Pick candidates must have a *recent* bar (within 7 business days of the
+signal day) — delisted names keep serving history at their last close and
+must not consume sleeve slots; held names keep their last-known price so
+they can still be sold.
 
 **Signal status:** `configs/live_signal.yaml` pins the exact config.
 `validated` is whatever the last honest holdout gate produced — it is
@@ -221,7 +247,7 @@ this has been done — every shipped path is paper-only.**
 - `state/live/weights.json` — last weights + month; the journal is the
   durable copy.
 
-## The 2025 holdouts
+## The holdouts
 
 - `job=livebot_holdout` → `results/live_holdout_us.json` — the first
   re-viewed score (close fills, flat 10 bps, today's universe).
@@ -233,11 +259,30 @@ this has been done — every shipped path is paper-only.**
   weekly/monthly rebalance, bootstrap CI) — every variant counts in
   `n_trials`. Both append to `results/holdout_log.jsonl`. These windows
   were already viewed in phases 2/3 — **re-viewed holdout, no tuning.**
+- Phase 7's single fresh-2026 look failed the match gate
+  (`results/phase7_us_holdout.json`) — see
+  `docs/PHASE8_DIAGNOSIS.md` for the post-mortem: a point-in-time
+  fundamentals/vq bug (later amendments overwrote AND hid the visible
+  version) was the dominant measured cause, fixed in
+  `src/quant_research/fundamentals.py`.
+- `phase8.yml` `job=walkforward` → `results/phase8_us_walkforward.json` —
+  the strict expanding-window yearly walk-forward (2017→2026 on the
+  honest Alpaca feed — it only starts 2016-01-04; 2012–2016 exists only
+  in the survivorship-biased community dump and is supplementary). The
+  predeclared gate re-pins `configs/live_signal.yaml` and appends
+  `holdout_log.jsonl`. The workflow becomes dispatchable once it lands
+  on the default branch.
 
 ## Known limitations
 
 - Alpaca's free IEX feed under-covers some OTC/illiquid names; unpriced
   names fall out of scoring (they can't be bought, which is safe).
+- `configs/live_universe.txt` contains ~250 delisted tickers (the
+  ever-S&P-500 list); they cost a wasted bar fetch each, and the
+  recent-bar rule keeps them out of picks.
+- The 2% rebalance band is effectively inert on a £10 book: the $1
+  minimum order is ~8% of equity, so the floor binds first (measured in
+  `results/phase8_diagnosis.json` — band on/off changed $0.00).
 - Fractional market DAY orders at ~10:00 ET are *not* open-auction
   prices; the 15-minute buffer avoids the open's worst spreads.
 - A symbol that 1:1-renames may journal a corp-action close and re-enter

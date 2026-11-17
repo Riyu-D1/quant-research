@@ -790,12 +790,18 @@ def run_day(args) -> None:
     px_syms = set(comp.index) | set(held) \
         | ({core_sym} if use_core else set())
     prices = {}
+    fresh = set()
     for s in px_syms:
         if s in closes.columns:
             ser = closes[s].loc[:day].dropna()
             if len(ser):
                 prices[s] = float(ser.iloc[-1])
-    scores = comp[comp.index.isin(prices)]
+                # pick candidates need a RECENT bar (delisted names keep
+                # serving history at their last close); held names keep the
+                # last-known price so they can still be sold
+                if ser.index[-1] >= day - pd.offsets.BDay(7):
+                    fresh.add(s)
+    scores = comp[comp.index.isin(fresh)]
     smap_w = LV.load_sector_map(REPO / cfg["sector_map"]) \
         if cfg.get("sector_map") else {}
     want = CS.pick_top(scores, sleeve_n, smap_w,
