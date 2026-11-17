@@ -39,11 +39,11 @@ on:
         type: choice
         options: [run, refresh_snapshot]
         default: run
-  # ── DISABLED until the owner says enable — uncomment the whole block ──
-  # Owner enablement = remove '# ' at the start of each line, commit, push.
-  #   schedule:
-  #     - cron: "0 15 * * 1-5"   # ORDERS 10:00-11:00 ET year-round (past open+15m)
-  #     - cron: "0 22 * * 1-5"   # RECONCILE after the close (17:00-18:00 ET)
+  # Phase-8 enablement: the DAILY paper runs are on (orders + reconcile).
+  # Weekly/monthly auxiliaries stay off — enable them the same way.
+  schedule:
+    - cron: "0 15 * * 1-5"   # ORDERS 10:00-11:00 ET year-round (past open+15m)
+    - cron: "0 22 * * 1-5"   # RECONCILE after the close (17:00-18:00 ET)
   #     - cron: "0 14 * * 6"     # weekly Notion summary — Saturday 14:00 UTC
   #     - cron: "0 10 1 * *"     # monthly reweight — 1st of month, 10:00 UTC
   #     - cron: "0 9 1 * *"      # monthly snapshot refresh — 1st, 09:00 UTC
@@ -54,13 +54,16 @@ on:
       - scripts/notion_setup.py
       - scripts/live_holdout.py
       - scripts/live_snapshot.py
+      - scripts/phase8_us.py
       - src/quant_research/**
       - tests/test_paper_trade.py
       - tests/test_live_holdout.py
       - tests/test_phase7.py
+      - tests/test_phase8.py
       - tests/test_production.py
       - configs/live_signal.yaml
       - configs/live_signal_test.yaml
+      - configs/experiments/phase8_us.yaml
       - .github/workflows/paper_trade.yml
   pull_request:
     paths:
@@ -68,13 +71,16 @@ on:
       - scripts/notion_setup.py
       - scripts/live_holdout.py
       - scripts/live_snapshot.py
+      - scripts/phase8_us.py
       - src/quant_research/**
       - tests/test_paper_trade.py
       - tests/test_live_holdout.py
       - tests/test_phase7.py
+      - tests/test_phase8.py
       - tests/test_production.py
       - configs/live_signal.yaml
       - configs/live_signal_test.yaml
+      - configs/experiments/phase8_us.yaml
       - .github/workflows/paper_trade.yml
 
 permissions:
@@ -99,7 +105,7 @@ jobs:
             --no-install-package cvxpy
           uv cache clean
       - name: full-day mocked run (fake Alpaca + Notion)
-        run: uv run --no-sync python -m pytest tests/test_paper_trade.py tests/test_live_holdout.py tests/test_production.py tests/test_phase7.py -x -q
+        run: uv run --no-sync python -m pytest tests/test_paper_trade.py tests/test_live_holdout.py tests/test_production.py tests/test_phase7.py tests/test_phase8.py -x -q
       - name: dry-run journal artifact
         if: always()
         uses: actions/upload-artifact@v4

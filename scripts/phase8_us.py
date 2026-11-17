@@ -170,7 +170,8 @@ def blend(panels: dict, legs: list[str],
             req = r.notna() if req is None else (req & r.notna())
             on = pd.Series(1.0, index=r.index)
         else:
-            on = on.reindex(r.index).fillna(True).astype(float)
+            on = on.astype("boolean").reindex(r.index) \
+                .fillna(True).astype(float)
             on_df = pd.DataFrame({c: on for c in r.columns})
             acc = (r * on_df).fillna(0.0) if acc is None \
                 else acc + (r * on_df).fillna(0.0)
@@ -196,6 +197,7 @@ def daily_ic(score_w: pd.DataFrame, fwd_w: pd.DataFrame,
     """Per-day cross-sectional IC between a score row and the fwd row."""
     s = score_w.stack().rename("s")
     y = fwd_w.stack().rename("y")
+    s.index.names = y.index.names = ["datetime", "instrument"]
     df = pd.concat([s, y], axis=1).dropna()
     if df.empty:
         return pd.Series(dtype=float)
@@ -287,8 +289,18 @@ def capped_picks(row: pd.Series, n: int, smap: dict,
 
 def daily_targets(comp: pd.DataFrame, close: pd.DataFrame,
                   days: pd.DatetimeIndex, cand: dict, spec: dict,
-                  exposure: dict, smap: dict) -> dict:
-    """P7.daily_targets + sector cap and monthly pick freeze.
+                  exposure: dict, smap: dict,
+                  priced_only: bool = True) -> dict:
+    """P7.daily_targets + sector cap, monthly pick freeze, and (phase-8
+    fix from diagnosis item 1) priced-today eligibility.
+
+    priced_only=True: a name must have a finite close ON the pick day —
+    the live bot's universe can only contain listed names, so a dead
+    name cannot be picked there and must not be pickable in the sim
+    either (diagnosis: stale vq ranked CELG/CSRA/BCR into sleeve slots
+    that could never fill). priced_only=False reproduces the phase-7
+    ever-priced convention exactly (used only for the item-1 rerun of
+    the failed 2026 config).
 
     pick_freeze: monthly — the pick list is recomputed only on the first
     trading day of each calendar month; between reviews the previous
@@ -308,6 +320,9 @@ def daily_targets(comp: pd.DataFrame, close: pd.DataFrame,
         else:
             row = comp.loc[d].dropna() if d in comp.index else \
                 pd.Series(dtype=float)
+            if priced_only:
+                px = close.loc[d]
+                row = row[px.reindex(row.index).notna().values]
             eligible = row.index[
                 [first_seen.get(s) is not None
                  and first_seen.get(s) <= d for s in row.index]]
@@ -345,14 +360,16 @@ def run_candidate(feed: dict, targets: dict, days: pd.DatetimeIndex,
         cost_bps=flat_bps if flat_bps is not None
         else spec["costs"]["flat_bps"],
         band=band if band is not None else spec["rebalance_band"],
+        min_order=float(spec.get("min_order_usd", mc.MIN_ORDER_USD)),
         weight_targets=targets)
 
 
 def score_window(cand: dict, comp: pd.DataFrame, feed: dict,
                  days: pd.DatetimeIndex, spec: dict, smap: dict,
-                 cost_map: dict, exposure: dict) -> tuple[dict, pd.Series]:
+                 cost_map: dict, exposure: dict,
+                 priced_only: bool = True) -> tuple[dict, pd.Series]:
     targets = daily_targets(comp, feed["close"], days, cand, spec,
-                            exposure, smap)
+                            exposure, smap, priced_only=priced_only)
     met = run_candidate(feed, targets, days, spec, cost_map,
                         cand.get("band"))
     rep = LH.bot_metrics(met, spec["account"]["gbpusd"], feed["spy"])
@@ -439,15 +456,18 @@ def brinson(w: pd.DataFrame, rets: pd.DataFrame, smap: dict) -> dict:
     alloc_terms, sel_terms = {}, {}
     for s in sec_ret.columns:
         bw = sleeve_frac * bench_w.get(s, 0.0)
+        # non-held / unpriced-sector days are a true 0 contribution —
+        # they must stay in the mean's denominator or a 1-day position
+        # annualises ~n_days x too large
         alloc_terms[s] = float(((wsec[s] - bw) * sec_ret[s])
-                               .mean() * 252)
+                               .fillna(0.0).mean() * 252)
         cols = [c for c in w.columns
                 if smap.get(c, f"UNK:{c}") == s]
         if cols:
             picks_ret = (w[cols] * rets[cols]).sum(axis=1) \
                 / wsec[s].replace(0, np.nan)
             sel_terms[s] = float(((picks_ret - sec_ret[s])
-                                  * wsec[s]).mean() * 252)
+                                  * wsec[s]).fillna(0.0).mean() * 252)
         else:
             sel_terms[s] = 0.0
     return {"allocation_ann": alloc_terms, "selection_ann": sel_terms,
@@ -593,8 +613,26 @@ def diagnose(spec: dict) -> dict:
     cand7 = {"name": "B50_momvq", "core": 0.50, "sleeve_signal": "momvq",
              "guard": "none"}
     rep, daily26 = score_window(cand7, comps["momvq"], feed, ho_days,
-                                spec, smap, cmap, {})
+                                spec, smap, cmap, {}, priced_only=False)
     n_scored += 1
+    # the recorded phase-7 holdout (pre-fix vq, ever-priced eligibility)
+    # — cited so the bug's isolated contribution is measurable
+    rec_p = REPO / "results" / "phase7_us_holdout.json"
+    if rec_p.exists():
+        rec7 = json.loads(rec_p.read_text())
+        rec_row = next((r for r in rec7.get("holdout_2026", [])
+                        if r.get("name") == "B50_momvq"), {})
+        out["recorded_2026"] = {
+            "ir_xs_spy": rec_row.get("ir_xs_spy"),
+            "ar_xs_spy": rec_row.get("ar_xs_spy"),
+            "annualized_return": rec_row.get("annualized_return"),
+            "information_ratio": rec_row.get("information_ratio"),
+            "final_equity_usd": rec_row.get("final_equity_usd"),
+            "n_trials": rec7.get("n_trials"),
+            "note": "recorded holdout used the pre-fix vq "
+                    "(later-filed amendments leaked) and the "
+                    "ever-priced pick rule — the rerun above keeps "
+                    "ever-priced, so the delta isolates the vq fix."}
     last_px = close.ffill().iloc[-1].to_dict()
     pnl = per_stock_pnl(rep["trades_ledger"], last_px,
                         spec["core_symbol"])
@@ -631,6 +669,17 @@ def diagnose(spec: dict) -> dict:
         "factor_tilts_mean_rank": factor_tilts,
         "n_picks_distinct": int(pick_days["instrument"].nunique()),
         "sleeve_mean_names": float((w > 0).sum(axis=1).mean()),
+        # phase-8 finding: target weight aimed at names with NO price on
+        # that day (dead names ranked by a stale signal leg) — the sim
+        # cannot fill them (cash sits); live cannot pick them at all
+        "unpriced_target": {
+            "pick_days": int((((w > 0).values)
+                              & ~close.reindex(ho_days)[w.columns]
+                              .notna().values).sum()),
+            "weight_days": float(
+                w.where(~close.reindex(ho_days)[w.columns]
+                        .notna().values, 0.0).to_numpy().sum()),
+        },
     }
 
     # ---- item 2: signal decay ----------------------------------------------
@@ -653,8 +702,11 @@ def diagnose(spec: dict) -> dict:
                                  spec["diagnose"]["cscv"]["blocks"]),
         "cscv_xs_spy": cscv_pbo(xs_mat.dropna(),
                               spec["diagnose"]["cscv"]["blocks"]),
-        "oof_to_2026_gap": {"oof_xs_ir": 0.4402,
-                            "y2026_xs_ir": float(rep["ir_xs_spy"])},
+        "oof_to_2026_gap": {
+            "oof_xs_ir": float(next(
+                r["ir_xs_spy"] for r in rows7
+                if r["name"] == "B50_momvq")),
+            "y2026_xs_ir": float(rep["ir_xs_spy"])},
     }
 
     # ---- item 4: data checks -----------------------------------------------
@@ -677,15 +729,20 @@ def diagnose(spec: dict) -> dict:
     inst = ev.load_instruments(provider, "sp500")
     syms = inst["instrument"].unique().tolist()
     f_trunc = f[f["filed"] < d_cut]
-    tmp_p = REPO / "build" / "fundamentals_trunc.parquet"
-    tmp_p.parent.mkdir(exist_ok=True)
+    # must sit beside shares_out.parquet — build_signals resolves
+    # shares via fundamentals_path.parent (a build/ path would silently
+    # drop shares -> mcap NaN -> bm/ep missing -> false-positive diff)
+    tmp_p = fpath.parent / "_fundamentals_trunc.parquet"
     f_trunc.to_parquet(tmp_p)
-    vq_t = s6.build_signals(
-        provider, syms, feed["cal"], ["vq"],
-        fundamentals_path=tmp_p,
-        feats_path=REPO / "data" / "events" / "features_us.parquet",
-        news_dir=REPO / "results", sector_map=None,
-        close=close, volume=close)["vq"].unstack("instrument")
+    try:
+        vq_t = s6.build_signals(
+            provider, syms, feed["cal"], ["vq"],
+            fundamentals_path=tmp_p,
+            feats_path=REPO / "data" / "events" / "features_us.parquet",
+            news_dir=REPO / "results", sector_map=None,
+            close=close, volume=close)["vq"].unstack("instrument")
+    finally:
+        tmp_p.unlink(missing_ok=True)
     v_pre = panels["vq"][panels["vq"].index < d_cut]
     t_pre = vq_t.reindex(v_pre.index)
     diff = (v_pre - t_pre).abs().max().max()
@@ -746,7 +803,7 @@ def diagnose(spec: dict) -> dict:
     # ---- item 5: micro-account effects -------------------------------------
     def _run(min_o, band):
         t = daily_targets(comps["momvq"], close, ho_days, cand7, spec,
-                          {}, smap)
+                          {}, smap, priced_only=False)
         return mc.micro_backtest(
             ad.empty_signal(),
             feed["bars"]["close"].loc[ho_days[0]:ho_days[-1]],
@@ -783,6 +840,8 @@ def diagnose(spec: dict) -> dict:
         for d in ho_days:
             row = comps["momvq"].loc[d].dropna() if d in \
                 comps["momvq"].index else pd.Series(dtype=float)
+            px = close.loc[d]
+            row = row[px.reindex(row.index).notna().values]
             picks = row.nlargest(n).index.tolist()
             tg[d] = ({spec["core_symbol"]: 1.0} if not picks else
                      {s: 0.5 / len(picks) for s in picks}
@@ -809,7 +868,7 @@ def diagnose(spec: dict) -> dict:
     # counted in n_trials) ---------------------------------------------
     n_scored_total = n_scored
     out["overfit"]["dsr_winner_2026"] = wf.deflated_sharpe(
-        daily26, 155 + n_scored_total,
+        daily26, P7.prior_trials() + n_scored_total,
         [float(r["information_ratio"]) for r in rows7])
     out["n_scored_windows"] = n_scored_total
     out["ts"] = dt.datetime.now().isoformat()
@@ -867,11 +926,15 @@ def deploy_gate(results: dict, spy_by: dict, spy_wf: dict,
             decision[name]["mdd_ok"] and decision[name]["match_ok"]
             and decision[name]["worst_ok"])
     surv = {n: d for n, d in decision.items() if d["passed"]}
-    winner = max(surv, key=lambda n: (surv[n]["wf_ir"],
-                                      results[n]["core"])) \
+    strat_surv = {n: d for n, d in surv.items()
+                  if results[n].get("sleeve_signal")}
+    winner = max(strat_surv or surv,
+                 key=lambda n: (surv[n]["wf_ir"], results[n]["core"])) \
         if surv else "A_spy"
     return {"decision": decision, "winner": winner,
-            "fallback_used": not bool(surv),
+            # the benchmark always passes its own gate — "fallback" means
+            # NO signal candidate survived, not that the book is wrong
+            "fallback_used": not bool(strat_surv),
             "survivors": sorted(surv, key=lambda n: -surv[n]["wf_ir"])}
 
 
@@ -1038,7 +1101,8 @@ def cmd_walkforward(spec: dict, out: Path, skip_supp: bool) -> dict:
     log(f"gate years: {years} — {len(spec['candidates'])} candidates")
     results, daily_all = run_grid(spec, provider, years, feed)
     spy_by = spy_by_year(feed, years)
-    spy_wf = LH.spy_metrics(feed["spy"], feed["days"])
+    gate_days = feed["days"][feed["days"].year >= years[0]]
+    spy_wf = LH.spy_metrics(feed["spy"], gate_days)
 
     dec = deploy_gate(results, spy_by, spy_wf, years, spec["deploy_gate"])
     winner_name = dec["winner"]
@@ -1146,6 +1210,16 @@ Failed config: B50_momvq = 50% SPY core + 6-name mom+vq equal sleeve.
              f"{_f(m['spy']['information_ratio'])}, mdd "
              f"{_f(m['spy']['max_drawdown'])}; xs-IR {_f(m['ir_xs_spy'])}, "
              f"xs-AR {_f(m['ar_xs_spy'])}.\n")
+    rec = d.get("recorded_2026") or {}
+    if rec:
+        L.append(f"Recorded holdout (pre-fix vq, run on the same feed): "
+                 f"xs-IR {_f(rec.get('ir_xs_spy'))}, AR "
+                 f"{_f(rec.get('annualized_return'))}, final "
+                 f"${rec.get('final_equity_usd', 0):.2f} — the rerun "
+                 f"above isolates the vq fix (eligibility unchanged): "
+                 f"Δxs-IR "
+                 f"{_f(m['ir_xs_spy'] - (rec.get('ir_xs_spy') or 0))}, "
+                 f"Δequity ${m['final_equity_usd'] - rec.get('final_equity_usd', 0):+.2f}.\n")
     L.append("### Per-stock P&L (sleeve, FIFO realised + unrealised, USD)\n")
     L.append("| stock | sector | total P&L | realised | unrealised | buy$ |"
              " sell$ | buys/sells |")
@@ -1179,9 +1253,19 @@ Failed config: B50_momvq = 50% SPY core + 6-name mom+vq equal sleeve.
     L.append("")
     L.append("| sector | allocation | selection |")
     L.append("|---|---|---|")
-    for s in sorted(set(b["allocation_ann"]) | set(b["selection_ann"])):
+    secs = sorted(set(b["allocation_ann"]) | set(b["selection_ann"]))
+    shown = [s for s in secs
+             if abs(b["allocation_ann"].get(s, 0))
+             + abs(b["selection_ann"].get(s, 0)) >= 0.001]
+    rest = [s for s in secs if s not in shown]
+    for s in shown:
         L.append(f"| {s} | {b['allocation_ann'].get(s, 0):+.4f} | "
                  f"{b['selection_ann'].get(s, 0):+.4f} |")
+    if rest:
+        L.append(f"| ({len(rest)} sectors + singleton UNK:* below "
+                 f"|x|<0.001, combined) | "
+                 f"{sum(b['allocation_ann'].get(s, 0) for s in rest):+.4f} | "
+                 f"{sum(b['selection_ann'].get(s, 0) for s in rest):+.4f} |")
     ft = att["factor_tilts_mean_rank"]
     L.append("\n### Factor exposures of picks (mean pct-rank of chosen names)\n")
     L.append("| factor | mean pick rank (0..1) |")
@@ -1193,6 +1277,16 @@ Failed config: B50_momvq = 50% SPY core + 6-name mom+vq equal sleeve.
     L.append(f"\nDistinct sleeve names over window: "
              f"{att['n_picks_distinct']}; mean concurrent names: "
              f"{att['sleeve_mean_names']:.1f}.\n")
+    up = att["unpriced_target"]
+    L.append(f"\n**Unfillable targets (phase-8 finding):** "
+             f"{up['pick_days']} pick-days / {up['weight_days']:.1f} "
+             f"weight·days of sleeve target sat on names with NO price "
+             f"that day — delisted names kept near the top by a stale "
+             f"signal leg (vq holds its last score; mom is NaN so the "
+             f"blend counts vq alone). The sim cannot fill them (the "
+             f"slot's cash sits idle); the live bot cannot pick them at "
+             f"all (its universe is listed names only). The phase-8 "
+             f"walk-forward requires a finite close on the pick day.\n")
 
     L.append("\n## 2. Signal decay — IC/RankIC by year "
              "(Spearman primary, Pearson alongside)\n")
@@ -1258,6 +1352,17 @@ selection itself is overfit.
 | live vs sim vq | snapshot asof {dc['live_parity']['snapshot_asof']}; corr(live, PIT) {_f(dc['live_parity']['snapshot_vs_pit_corr'], '{:.3f}')} / rank-corr {_f(dc['live_parity']['snapshot_vs_pit_rank_corr'], '{:.3f}')} over {dc['live_parity']['n_common']} names |
 
 {dc['live_parity']['notes']}
+
+**The vq audit caught a real bug.** The first run of this check failed:
+truncating filings at `filed<2026-01-02` changed pre-cut scores by up to
+~1.0 rank — `fundamentals._latest_point/_ttm` deduplicated each period
+end across the WHOLE fact frame before the `filed<D` filter, so an
+amendment filed later overwrote the visible value AND made the period
+invisible until the amendment's date (7,361 versioned cells affected;
+56/60 sampled symbols' book values differed). Fixed to PIT per-end
+versioning (`filed<D` selects the version, then the latest end) — the
+audit above is the post-fix rerun. The phase-7 recorded numbers used
+the pre-fix vq; every phase-8 number in this doc uses the fixed one.
 """)
 
     me = d["micro_effects"]
@@ -1275,7 +1380,9 @@ selection itself is overfit.
   ${me['floor_drag_usd']:+.2f}; without the 2% band
   {me['n_trades']['no_band']} trades, final
   ${me['final_equity']['no_band']:.2f} → band effect
-  ${me['band_drag_usd']:+.2f}.
+  ${me['band_drag_usd']:+.2f}. The band is inert at this book size —
+  a $1-minimum trade is already $1/$12.70 ≈ 7.9% of equity, past the
+  2% band, so the floor always binds first.
 - Breadth tracking error (same signal, cost-free, $1000 book so the $1
   floor cannot bind): 6-name sleeve AR {me['breadth']['ar_n6']:+.3f} vs
   30-name AR {me['breadth']['ar_n30']:+.3f}; annualised tracking error
@@ -1283,7 +1390,38 @@ selection itself is overfit.
 
 ## 6. Ranked root causes (from the numbers above)
 
-_Generated at the end of docs/PHASE8_DIAGNOSIS.md after review._
+Ranking is computed from the measured numbers: item 1 is the isolated
+effect of the vq fix (recorded-vs-rerun delta on the same feed), items
+2-3 share the 2026 sleeve-vs-equal-weight-universe return
+decomposition (alloc + select = the gap exactly), items 4-7 are
+structural causes measured on different axes (probabilities, USD
+drag, IC trend) ordered by the strength of their evidence.
+
+""")
+    alloc_share = abs(b["allocation_total"]) / max(
+        abs(b["allocation_total"]) + abs(b["selection_total"]), 1e-12)
+    first, second = (
+        ("Sector concentration — the sleeve's over/under-weights vs an "
+         "equal-weight book drove the loss", "allocation",
+         b["allocation_total"]),
+        ("Stock selection inside sectors — picks underperformed their own "
+         "sector peers", "selection", b["selection_total"])) \
+        if abs(b["allocation_total"]) >= abs(b["selection_total"]) else (
+        ("Stock selection inside sectors — picks underperformed their own "
+         "sector peers", "selection", b["selection_total"]),
+        ("Sector concentration — the sleeve's over/under-weights vs an "
+         "equal-weight book drove the loss", "allocation",
+        b["allocation_total"]))
+    mom_ic = d["ic_decay"]["h21"]["mom"]
+    L.append(f"""| # | root cause | key evidence |
+|---|---|---|
+| 1 | **vq point-in-time data bug** — later-filed amendments overwrote/hid the visible fundamental versions | recorded xs-IR {_f((d.get('recorded_2026') or {}).get('ir_xs_spy'))} -> {_f(m['ir_xs_spy'])} after the fix (Δ {_f(m['ir_xs_spy'] - ((d.get('recorded_2026') or {}).get('ir_xs_spy') or 0))}); 7,361 versioned cells; every phase-7 number used the buggy signal |
+| 2 | {first[0]} | {first[1]} {_f(first[2], '{:+.4f}')} ann vs EW universe — {alloc_share if first[1]=='allocation' else 1-alloc_share:.0%} of the alloc+select gap |
+| 3 | {second[0]} | {second[1]} {_f(second[2], '{:+.4f}')} ann vs EW universe — {1-alloc_share if first[1]=='allocation' else alloc_share:.0%} of the gap |
+| 4 | Selection overfitting — the OOF winner was one of {ov['oof_candidates']} tried; in-sample winners decay OOS | PBO {c1['pbo']:.2f} total-ret / {c2['pbo']:.2f} xs; OOF xs-IR {_f(ov['oof_to_2026_gap']['oof_xs_ir'])} -> 2026 {_f(ov['oof_to_2026_gap']['y2026_xs_ir'])}; DSR {_f(ov['dsr_winner_2026']['DSR'], '{:.3f}')} |
+| 5 | {'Signal decay' if (mom_ic['second_half_mean'] or 0) < (mom_ic['first_half_mean'] or 0) else 'Weak/unstable signal level — no decay measured, but the edge is thin'} — the mom leg's trailing rankIC | first-half {_f(mom_ic['first_half_mean'], '{:+.4f}')} vs second-half {_f(mom_ic['second_half_mean'], '{:+.4f}')}, trend {_f(mom_ic['trend_slope_per_year'], '{:+.5f}')}/yr; latest year {_f(mom_ic['by_year'][max(mom_ic['by_year'])]['rank_ic'], '{:+.4f}')} |
+| 6 | Micro-account drag — $1 floor + 2% band on a $13 book | floor {_f(me['floor_drag_usd'], '{:+.2f}')} USD, band {_f(me['band_drag_usd'], '{:+.2f}')} USD on ${me['book_usd']:.2f}; breadth TE {_f(me['breadth']['te_ann_vs_n30'], '{:.3f}')} |
+| 7 | Data caveats (vq staleness, snapshot-vs-PIT parity, survivorship) | see section 4 — {_f(dc['live_parity']['snapshot_vs_pit_rank_corr'], '{:.3f}')} live-vs-PIT rank corr; {dc['stale_vq']['names_over_120d']} names >120d stale |
 """)
     return "\n".join(L)
 

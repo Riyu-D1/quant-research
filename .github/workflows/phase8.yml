@@ -1,0 +1,188 @@
+name: phase8-us-diagnose-fix
+
+# Phase-8: diagnose the 2026 failure, then the strict walk-forward gate.
+#
+#   diagnose    runs every predeclared diagnostic on the honest Alpaca
+#               PIT feed (2026 attribution + Brinson split, per-year
+#               IC/RankIC decay with bootstrap CIs, CSCV PBO over the
+#               phase-7 selection set, look-ahead/staleness/survivorship/
+#               live-parity audits, $1-floor/band/breadth decomposition)
+#               -> results/phase8_diagnosis.json + docs/PHASE8_DIAGNOSIS.md
+#   walkforward runs ONLY after diagnose lands (its scored windows count
+#               toward n_trials). Every predeclared candidate
+#               (configs/experiments/phase8_us.yaml — committed BEFORE
+#               any run) is scored on each gate year 2017->dump end on
+#               the honest feed, plus supplementary years 2012-2020 on
+#               the flagged survivorship-biased community dump (reported,
+#               never gated). The deploy rule picks the winner or falls
+#               back to 100% SPY -> results/phase8_us_walkforward.json,
+#               results/holdout_log.jsonl, configs/live_signal.yaml.
+#
+# Honesty: 2025 AND 2026 have both been viewed; neither is a clean
+# holdout, so the gate is yearly walk-forward. n_trials continues the
+# running holdout_log.jsonl total (155 at phase-7 end) and counts every
+# scored candidate-window including diagnostics.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        required: true
+        type: choice
+        options: [diagnose, walkforward]
+        default: diagnose
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  diagnose:
+    name: diagnosis (attribution + decay + overfit + data + micro)
+    if: inputs.job == 'diagnose'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: phase8/diagnose-fix
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+
+      - name: Fetch US dump + events + fundamentals
+        run: |
+          art() {  # fetch latest unexpired artifact $1 -> $2 via API
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+              -q "[.artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id] | max")
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
+              > /tmp/a.zip
+            mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"
+          }
+          art us-qlib-dump data/qlib/us_alpaca
+          test -f data/qlib/us_alpaca/calendars/day.txt
+          art phase3-events /tmp/p3ev
+          mkdir -p data/events
+          find /tmp/p3ev -name features_us.parquet -exec cp {} data/events/ \;
+          find /tmp/p3ev -name shares_out.parquet -exec cp {} data/events/ \;
+          test -f data/events/features_us.parquet
+          art phase4-inputs data/events || true
+          test -f data/events/fundamentals.parquet
+          test -f data/events/shares_out.parquet
+          ls data/events/
+
+      - name: Run phase-8 diagnosis
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase8/diagnose-fix
+          uv run --no-sync python scripts/phase8_us.py diagnose \
+            --out results/phase8_diagnosis.json
+          git add results/phase8_diagnosis.json docs/PHASE8_DIAGNOSIS.md || true
+          git commit -qm "phase8 diagnosis — run ${{ github.run_id }}" || true
+          git push -q origin HEAD:phase8/diagnose-fix 2>/dev/null || true
+
+      - name: Upload diagnosis artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase8-diagnosis-${{ github.run_id }}
+          path: |
+            results/phase8_diagnosis.json
+            docs/PHASE8_DIAGNOSIS.md
+          if-no-files-found: error
+          retention-days: 90
+
+  walkforward:
+    name: walk-forward gate (2017->end honest + 2012-2020 supp)
+    if: inputs.job == 'walkforward'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: phase8/diagnose-fix
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+
+      - name: Fetch US dump + events + fundamentals + diagnosis
+        run: |
+          art() {
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+              -q "[.artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id] | max")
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
+              > /tmp/a.zip
+            mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"
+          }
+          art us-qlib-dump data/qlib/us_alpaca
+          test -f data/qlib/us_alpaca/calendars/day.txt
+          art phase3-events /tmp/p3ev
+          mkdir -p data/events
+          find /tmp/p3ev -name features_us.parquet -exec cp {} data/events/ \;
+          find /tmp/p3ev -name shares_out.parquet -exec cp {} data/events/ \;
+          test -f data/events/features_us.parquet
+          art phase4-inputs data/events || true
+          test -f data/events/fundamentals.parquet
+          test -f data/events/shares_out.parquet
+          ls data/events/
+
+      - name: Fetch community qlib dump (supplementary years, best-effort)
+        id: supp
+        run: |
+          # 2012-2020 supplementary feed: Yahoo-derived community dump —
+          # survivorship-biased (listed-only), normalised prices. Flagged
+          # in the spec; reported, never gated. Absence is fine — the
+          # gate does not depend on it.
+          mkdir -p /tmp/usdata
+          curl -sL --retry 3 --max-time 600 \
+            -o /tmp/qlib_us.zip \
+            "https://github.com/SunsetWolf/qlib_dataset/releases/download/v0/qlib_data_us_1d_latest.zip" \
+            && unzip -o -q /tmp/qlib_us.zip -d /tmp/usdata \
+            && CALPARENT=$(find /tmp/usdata -name day.txt \
+                            -path '*/calendars/*' | head -1 \
+                          | xargs dirname | xargs dirname) \
+            && mkdir -p data/qlib && mv "$CALPARENT" data/qlib/us_data \
+            && test -f data/qlib/us_data/calendars/day.txt \
+            && echo "supp feed present" \
+          || echo "supp feed unavailable -> --skip-supp"
+
+      - name: Run phase-8 walk-forward gate
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B phase8/diagnose-fix
+          if [ -f data/qlib/us_data/calendars/day.txt ]; then
+            uv run --no-sync python scripts/phase8_us.py walkforward \
+              --out results/phase8_us_walkforward.json
+          else
+            uv run --no-sync python scripts/phase8_us.py walkforward \
+              --out results/phase8_us_walkforward.json --skip-supp
+          fi
+          git add results/phase8_us_walkforward.json \
+                  results/holdout_log.jsonl configs/live_signal.yaml || true
+          git commit -qm "phase8 walk-forward gate — run ${{ github.run_id }}" || true
+          git push -q origin HEAD:phase8/diagnose-fix 2>/dev/null || true
+
+      - name: Upload walkforward artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase8-walkforward-${{ github.run_id }}
+          path: results/phase8_us_walkforward.json
+          if-no-files-found: error
+          retention-days: 90

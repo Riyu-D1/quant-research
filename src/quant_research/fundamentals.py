@@ -12,9 +12,13 @@ Factors (per symbol, per day):
 
 market cap = latest-filed shares outstanding (Phase-3 shares_out table)
             x close. Quarterly tags are selected by period length (~90d);
-TTM = sum of the last 4 quarterly facts visible at D (a rolling sum over
-facts sorted by period end then filed — documented approximation when
-filings are late/amended).
+TTM = sum of the last 4 quarterly facts visible at D.
+
+Versioning is point-in-time per period end: at day D each period end
+contributes its latest `filed` < D version. (Earlier code deduped on the
+whole frame first, so a post-D amendment both overwrote the visible
+value AND made the period invisible until the amendment's filed date —
+the phase-8 truncation audit caught it: 7,361 versioned cells.)
 """
 from __future__ import annotations
 
@@ -61,47 +65,52 @@ def parse_companyfacts(payload: dict) -> pd.DataFrame:
 
 
 def _latest_point(facts: pd.DataFrame, days: pd.DatetimeIndex) -> np.ndarray:
-    """Latest `val` with filed < D per day (point facts: book equity)."""
+    """Latest `val` visible at day D (point facts: book equity).
+
+    PIT per period end: each `end` contributes its latest `filed` < D
+    version; the score sees the most recent end with a visible version."""
     d64 = days.values.astype("datetime64[D]")
-    f = facts.sort_values(["end", "filed"])
-    # dedupe same period end -> keep latest FILED version
-    f = f[~f.duplicated("end", keep="last")]
-    filed = f["filed"].values.astype("datetime64[D]")
-    vals = f["val"].values.astype(float)
-    pos = np.searchsorted(filed, d64, side="left") - 1     # filed < D
-    out = np.where(pos >= 0, vals[np.clip(pos, 0, len(vals) - 1)], np.nan)
-    return pd.Series(out).ffill().values
+    out = np.full(len(days), np.nan)
+    for _end, g in facts.sort_values(["end", "filed"]).groupby("end"):
+        filed = g["filed"].values.astype("datetime64[D]")
+        vals = g["val"].values.astype(float)
+        pos = np.searchsorted(filed, d64, side="left") - 1   # filed < D
+        v = np.where(pos >= 0,
+                     vals[np.clip(pos, 0, len(vals) - 1)], np.nan)
+        out = np.where(pos >= 0, v, out)      # ascending end: later wins
+    return out
 
 
 def _ttm(facts: pd.DataFrame, days: pd.DatetimeIndex) -> np.ndarray:
     """Trailing-twelve-month sum of quarterly facts visible at day D.
 
-    Quarterly = period length <= MAX_QUARTER_DAYS. At each day D the TTM is
-    the sum of the 4 quarterly facts with the largest period-end among those
-    filed < D."""
+    Quarterly = period length <= MAX_QUARTER_DAYS. Each period end
+    contributes its latest `filed` < D version (PIT per end); the TTM is
+    the sum of the 4 most recent ends with a visible version."""
     if facts.empty:
         return np.full(len(days), np.nan)
     f = facts.copy()
     span = (f["end"] - f["start"]).dt.days
     f = f[span <= MAX_QUARTER_DAYS].sort_values(["end", "filed"])
-    f = f[~f.duplicated("end", keep="last")]
     if f.empty:
         return np.full(len(days), np.nan)
     d64 = days.values.astype("datetime64[D]")
-    filed = f["filed"].values.astype("datetime64[D]")
-    ends = f["end"].values.astype("datetime64[D]")
-    vals = f["val"].values.astype(float)
+    cols = []
+    for _end, g in f.groupby("end"):          # ascending end order
+        filed = g["filed"].values.astype("datetime64[D]")
+        vals = g["val"].values.astype(float)
+        pos = np.searchsorted(filed, d64, side="left") - 1
+        cols.append(np.where(pos >= 0,
+                             vals[np.clip(pos, 0, len(vals) - 1)], np.nan))
+    M = np.array(cols).T                       # day x quarter-end
     out = np.full(len(days), np.nan)
-    order = np.argsort(ends)                 # oldest -> newest period end
-    for i, d in enumerate(d64):
-        vis = order[(filed[order] < d)]
-        if len(vis) >= 1:
-            tail = vals[vis][-4:]
-            if len(tail) == 4:
-                out[i] = tail.sum()
-            elif len(tail) >= 2:
-                # partial window: scale only when at least 2 quarters known
-                out[i] = tail.sum() * 4.0 / len(tail)
+    for i in range(len(d64)):
+        v = M[i][np.isfinite(M[i])]
+        if len(v) >= 4:
+            out[i] = v[-4:].sum()
+        elif len(v) >= 2:
+            # partial window: scale only when at least 2 quarters known
+            out[i] = v.sum() * 4.0 / len(v)
     return out
 
 

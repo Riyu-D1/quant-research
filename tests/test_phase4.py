@@ -244,6 +244,31 @@ def test_vq_no_lookahead_corruption():
                            equal_nan=True), c
 
 
+def test_vq_amendment_keeps_original_version():
+    """A later amendment must not hide the period's original value on
+    days before the amendment's `filed` (the phase-8 truncation audit:
+    whole-frame dedup made the period invisible until the amendment)."""
+    days = pd.bdate_range("2021-01-01", periods=30)
+    facts = pd.DataFrame({
+        "group": ["book", "book"],
+        "tag": ["StockholdersEquity"] * 2,
+        "unit": ["USD"] * 2,
+        "start": [pd.NaT] * 2,
+        "end": [days[0], days[0]],          # same period, two versions
+        "filed": [days[2], days[20]],       # original, then amendment
+        "fy": [2020, 2020], "fp": ["FY", "FY"],
+        "form": ["10-K", "10-K/A"],
+        "val": [100.0, 999.0]})
+    shares = pd.DataFrame({"filed": [days[0]], "shares": [10.0]})
+    close = np.full(len(days), 10.0)
+    vq = F.vq_features(facts, shares, close, days)
+    # between original filed (d2) and amendment filed (d20): original val
+    assert vq["vq_bm"][3] == pytest.approx(100.0 / 100.0)
+    assert vq["vq_bm"][20] == pytest.approx(100.0 / 100.0)
+    # amendment visible from the day after its filed: amended val
+    assert vq["vq_bm"][21] == pytest.approx(999.0 / 100.0)
+
+
 def test_parse_companyfacts_shape():
     payload = {"facts": {"us-gaap": {
         "StockholdersEquity": {"units": {"USD": [

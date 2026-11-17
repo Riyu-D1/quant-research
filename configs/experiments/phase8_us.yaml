@@ -40,7 +40,16 @@
 #     (outright exits always trade); ≤1 order/symbol/day (PDT);
 #   * delisted names liquidated at last close;
 #   * max single-stock weight 20% of equity (SPY core exempt);
-#   * sleeve size rule: n = min(8, floor((1-core_w) * budget_usd / $1)).
+#   * sleeve size rule: n = min(8, floor((1-core_w) * budget_usd / $1));
+#   * priced-today pick eligibility — a name must have a finite close ON
+#     the pick day. AMENDMENT 2026-11-17 (post-diagnosis, pre-candidates):
+#     the diagnosis found the phase-7 ever-priced rule let stale vq rank
+#     dead names (CELG/CSRA/BCR — no prices since 2017-2019) into sleeve
+#     slots the sim can never fill; the live bot cannot pick unlisted
+#     names at all, so this is the honest PIT convention, not a tuning
+#     knob — it binds no candidate parameter and predates the first
+#     candidate score. The item-1 rerun of the failed 2026 config keeps
+#     the phase-7 rule so the recorded failure reproduces exactly.
 
 provider: data/qlib/us_alpaca          # honest PIT feed 2016-01 -> gate feed
 provider_supp: data/qlib/us_data       # community dump -> 2012..2020 supplementary (biased)
