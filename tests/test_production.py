@@ -372,3 +372,36 @@ def test_dry_run_writes_run_record(tmp_path):
     rec = json.loads(recs[0].read_text())
     assert "gates" in rec and "orders" in rec
     assert rec["validated"] is False
+
+
+def test_notion_journal_num_sanitises_nonfinite():
+    """2026-11-17 real dispatch: the SPY core trade carried score=NaN
+    (SPY isn't in the composite) -> `nan or 0` kept nan (NaN is truthy)
+    -> the Notion POST crashed AFTER the real Alpaca order filled.
+    Every numeric journal prop must be finite."""
+    from quant_research import notion_journal as NJ
+    n = NJ.NotionJournal._num
+    assert n(float("nan")) == 0.0
+    assert n(float("inf")) == 0.0
+    assert n(float("-inf")) == 0.0
+    assert n(None) == 0.0
+    assert n("bad") == 0.0
+    assert n(1.234567, 2) == 1.23
+
+
+def test_log_trade_survives_nan_score(monkeypatch):
+    """A core (SPY) trade has no composite score — log_trade must
+    serialise a finite number, not propagate NaN into the POST body."""
+    import json as _json
+    from quant_research import notion_journal as NJ
+    j = NJ.NotionJournal("tok", "db")
+    bodies = []
+    monkeypatch.setattr(j, "_page", lambda props: bodies.append(props))
+    j.log_trade(pd.Timestamp("2026-11-17"),
+                {"sym": "SPY", "side": "buy", "qty": 0.011,
+                 "price": 590.1, "notional": 6.59, "score": float("nan"),
+                 "reason": "core rebalance"},
+                {"weights_str": "mom:0.50", "regime": "none",
+                 "validated": False})
+    _json.dumps(bodies, allow_nan=False)      # raises if any NaN leaks
+    assert bodies[0]["SignalScore"]["number"] == 0.0

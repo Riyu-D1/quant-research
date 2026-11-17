@@ -978,7 +978,8 @@ def run_day(args) -> None:
                        " (breaker active — sells still allowed)")
     for t in sells + buys:                     # sells free cash first
         sym, side = t["sym"], t["side"]
-        t["score"] = float(comp.get(sym, np.nan))
+        sc = comp.get(sym, np.nan)
+        t["score"] = float(sc) if np.isfinite(sc) else None
         if use_core:
             t["reason"] = (
                 "exit sleeve" if side == "sell" and sym not in targets

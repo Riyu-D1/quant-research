@@ -17,6 +17,7 @@ owner shares it once (see docs/BOT_SETUP.md). No paid Notion features used.
 from __future__ import annotations
 
 import json
+import math
 import time
 
 import pandas as pd
@@ -119,6 +120,18 @@ class NotionJournal:
     def _rt(text: str):
         return [{"type": "text", "text": {"content": str(text)[:2000]}}]
 
+    @staticmethod
+    def _num(x, nd: int = 4) -> float:
+        """Notion rejects non-JSON floats — NaN is truthy so `x or 0`
+        does NOT catch it; normalise every numeric prop to a finite
+        value or a real order gets filled and the run dies journalling
+        it (happened 2026-11-17: SPY core trade carried score=NaN)."""
+        try:
+            v = float(x or 0)
+        except (TypeError, ValueError):
+            v = 0.0
+        return round(v if math.isfinite(v) else 0.0, nd)
+
     def _page(self, props: dict):
         return self._req("POST", "/pages",
                          json={"parent": {"database_id": self.db},
@@ -129,10 +142,10 @@ class NotionJournal:
             "Ticker": {"title": self._rt(t["sym"])},
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
             "Side": {"select": {"name": t["side"]}},
-            "Qty": {"number": round(float(t.get("qty") or 0), 6)},
-            "Price": {"number": round(float(t.get("price") or 0), 4)},
-            "Notional": {"number": round(float(t.get("notional") or 0), 4)},
-            "SignalScore": {"number": round(float(t.get("score") or 0), 4)},
+            "Qty": {"number": self._num(t.get("qty"), 6)},
+            "Price": {"number": self._num(t.get("price"), 4)},
+            "Notional": {"number": self._num(t.get("notional"), 4)},
+            "SignalScore": {"number": self._num(t.get("score"), 4)},
             "SignalWeights": {"rich_text": self._rt(ctx["weights_str"])},
             "Regime": {"select": {"name": ctx["regime"]}},
             "Validated": {"checkbox": bool(ctx["validated"])},
@@ -148,7 +161,7 @@ class NotionJournal:
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
             "Side": {"select": {"name": "info"}},
             "Qty": {"number": 0}, "Price": {"number": 0},
-            "Notional": {"number": round(ctx["budget_usd"], 2)},
+            "Notional": {"number": self._num(ctx["budget_usd"], 2)},
             "SignalScore": {"number": 0},
             "SignalWeights": {"rich_text": self._rt(ctx["weights_str"])},
             "Regime": {"select": {"name": ctx["regime"]}},
@@ -332,9 +345,9 @@ class NotionJournal:
         if "filled " in reason:            # already reconciled — idempotent
             return
         self._req("PATCH", f"/pages/{pg['id']}", json={"properties": {
-            "Price": {"number": round(price, 4)},
-            "Qty": {"number": round(qty, 6)},
-            "Notional": {"number": round(qty * price, 4)},
+            "Price": {"number": self._num(price, 4)},
+            "Qty": {"number": self._num(qty, 6)},
+            "Notional": {"number": self._num(qty * price, 4)},
             "Reason": {"rich_text": self._rt(
                 f"{reason} | filled {qty:g} @ {price:.2f}")}}})
         log(f"reconciled fill {sym}: {qty:g} @ {price:.2f}")
