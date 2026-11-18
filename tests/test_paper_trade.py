@@ -383,3 +383,66 @@ def test_pinned_config_live_off():
     test_cfg = yaml.safe_load(
         (REPO / "configs" / "live_signal_test.yaml").read_text())
     assert test_cfg.get("validated") is False
+
+
+# ---------------------------------------------------------------------------
+# cron-backup hardening: same-day reruns, closed market, deduped reconcile
+
+
+def test_already_traded_today_skips(tmp_path):
+    """A backup slot that fires after the day's orders are in must exit
+    cleanly — no new orders, and the day still journals one summary."""
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    # what an earlier same-day run already submitted for this trading day
+    broker.orders.append({"day": pd.Timestamp(DAY), "sym": "AAA",
+                          "side": "buy", "notional": 5.0})
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    assert len(broker.orders) == 1              # nothing new went out
+    assert sum(p["entry_type"] == "day-summary"
+               for p in journal.pages) == 1     # day still journaled once
+
+
+def test_market_closed_skips_orders(tmp_path):
+    """Closed-market run: reconcile + summary still happen, orders don't."""
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker = PT.FakeBroker()
+    broker.window_override = (False, "market closed — no orders this run")
+    journal = PT.FakeJournal()
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    assert broker.orders == []
+    summ = [p for p in journal.pages if p["entry_type"] == "day-summary"]
+    assert len(summ) == 1
+    assert "no orders" in summ[-1]["summary"]
+    assert "market closed" in summ[-1]["summary"]
+
+
+def test_reconcile_rerun_writes_no_dup_rows(tmp_path):
+    """Reconcile must be safe to run twice (the 22:00 slot + backups):
+    no duplicate note or day-summary rows."""
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = write_cfg(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    broker.api_orders = [
+        alpaca_order("BAD", "buy", status="rejected"),
+        alpaca_order("HALF", "sell", status="partially_filled")]
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    run_bot(cfg, fx, state, DAY, broker, journal)      # backup slot reruns
+    notes = [p for p in journal.pages if p["entry_type"] == "note"]
+    assert len(notes) == 2                            # rejected + partial
+    assert sum(p["entry_type"] == "day-summary"
+               for p in journal.pages) == 1

@@ -3,8 +3,9 @@
 `scripts/paper_trade.py` runs one trading day end-to-end on an **Alpaca
 paper account** and journals every decision to a Notion "Trade Journal"
 database. It runs on the daily cron (`paper_trade.yml`: orders 15:00 UTC,
-reconciliation 22:00 UTC, Mon–Fri) and can also be armed manually with
-`workflow_dispatch`. GitHub schedules only fire from the default branch
+reconciliation 22:00 UTC, Mon–Fri — each with off-the-hour backup slots,
+since GitHub schedules can lag or drop) and can also be armed manually
+with `workflow_dispatch`. GitHub schedules only fire from the default branch
 (`master`), so the cron goes live when the phase-8 branch merges.
 
 **Book shape (Phase 8):** the config pins a `core:`/`sleeve:` schema —
@@ -163,9 +164,13 @@ use.
   carrying it is merged or set default; until then manual dispatch on the
   branch is the way to run it.
   - `0 15 * * 1-5` — **orders** run, lands ~10:00–11:00 ET year-round
-    (past the open+15min buffer in both EDT and EST);
+    (past the open+15min buffer in both EDT and EST), with backup slots
+    at 15:20 / 16:10 / 17:30 / 19:05 UTC — each a no-op once today's
+    (ET) orders are in, and all refused inside the last 15 min before
+    the close;
   - `0 22 * * 1-5` — **reconcile** run after the close (idempotent: no
-    new orders, fills/positions/drift journaled);
+    new orders, fills/positions/drift journaled), backed up at 22:20
+    and 23:30 UTC;
   - `0 14 * * 6` — **weekly summary** row (equity, week return vs SPY,
     drawdown, turnover, hit rate, weights);
   - `0 10 1 * *` — **monthly reweight** (the adaptive job: trailing-IC

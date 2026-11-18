@@ -120,6 +120,54 @@ def test_order_window_clock_failure_is_fail_closed():
     assert not ok and "failed" in note
 
 
+def test_order_window_inside_close_buffer():
+    # a late backup slot must not send market orders into the close auction
+    b = _ClockBroker(cal=[{"date": "2026-01-06", "open": "09:30",
+                           "close": "16:00"}])
+    ok, note = pt.order_window(b, _et("2026-01-06", "15:50"), {})
+    assert not ok and "close" in note
+    ok2, _ = pt.order_window(b, _et("2026-01-06", "15:44"), {})
+    assert ok2
+
+
+def test_order_window_close_buffer_half_day():
+    # 13:00 ET half-day close — the buffer slides with the calendar close
+    b = _ClockBroker(cal=[{"date": "2026-11-27", "open": "09:30",
+                           "close": "13:00"}])
+    ok, note = pt.order_window(b, _et("2026-11-27", "12:50"), {})
+    assert not ok and "close" in note
+    ok2, _ = pt.order_window(b, _et("2026-11-27", "12:44"), {})
+    assert ok2
+
+
+def test_order_window_close_buffer_no_calendar():
+    # no calendar row — the clock's next_close still bounds the buffer
+    b = _ClockBroker(cal=[])
+    b.clock_ret = {"is_open": True, "next_close": "2026-01-06T21:00:00Z"}
+    ok, note = pt.order_window(b, _et("2026-01-06", "15:50"), {})
+    assert not ok and "close" in note
+    ok2, _ = pt.order_window(b, _et("2026-01-06", "12:00"), {})
+    assert ok2
+
+
+def test_traded_today_anchors_on_et_date(monkeypatch):
+    """'Already traded today' means the US/Eastern trading date — orders
+    submitted on an earlier ET day (even on what is now the signal day)
+    must NOT block a fresh session."""
+    c = AB.PaperClient("k", "s")
+    monkeypatch.setattr(c, "orders_since", lambda day, status="all": [
+        {"symbol": "OLD", "side": "buy", "status": "filled",
+         "submitted_at": "2026-11-17T15:30:00Z"},    # Tue 10:30 ET
+        {"symbol": "NEW", "side": "buy", "status": "filled",
+         "submitted_at": "2026-11-18T15:30:00Z"},    # Wed 10:30 ET
+        {"symbol": "DEAD", "side": "buy", "status": "canceled",
+         "submitted_at": "2026-11-18T15:40:00Z"}])   # dead -> ignored
+    got = c.traded_today(pd.Timestamp("2026-11-18"))
+    assert [o["symbol"] for o in got] == ["NEW"]
+    got = c.traded_today(pd.Timestamp("2026-11-17"))
+    assert [o["symbol"] for o in got] == ["OLD"]
+
+
 # ---------------------------------------------------------------------------
 # pdt_guard
 
