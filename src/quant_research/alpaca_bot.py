@@ -7,12 +7,14 @@ Market orders, fractional via `notional` (buy) and `qty` (sell), long-only.
 from __future__ import annotations
 
 import time
+import zoneinfo
 
 import pandas as pd
 import requests
 
 PAPER_URL = "https://paper-api.alpaca.markets"
 MIN_NOTIONAL_USD = 1.0        # Alpaca's notional-order floor
+ET = zoneinfo.ZoneInfo("America/New_York")   # the trading-date calendar
 
 
 class OrderExistsError(Exception):
@@ -99,17 +101,23 @@ class PaperClient:
         return ords
 
     def traded_today(self, day: pd.Timestamp) -> list[dict]:
-        """Orders submitted on/after `day` — the idempotency anchor.
+        """Orders submitted on `day`'s US/Eastern calendar date — the
+        idempotency anchor.
 
-        The signal day is the last completed bar; orders are submitted at
-        run time, which can be *after* that bar's date (e.g. a morning run
-        before today's bar exists). So the guard is `submitted_at >= day`:
-        anything placed since the signal day was produced means this day
-        already traded. Older orders belong to earlier signal days."""
-        ords = self.orders_since(day - pd.Timedelta(days=1))
-        d0 = day.normalize()
+        `day` is the wall-clock trading date the caller wants guarded
+        (run_day passes today-ET; may be naive or tz-aware), NOT the
+        signal day. Anchoring on the ET trading date is what makes the
+        backup cron slots safe: a rerun later the same ET day sees the
+        earlier run's orders and exits cleanly, while yesterday's orders
+        — submitted on what is now the signal day — can never mask a
+        fresh session. Dead orders don't count."""
+        d0 = pd.Timestamp(day).normalize()
+        if d0.tzinfo is None:
+            d0 = d0.tz_localize(ET)
+        ords = self.orders_since(d0 - pd.Timedelta(days=1))
         return [o for o in ords
-                if pd.Timestamp(o["submitted_at"]).tz_localize(None) >= d0
+                if pd.Timestamp(o["submitted_at"]).tz_convert(ET)
+                .normalize() == d0
                 and o.get("status") not in
                 ("canceled", "expired", "rejected")]
 

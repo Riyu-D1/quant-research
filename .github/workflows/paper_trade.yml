@@ -41,9 +41,22 @@ on:
         default: run
   # Phase-8 enablement: the DAILY paper runs are on (orders + reconcile).
   # Weekly/monthly auxiliaries stay off — enable them the same way.
+  #
+  # GitHub schedules routinely lag by minutes — occasionally by hours or
+  # dropped entirely (observed 2026-11-17/18: the 22:00 reconcile fired at
+  # 03:20, the 15:00 order run never came). Every daily slot below has
+  # off-the-hour backups; reruns are safe because the bot is idempotent
+  # (orders dedupe on submitted-today + client_order_id, journal rows
+  # dedupe per day) — see scripts/paper_trade.py.
   schedule:
     - cron: "0 15 * * 1-5"   # ORDERS 10:00-11:00 ET year-round (past open+15m)
+    - cron: "20 15 * * 1-5"  # ORDERS backup slots — skipped cleanly when
+    - cron: "10 16 * * 1-5"  # the earlier run already traded today (ET)
+    - cron: "30 17 * * 1-5"
+    - cron: "5 19 * * 1-5"
     - cron: "0 22 * * 1-5"   # RECONCILE after the close (17:00-18:00 ET)
+    - cron: "20 22 * * 1-5"  # RECONCILE backups — reconcile is re-runnable
+    - cron: "30 23 * * 1-5"  # (no duplicate journal rows)
   #     - cron: "0 14 * * 6"     # weekly Notion summary — Saturday 14:00 UTC
   #     - cron: "0 10 1 * *"     # monthly reweight — 1st of month, 10:00 UTC
   #     - cron: "0 9 1 * *"      # monthly snapshot refresh — 1st, 09:00 UTC
@@ -119,11 +132,19 @@ jobs:
     name: paper day
     # never on pull_request — the env deployment review would fire on a
     # job that can never trade (PRs have no secret access by design)
+    # the schedule list mirrors the orders+reconcile crons above — every
+    # backup slot must fire this job (idempotency makes reruns no-ops)
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.job != 'refresh_snapshot')
       || (github.event_name == 'schedule'
           && (github.event.schedule == '0 15 * * 1-5'
-              || github.event.schedule == '0 22 * * 1-5'))
+              || github.event.schedule == '20 15 * * 1-5'
+              || github.event.schedule == '10 16 * * 1-5'
+              || github.event.schedule == '30 17 * * 1-5'
+              || github.event.schedule == '5 19 * * 1-5'
+              || github.event.schedule == '0 22 * * 1-5'
+              || github.event.schedule == '20 22 * * 1-5'
+              || github.event.schedule == '30 23 * * 1-5'))
     runs-on: ubuntu-latest
     environment: ALPACA_API_KEY   # env holding the paper keys
     env:

@@ -41,6 +41,7 @@ import json
 import os
 import sys
 import time
+import zoneinfo
 from pathlib import Path
 
 import numpy as np
@@ -151,6 +152,17 @@ class FakeJournal:
                    and p["date"] == pd.Timestamp(day).strftime("%Y-%m-%d")
                    for p in self.pages)
 
+    def note_logged(self, day, text):
+        return any(p["entry_type"] == "note"
+                   and p["date"] == pd.Timestamp(day).strftime("%Y-%m-%d")
+                   and p.get("text") == text for p in self.pages)
+
+    def trade_logged(self, sym, side, day):
+        return any(p["entry_type"] == "trade" and p.get("sym") == sym
+                   and p.get("side") == side
+                   and p["date"] == pd.Timestamp(day).strftime("%Y-%m-%d")
+                   for p in self.pages)
+
     def log_trade(self, day, t, ctx):
         self.pages.append({"entry_type": "trade", "date":
                            day.strftime("%Y-%m-%d"), **t,
@@ -243,6 +255,7 @@ def load_config(path: Path) -> dict:
 
 
 STALE_BAR_DAYS = 7     # latest bar older than this vs the clock -> refuse
+ET = zoneinfo.ZoneInfo("America/New_York")   # trading dates are ET dates
 
 
 def fail(journal, msg: str) -> None:
@@ -275,21 +288,27 @@ def reconcile(broker, journal, day: pd.Timestamp, held: dict,
     except Exception as e:  # noqa: BLE001
         ords, notes = [], [f"orders_since failed: {e}"]
     fills = 0
+
+    def note_once(text: str) -> None:
+        # reconcile runs every run (orders + both backup slots) — the
+        # anomaly rows it writes must not duplicate on a rerun
+        if not (hasattr(journal, "note_logged")
+                and journal.note_logged(day, text)):
+            journal.log_note(day, text, ctx)
+
     for o in ords:
         st = o.get("status")
         sym = str(o.get("symbol", "")).replace(".", "-")
         if st == "rejected":
             notes.append(f"rejected {o.get('side')} {sym}")
-            journal.log_note(
-                day, f"rejected {o.get('side')} {sym} "
-                     f"qty={o.get('qty')} notional={o.get('notional')}", ctx)
+            note_once(f"rejected {o.get('side')} {sym} "
+                      f"qty={o.get('qty')} notional={o.get('notional')}")
             continue
         if st == "partially_filled":
             notes.append(f"partial {o.get('side')} {sym} "
                          f"filled_qty={o.get('filled_qty')}")
-            journal.log_note(
-                day, f"partial fill {o.get('side')} {sym} "
-                     f"filled_qty={o.get('filled_qty')}", ctx)
+            note_once(f"partial fill {o.get('side')} {sym} "
+                      f"filled_qty={o.get('filled_qty')}")
         if st != "filled" or not o.get("filled_at"):
             continue
         fills += 1
@@ -365,12 +384,15 @@ def order_window(broker, now: pd.Timestamp, cfg: dict,
         never slip through)
       - now must be >= session open + order_after_open_min (fixed time
         after the open; default 15 min so the open auction settles)
-      - now must be <= session close (half-day closes are early and are
-        handled automatically by the calendar's close field)
+      - now must be <= session close - order_before_close_min (default
+        15 min — the backup cron slots can land late in the session and
+        a market order into the close auction is not a rebalance;
+        half-day early closes are handled by the calendar's close field)
     Returns (allowed, note). Never raises — API failures degrade to
     'closed' (fail safe: no orders beats wrong-time orders).
     """
     after = int(cfg.get("order_after_open_min", 15))
+    before = int(cfg.get("order_before_close_min", 15))
     try:
         clk = broker.clock() or {}
     except Exception as e:  # noqa: BLE001
@@ -384,19 +406,25 @@ def order_window(broker, now: pd.Timestamp, cfg: dict,
         cal, _ = None, log(f"calendar() failed: {e} — falling back to "
                            "clock-only window")
     if cal:
-        import zoneinfo
-        et = zoneinfo.ZoneInfo("America/New_York")
         row = cal[0]
-        o = pd.Timestamp(f"{row['date']} {row['open']}").tz_localize(et)
-        c = pd.Timestamp(f"{row['date']} {row['close']}").tz_localize(et)
-        n = now.tz_convert(et) if now.tzinfo else now.tz_localize(
-            "UTC").tz_convert(et)
+        o = pd.Timestamp(f"{row['date']} {row['open']}").tz_localize(ET)
+        c = pd.Timestamp(f"{row['date']} {row['close']}").tz_localize(ET)
+        n = now.tz_convert(ET) if now.tzinfo else now.tz_localize(
+            "UTC").tz_convert(ET)
         if n < o + pd.Timedelta(minutes=after):
             return False, (f"before order window (opens {row['open']} ET "
                            f"+{after}m) — no orders")
-        if n > c:
-            return False, f"after session close {row['close']} ET"
-        return True, f"in window {row['open']}+{after}m -> {row['close']} ET"
+        if n > c - pd.Timedelta(minutes=before):
+            return False, (f"inside {before}m of session close "
+                           f"{row['close']} ET — no orders")
+        return True, (f"in window {row['open']}+{after}m -> "
+                      f"{row['close']}-{before}m ET")
+    # no calendar row (holiday or API gap): the clock's next_close is
+    # still a hard bound on the close buffer
+    n_utc = now if now.tzinfo else now.tz_localize("UTC")
+    nc = clk.get("next_close")
+    if nc and n_utc > pd.Timestamp(nc) - pd.Timedelta(minutes=before):
+        return False, f"inside {before}m of close (clock) — no orders"
     return True, f"market open (no calendar; open+{after}m assumed by cron)"
 
 
@@ -826,7 +854,13 @@ def run_day(args) -> None:
     log(f"budget: £{cfg['budget_gbp']} -> ${budget_usd:.2f} @ {fx:.4f}")
 
     # -- idempotency gate ------------------------------------------------------------
-    already = broker.traded_today(day)
+    # "Already traded" anchors on today's US/Eastern TRADING DATE (wall
+    # clock), not the signal day — the backup cron slots rerun the same
+    # session, so any order submitted since ET midnight means today's
+    # rebalance already ran. Dry runs treat the signal day as the
+    # trading date.
+    today = day if dry else pd.Timestamp.now(tz=ET)
+    already = broker.traded_today(today)
     journaled = journal.day_logged(day) if hasattr(journal, "day_logged") \
         else False
     spy_px = float(spy.loc[:day].iloc[-1]) if len(spy.loc[:day]) else None
@@ -863,7 +897,8 @@ def run_day(args) -> None:
         log(reason)
         rec["gates"]["bot_halt"] = reason
         try:
-            journal.log_halt(day, reason, ctx)
+            if not journal.day_logged(day, "halt"):
+                journal.log_halt(day, reason, ctx)
         except Exception as e:  # noqa: BLE001
             log(f"halt journal write failed: {e}")
         ctx["summary"] += f" | HALT ({reason})"
@@ -874,7 +909,8 @@ def run_day(args) -> None:
 
     # -- order window (calendar-gated; holidays + half-days handled) -------------
     if dry:
-        win_ok, win_note = True, "dry-run: window forced open"
+        win_ok, win_note = getattr(broker, "window_override", None) or \
+            (True, "dry-run: window forced open")
     else:
         now = pd.Timestamp.now(tz="UTC")
         win_ok, win_note = order_window(broker, now, cfg, dry)
@@ -952,8 +988,15 @@ def run_day(args) -> None:
         return
 
     # -- PDT: same-day open+close of one symbol is impossible ------------------------
+    # "today" is the same ET trading date as the idempotency gate — a
+    # late-day backup run must see the morning's orders here too.
+    d0 = pd.Timestamp(today).normalize()
+    if d0.tzinfo is None:
+        d0 = d0.tz_localize(ET)
     try:
-        today_ords = broker.orders_since(day.normalize())
+        today_ords = [o for o in broker.orders_since(d0.tz_localize(None))
+                      if pd.Timestamp(o.get("submitted_at", d0))
+                      .tz_convert(ET).normalize() == d0]
     except Exception:  # noqa: BLE001
         today_ords = []
     kept, pdt_blocked = pdt_guard(today_ords, step["trades"])
@@ -1022,7 +1065,11 @@ def run_day(args) -> None:
                               "notional": t.get("notional"),
                               "qty": t.get("qty"),
                               "client_order_id": coid})
-        journal.log_trade(day, t, ctx)
+        # dedupe: an OrderExistsError above means this (day, sym, side)
+        # order already went out — its trade row may already be journaled
+        if not (hasattr(journal, "trade_logged")
+                and journal.trade_logged(sym, side, day)):
+            journal.log_trade(day, t, ctx)
     if skipped:
         ctx["summary"] += " | skipped: " + ", ".join(skipped)
 

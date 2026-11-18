@@ -284,6 +284,26 @@ class NotionJournal:
             {"property": "Date", "date": {
                 "equals": day.strftime("%Y-%m-%d")}}]}))
 
+    def note_logged(self, day: pd.Timestamp, text: str) -> bool:
+        """A note row for `day` carrying this exact Reason text already
+        exists — reconcile reruns must not stack duplicate anomalies."""
+        pages = self._query({"and": [
+            {"property": "EntryType", "select": {"equals": "note"}},
+            {"property": "Date", "date": {
+                "equals": day.strftime("%Y-%m-%d")}}]})
+        for p in pages:
+            rt = p["properties"]["Reason"]["rich_text"]
+            if "".join(t.get("plain_text", "")
+                       for t in rt) == str(text)[:1900]:
+                return True
+        return False
+
+    def trade_logged(self, sym: str, side: str, day: pd.Timestamp) -> bool:
+        """A trade page for (sym, side, day) already exists — the
+        OrderExistsError path must not journal one order twice."""
+        return bool(self.trade_pages(sym, side,
+                                     day.strftime("%Y-%m-%d")))
+
     def open_buy(self, sym: str) -> dict | None:
         pages = self._query({"and": [
             {"property": "Ticker", "title": {"equals": sym}},

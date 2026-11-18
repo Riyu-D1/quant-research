@@ -51,6 +51,8 @@ cost_bps: 10.0            # sizing conservatism (paper fills are free)
 rebalance_band: 0.02   # skip |dw| < band or < $1
 snapshot_stale_days: 45
 order_after_open_min: 15
+order_before_close_min: 15   # no market orders into the close auction
+                             # (backup cron slots can land late-session)
 sector_map: configs/benchmarks/assets/sp500_sector_map.csv
 fwd_h: 21
 
