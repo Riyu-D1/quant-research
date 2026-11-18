@@ -446,3 +446,147 @@ def test_reconcile_rerun_writes_no_dup_rows(tmp_path):
     assert len(notes) == 2                            # rejected + partial
     assert sum(p["entry_type"] == "day-summary"
                for p in journal.pages) == 1
+
+
+# ---------------------------------------------------------------------------
+# book_size: account_equity — the paper book IS the account (~$100k), not
+# the £10 live-mirror pin. Same B50 core+sleeve map, same $1 floor, same
+# one-order-per-symbol PDT shape — only the sizing source changes.
+
+EQUITY = 100_000.0
+
+
+def core_cfg(tmp: Path, **over) -> Path:
+    """B50-shaped test config: 50% SPY core + 6-name equal sleeve."""
+    return write_cfg(
+        tmp, regime="none",
+        core={"symbol": "SPY", "weight": 0.5},
+        sleeve={"n": 6, "weighting": "equal", "risk_off": "to_core"},
+        n_positions=6, **over)
+
+
+def test_book_size_account_equity(tmp_path):
+    """book_size=account_equity sizes targets off the account's equity,
+    not the £10 budget_gbp pin: SPY core ~50%, 6 sleeve names ~8.3% each."""
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = core_cfg(tmp_path, book_size="account_equity")
+    broker = PT.FakeBroker()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    journal = PT.FakeJournal()
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    buys = {o["sym"]: o["notional"] for o in broker.orders
+            if o["side"] == "buy"}
+    assert buys["SPY"] == pytest.approx(EQUITY * 0.5, rel=0.02)
+    sleeve = [v for s, v in buys.items() if s != "SPY"]
+    assert len(sleeve) == 6                          # full sleeve funded
+    for v in sleeve:
+        assert v == pytest.approx(EQUITY / 12, rel=0.02)
+    assert sum(buys.values()) > EQUITY * 0.9         # book ~ equity
+    summ = [p for p in journal.pages
+            if p["entry_type"] == "day-summary"][-1]
+    assert "account_equity" in summ["summary"]
+    assert "100,000" in summ["summary"]
+
+
+def test_fixed_gbp_book_unchanged(tmp_path):
+    """Without book_size the same B50 book still sizes to the £10 pin —
+    the live mirror must not move."""
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = core_cfg(tmp_path)                          # no book_size key
+    broker = PT.FakeBroker()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    run_bot(cfg, fx, state, DAY, broker, PT.FakeJournal())
+    buys = {o["sym"]: o["notional"] for o in broker.orders
+            if o["side"] == "buy"}
+    assert sum(buys.values()) < 20.0                 # ~£10 -> ~$12.70 book
+    assert buys["SPY"] == pytest.approx(12.70 * 0.5, rel=0.05)
+
+
+def test_scale_up_tiny_book_one_shot(tmp_path):
+    """The one-time scale-up: a $13 book under B50 must rebalance up to
+    ~equity targets in a single run — buys cover the gap, exits stay
+    tiny, no symbol is both bought and sold, and a same-day rerun is
+    a clean no-op (PR #10 anchor)."""
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = core_cfg(tmp_path, book_size="account_equity")
+    day = pd.Timestamp(DAY)
+    px = {s: float(cl[s].loc[:day].iloc[-1]) for s in cl.columns}
+    # the legacy tiny book: ~$6.50 SPY + ~$1 in every momentum name
+    held = {"SPY": {"qty": 6.5 / px["SPY"], "market_value": 6.5,
+                    "avg_entry_price": px["SPY"]}}
+    held.update({s: {"qty": 1.0 / px[s], "market_value": 1.0,
+                     "avg_entry_price": px[s]} for s in SYMS[:8]})
+    broker = PT.FakeBroker(positions=held)
+    broker.acct = {"cash": str(EQUITY - 14.5),
+                   "portfolio_value": str(EQUITY)}
+    journal = PT.FakeJournal()
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    buys = {o["sym"]: o["notional"] for o in broker.orders
+            if o["side"] == "buy"}
+    sells = {o["sym"]: o["qty"] * px[o["sym"]] for o in broker.orders
+             if o["side"] == "sell"}
+    # SPY core scales ~$6.50 -> ~$50k; sleeve names ~$1 -> ~$8.3k
+    assert buys["SPY"] == pytest.approx(EQUITY * 0.5 - 6.5, rel=0.02)
+    sleeve_buys = [v for s, v in buys.items() if s != "SPY"]
+    assert len(sleeve_buys) == 6
+    for v in sleeve_buys:
+        assert v == pytest.approx(EQUITY / 12, rel=0.03)
+    # the two unpicked tiny names exit (tiny sells, well under $5)
+    assert sells and all(v < 5.0 for v in sells.values())
+    # PDT by construction: no symbol both bought and sold today
+    assert not (set(buys) & set(sells))
+    assert sum(buys.values()) > EQUITY * 0.9
+    # re-run same day: the ET-today anchor makes it a clean no-op
+    n_orders = len(broker.orders)
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    assert len(broker.orders) == n_orders
+    assert sum(p["entry_type"] == "day-summary"
+               for p in journal.pages) == 1
+
+
+def test_account_equity_unreadable_refuses(tmp_path):
+    """book_size=account_equity with a dead account() must refuse loudly —
+    a silent fallback would run a phantom-size book."""
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = core_cfg(tmp_path, book_size="account_equity")
+
+    class DeadAcct(PT.FakeBroker):
+        def account(self):
+            raise RuntimeError("account API down")
+
+    journal = PT.FakeJournal()
+    with pytest.raises(SystemExit):
+        run_bot(cfg, fx, state, DAY, DeadAcct(), journal)
+    assert any(p["entry_type"] == "error" for p in journal.pages)
+
+
+def test_paper_config_pins(tmp_path):
+    """configs/paper_signal.yaml: same B50 book as the live mirror,
+    sized by account_equity; live gates stay off."""
+    import yaml
+    paper = yaml.safe_load(
+        (REPO / "configs" / "paper_signal.yaml").read_text())
+    live = yaml.safe_load(
+        (REPO / "configs" / "live_signal.yaml").read_text())
+    assert paper["book_size"] == "account_equity"
+    assert paper["live_trading"] is False
+    assert "book_size" not in live
+    for k in ("signals", "core", "sleeve", "regime", "rebalance_band"):
+        assert paper[k] == live[k], k               # same strategy map
+    assert "budget_gbp" in paper                    # fixed_gbp fallback

@@ -45,6 +45,14 @@ they can still be sold.
 `false` until a single fresh-window look clears the predeclared match
 gate, and every run/journal entry carries the flag.
 
+**Paper vs live config:** the paper bot defaults to
+`configs/paper_signal.yaml` — the identical B50_momvq map plus
+`book_size: account_equity`, which sizes targets off the paper account's
+full equity (~$100k) so the paper journal shows the strategy's real
+moves. `configs/live_signal.yaml` keeps `budget_gbp` sizing so a future
+£10 live run still mirrors reality; `book_size: fixed_gbp` is the
+default when the key is absent.
+
 ## What the bot does each run
 
 1. Pulls ~13 months of daily bars for the universe + SPY from Alpaca's
@@ -92,8 +100,10 @@ gate, and every run/journal entry carries the flag.
    - **PDT guard** — accounts under $25k can't open and close the same
      symbol the same day; the guard drops any trade that would (checked
      against today's orders *and* within the batch, with a hard assert).
-8. Sells before buys. Rebalances toward the weight map sized from a
-   £10 budget converted to USD at the live GBPUSD rate (each run records
+8. Sells before buys. Rebalances toward the weight map sized from the
+   book — the paper account's full equity under
+   `book_size: account_equity`, or a £10 budget converted to USD at the
+   live GBPUSD rate under the default `fixed_gbp` (each run records
    the rate used; equity is journaled in both USD and GBP); fractional
    shares, long-only. A rebalance is skipped when the weight gap is under
    2% or the order is under the $1 Alpaca minimum — except outright
