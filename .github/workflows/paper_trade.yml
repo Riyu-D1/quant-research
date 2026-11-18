@@ -30,9 +30,9 @@ on:
         description: "optional parquet of closes (fully offline day)"
         required: false
       config:
-        description: "signal config (configs/live_signal_test.yaml = regime guard off, test only)"
+        description: "signal config (default = paper book at full account equity; live_signal_test.yaml = regime guard off, test only)"
         required: false
-        default: "configs/live_signal.yaml"
+        default: "configs/paper_signal.yaml"
       job:
         description: "run = one paper day; refresh_snapshot = rebuild state/live snapshots"
         required: false
@@ -74,6 +74,7 @@ on:
       - tests/test_phase7.py
       - tests/test_phase8.py
       - tests/test_production.py
+      - configs/paper_signal.yaml
       - configs/live_signal.yaml
       - configs/live_signal_test.yaml
       - configs/experiments/phase8_us.yaml
@@ -91,6 +92,7 @@ on:
       - tests/test_phase7.py
       - tests/test_phase8.py
       - tests/test_production.py
+      - configs/paper_signal.yaml
       - configs/live_signal.yaml
       - configs/live_signal_test.yaml
       - configs/experiments/phase8_us.yaml

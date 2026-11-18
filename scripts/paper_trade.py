@@ -3,7 +3,8 @@
     .venv/bin/python scripts/paper_trade.py --dry-run          # mocked day
     .venv/bin/python scripts/paper_trade.py --date 2026-11-12  # live paper
 
-Daily flow (config pinned in configs/live_signal.yaml):
+Daily flow (paper config pinned in configs/paper_signal.yaml;
+configs/live_signal.yaml is the unchanged £10 live mirror):
   clock + stale-bars check -> fill reconciliation (actual Alpaca fills and
   positions -> journal Outcome/Lesson + equity-vs-SPY state) -> SPY regime
   guard -> signal scores (mom/rev/srev5/mom6/lowvol/beta from Alpaca bars,
@@ -839,19 +840,38 @@ def run_day(args) -> None:
 
     # -- budget --------------------------------------------------------------------
     fx = LV.gbpusd() if not dry else 1.27
+    # book_size picks the sizing source — config-driven, not a code fork:
+    #   fixed_gbp      — budget_gbp * fx (default; the £10 live mirror)
+    #   account_equity — the book IS the account: targets size off the
+    #                    paper account's full equity (~$100k). Paper-only
+    #                    pin; unreadable equity refuses rather than
+    #                    silently running a tiny book.
+    book_size = str(cfg.get("book_size", "fixed_gbp")).strip().lower()
     budget_usd = float(cfg["budget_gbp"]) * fx
-    if not dry:
+    acct_eq = None
+    if not dry or book_size == "account_equity":
         try:
             acct = broker.account()
-            equity = float(acct.get("portfolio_value") or
-                           acct.get("equity") or budget_usd)
-            if equity < budget_usd:
-                log(f"account equity ${equity:.2f} < £10 budget "
-                    f"${budget_usd:.2f} — sizing to equity")
-                budget_usd = equity
+            acct_eq = float(acct.get("portfolio_value") or
+                            acct.get("equity") or 0.0)
         except Exception as e:  # noqa: BLE001
-            log(f"account() failed ({e}) — sizing to configured budget")
-    log(f"budget: £{cfg['budget_gbp']} -> ${budget_usd:.2f} @ {fx:.4f}")
+            log(f"account() failed ({e})" +
+                ("" if book_size == "account_equity"
+                 else " — sizing to configured budget"))
+    if book_size == "account_equity":
+        if not acct_eq or acct_eq <= 0:
+            fail(journal, "book_size=account_equity but the account's "
+                          "equity is unreadable — refusing to size blind")
+        budget_usd = acct_eq
+    elif book_size != "fixed_gbp":
+        fail(journal, f"unknown book_size {book_size!r} "
+                      "(fixed_gbp|account_equity)")
+    elif not dry and acct_eq and acct_eq < budget_usd:
+        log(f"account equity ${acct_eq:.2f} < £10 budget "
+            f"${budget_usd:.2f} — sizing to equity")
+        budget_usd = acct_eq
+    log(f"budget: book_size={book_size} -> ${budget_usd:.2f} "
+        f"(£{cfg['budget_gbp']} pin @ {fx:.4f})")
 
     # -- idempotency gate ------------------------------------------------------------
     # "Already traded" anchors on today's US/Eastern TRADING DATE (wall
@@ -866,12 +886,16 @@ def run_day(args) -> None:
     spy_px = float(spy.loc[:day].iloc[-1]) if len(spy.loc[:day]) else None
     ctx = {"weights_str": weights_str, "regime": why,
            "validated": validated, "budget_usd": budget_usd, "fx": fx,
+           "book_size": book_size,
            "summary": f"{banner} | picks {want} | exposure {exposure} | "
+                      f"book ${budget_usd:,.0f} ({book_size}) | "
                       f"fx {fx:.4f} | {clock_note} | "
                       f"notes: {'; '.join(notes)}"}
     rec = {"day": str(day.date()), "config": args.config,
            "sha": os.environ.get("GITHUB_SHA", "local"),
            "validated": validated, "want": want, "exposure": exposure,
+           "book_size": book_size,
+           "budget_usd": round(budget_usd, 2),
            "fx_gbpusd": round(fx, 6), "gates": {}, "orders": [],
            "notes": list(notes)}
 
@@ -1133,7 +1157,10 @@ def _write_rec(rec: dict, args, day: pd.Timestamp) -> None:
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--config", default=str(REPO / "configs" /
-                                           "live_signal.yaml"))
+                                           "paper_signal.yaml"),
+                   help="default = the paper book; pass "
+                        "configs/live_signal.yaml to mirror the £10 "
+                        "live sizing")
     p.add_argument("--date", default="",
                    help="YYYY-MM-DD; default = latest bar available")
     p.add_argument("--dry-run", action="store_true",
