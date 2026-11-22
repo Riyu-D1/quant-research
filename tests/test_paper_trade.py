@@ -590,3 +590,174 @@ def test_paper_config_pins(tmp_path):
     for k in ("signals", "core", "sleeve", "regime", "rebalance_band"):
         assert paper[k] == live[k], k               # same strategy map
     assert "budget_gbp" in paper                    # fixed_gbp fallback
+
+
+# ---------------------------------------------------------------------------
+# schedule-lag hardening (2026-11-19/20 incident: every order slot landed
+# 22:00-04:00 UTC, post-close, and refused quietly for two days):
+#   - out-of-session runs queue DAY orders for the next session's open
+#   - idempotency keys on the TARGET session, not the run date
+#   - a trading day that ends unserved + off-target fails loudly
+# Friday 2026-06-19 is the last completed close; Monday is 2026-06-22.
+
+FRI = "2026-06-19"
+SAT = pd.Timestamp("2026-06-20T14:00:00Z")
+MON = pd.Timestamp("2026-06-22")
+
+
+def friday_book(tmp_path):
+    """Fixture ending Friday + the B50 core book on full account equity —
+    the same shape the real weekend runs execute."""
+    days = pd.bdate_range(end=pd.Timestamp(FRI), periods=620)
+    cl = fixture_closes(SYMS, days=days)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = core_cfg(tmp_path, book_size="account_equity")
+    return fx, state, cfg
+
+
+def friday_fill():
+    """An in-session Friday fill — marks Friday's session as served, so
+    the missed-session alarm doesn't (correctly) fire on it."""
+    return {"symbol": "SPY", "side": "buy", "status": "filled",
+            "submitted_at": "2026-06-19T15:00:00Z",
+            "filled_at": "2026-06-19T15:01:00Z",
+            "filled_qty": "0.01", "filled_avg_price": "100.0"}
+
+
+def test_after_close_run_queues_next_session(tmp_path):
+    """A run landing out of session (Saturday) computes the signal on the
+    latest completed close and queues DAY orders for Monday's open —
+    order records and client_order_ids key on the TARGET session."""
+    fx, state, cfg = friday_book(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    broker.api_orders = [friday_fill()]          # Friday was served
+    broker.now = SAT                             # Saturday -> closed
+    run_bot(cfg, fx, state, FRI, broker, journal)
+    assert broker.orders                         # queued, not refused
+    assert all(o["day"] == MON for o in broker.orders)
+    assert all(o["client_order_id"].startswith("qr-20260622-")
+               for o in broker.orders)
+    # notional buys / fractional sells can't use opg -> plain `day`,
+    # which Alpaca itself queues to the next open
+    assert all(o["tif"] == "day" for o in broker.orders)
+    assert all("queued for 2026-06-22 open" in o["reason"]
+               for o in broker.orders)
+    rec = json.loads((REPO / "results/paper_run" / f"{FRI}.json")
+                     .read_text())
+    assert rec["session_mode"] == "closed"
+    assert rec["target_session"] == "2026-06-22"
+
+
+def test_no_double_order_late_run_plus_morning(tmp_path):
+    """Saturday queues Monday's orders; the Monday pre-open slot AND a
+    Monday in-session slot must both be clean no-ops — the anchor is the
+    target session, not the run date."""
+    fx, state, cfg = friday_book(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    broker.api_orders = [friday_fill()]
+    broker.now = SAT
+    run_bot(cfg, fx, state, FRI, broker, journal)
+    n = len(broker.orders)
+    assert n > 0
+    # Monday 03:10 ET — the new 08:10 UTC pre-open slot
+    broker.now = pd.Timestamp("2026-06-22T08:10:00Z")
+    run_bot(cfg, fx, state, FRI, broker, journal)
+    assert len(broker.orders) == n
+    # Monday 10:00 ET in-session — the 15:00 UTC slot
+    broker.now = pd.Timestamp("2026-06-22T14:00:00Z")
+    broker.clock_ret = {"is_open": True}
+    run_bot(cfg, fx, state, FRI, broker, journal)
+    assert len(broker.orders) == n
+    assert sum(p["entry_type"] == "day-summary"
+               for p in journal.pages) == 1
+
+
+def test_weekend_and_holiday_queue_targets(tmp_path):
+    """Sunday run -> same Monday target; a holiday run -> the next real
+    session (the fake calendar omits non-trading days like Alpaca's)."""
+    fx, state, cfg = friday_book(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    broker.api_orders = [friday_fill()]
+    broker.now = pd.Timestamp("2026-06-21T18:00:00Z")   # Sunday
+    run_bot(cfg, fx, state, FRI, broker, journal)
+    assert broker.orders
+    assert all(o["day"] == MON for o in broker.orders)
+
+    class _Cal(PT.FakeBroker):
+        def __init__(self, cal, **kw):
+            super().__init__(**kw)
+            self._cal = cal
+
+        def calendar(self, start, end):
+            s, e = pd.Timestamp(start), pd.Timestamp(end)
+            s = s.tz_localize(None).normalize() if s.tzinfo \
+                else s.normalize()
+            e = e.tz_localize(None).normalize() if e.tzinfo \
+                else e.normalize()
+            return [r for r in self._cal
+                    if s <= pd.Timestamp(r["date"]) <= e]
+
+    # Tuesday 2026-01-20 follows the MLK-holiday Monday — the calendar
+    # has no 01-19 row, exactly like Alpaca's
+    cal = [{"date": "2026-01-16", "open": "09:30", "close": "16:00"},
+           {"date": "2026-01-20", "open": "09:30", "close": "16:00"},
+           {"date": "2026-01-21", "open": "09:30", "close": "16:00"}]
+    b = _Cal(cal)
+    b.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    b.api_orders = [{"symbol": "SPY", "side": "buy", "status": "filled",
+                     "submitted_at": "2026-01-16T15:00:00Z",
+                     "filled_at": "2026-01-16T15:01:00Z",
+                     "filled_qty": "0.01", "filled_avg_price": "100.0"}]
+    b.now = pd.Timestamp("2026-01-19T15:00:00Z")   # holiday daytime
+    days = pd.bdate_range(end="2026-01-16", periods=620)
+    cl = fixture_closes(SYMS, days=days)
+    fx2 = tmp_path / "cl2.parquet"
+    cl.to_parquet(fx2)
+    run_bot(cfg, fx2, state, "2026-01-16", b, PT.FakeJournal())
+    assert b.orders
+    assert all(o["day"] == pd.Timestamp("2026-01-20")
+               for o in b.orders)
+
+
+def test_missed_session_fails_loudly(tmp_path):
+    """Friday ended with zero orders and the book is off target — the
+    Saturday run writes an error row for Friday and exits 1, while still
+    queuing Monday's orders (recovery isn't blocked by the alarm)."""
+    fx, state, cfg = friday_book(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    broker.now = SAT
+    with pytest.raises(SystemExit) as e:
+        run_bot(cfg, fx, state, FRI, broker, journal)
+    assert "missed session 2026-06-19" in str(e.value.code)
+    errs = [p for p in journal.pages if p["entry_type"] == "error"]
+    assert len(errs) == 1 and errs[0]["date"] == FRI
+    assert broker.orders                     # Monday orders still queued
+    assert all(o["day"] == MON for o in broker.orders)
+
+    # rerun Sunday: the flag is deduped — row exists, exit is green,
+    # and the queued orders make the run a clean no-op
+    broker.now = pd.Timestamp("2026-06-21T14:00:00Z")
+    n_orders = len(broker.orders)
+    run_bot(cfg, fx, state, FRI, broker, journal)
+    assert len(broker.orders) == n_orders
+    assert sum(p["entry_type"] == "error" for p in journal.pages) == 1
+
+
+def test_served_session_not_flagged(tmp_path):
+    """The counterpart of the missed-day test: when Friday DID trade (the
+    Friday order exists), the weekend run queues quietly — no error row,
+    exit 0."""
+    fx, state, cfg = friday_book(tmp_path)
+    broker, journal = PT.FakeBroker(), PT.FakeJournal()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    broker.api_orders = [friday_fill()]
+    broker.now = SAT
+    run_bot(cfg, fx, state, FRI, broker, journal)   # no SystemExit
+    assert not any(p["entry_type"] == "error" for p in journal.pages)

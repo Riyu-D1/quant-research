@@ -80,14 +80,23 @@ default when the key is absent.
 7. **Gates, in order, before any order:**
    - `BOT_HALT=1` repo/environment variable → reconcile + journal + a
      `halt` row, **zero orders** (the kill switch);
-   - **order window** — Alpaca clock + calendar: orders only during the
-     regular session, at least `order_after_open_min` (15) minutes after
-     the open; half-day early closes are honoured automatically; never
-     extended hours;
-   - **idempotency** — if orders already exist for today the run is a
-     no-op; plus every order carries a deterministic
-     `client_order_id = (date, symbol, side)` so even a race/retry can't
-     double-order;
+   - **session gate** — Alpaca clock + calendar decide WHERE orders go:
+     inside the window (`order_after_open_min` (15) after the open,
+     `order_before_close_min` (15) before the close) they trade now;
+     inside a buffer they refuse (a later or post-close run serves the
+     session); out of session (post-close, pre-open, weekend, holiday)
+     the run queues `day` market orders for the NEXT session's open —
+     Alpaca holds them until the open (`opg` only for whole-share qty
+     orders; notional/fractional can't use it). Never extended hours;
+   - **missed-session alarm** — if the trading day that just ended got
+     zero orders AND the book is off its targets by more than the band,
+     the run writes an `error` row (once per session) and exits 1 — a
+     skipped day can never hide behind a green checkmark;
+   - **idempotency** — if orders already exist for the TARGET session
+     (queued `qr-<session>-` ids or anything submitted inside it) the
+     run is a no-op; plus every order carries a deterministic
+     `client_order_id = (session, symbol, side)` so even a race/retry
+     can't double-order;
    - **stale-order cleanup** — all still-open orders are cancelled before
      rebalancing;
    - **sanity checks** — priced-universe floor, buy-notional ≤ equity,
@@ -99,7 +108,8 @@ default when the key is absent.
      run;
    - **PDT guard** — accounts under $25k can't open and close the same
      symbol the same day; the guard drops any trade that would (checked
-     against today's orders *and* within the batch, with a hard assert).
+     against the session's orders *and* within the batch, with a hard
+     assert).
 8. Sells before buys. Rebalances toward the weight map sized from the
    book — the paper account's full equity under
    `book_size: account_equity`, or a £10 budget converted to USD at the
@@ -173,14 +183,18 @@ use.
   default branch, so the enable only takes effect once the branch
   carrying it is merged or set default; until then manual dispatch on the
   branch is the way to run it.
+  - `10 8 * * 1-5` — **orders** pre-open slot (03:10 ET): queues `day`
+    orders for that morning's open; even if it lags hours it still
+    lands before the open (and an in-session landing trades normally);
   - `0 15 * * 1-5` — **orders** run, lands ~10:00–11:00 ET year-round
     (past the open+15min buffer in both EDT and EST), with backup slots
-    at 15:20 / 16:10 / 17:30 / 19:05 UTC — each a no-op once today's
-    (ET) orders are in, and all refused inside the last 15 min before
-    the close;
+    at 15:20 / 16:10 / 17:30 / 19:05 UTC — each a no-op once the
+    session's orders are in, and all refused inside the last 15 min
+    before the close;
   - `0 22 * * 1-5` — **reconcile** run after the close (idempotent: no
-    new orders, fills/positions/drift journaled), backed up at 22:20
-    and 23:30 UTC;
+    new orders for the ended session, fills/positions/drift journaled;
+    also queues the next session's open and audits the ended one for a
+    missed day), backed up at 22:20 and 23:30 UTC;
   - `0 14 * * 6` — **weekly summary** row (equity, week return vs SPY,
     drawdown, turnover, hit rate, weights);
   - `0 10 1 * *` — **monthly reweight** (the adaptive job: trailing-IC

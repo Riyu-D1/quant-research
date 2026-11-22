@@ -150,6 +150,131 @@ def test_order_window_close_buffer_no_calendar():
     assert ok2
 
 
+# ---------------------------------------------------------------------------
+# order_session / next_session / orders_for_session — the schedule-lag fix
+
+
+def test_order_session_open_in_window():
+    b = _ClockBroker(cal=[{"date": "2026-01-06", "open": "09:30",
+                           "close": "16:00"}])
+    mode, tgt, _ = pt.order_session(b, _et("2026-01-06", "10:00"), {})
+    assert mode == "open" and tgt == pd.Timestamp("2026-01-06")
+
+
+def test_order_session_close_buffer_holds_not_queues():
+    # 15:50 ET — inside the close buffer: refuse for today, do NOT queue
+    # tomorrow's orders (the post-close run serves that instead)
+    b = _ClockBroker(cal=[{"date": "2026-01-06", "open": "09:30",
+                           "close": "16:00"}])
+    mode, tgt, note = pt.order_session(b, _et("2026-01-06", "15:50"), {})
+    assert mode == "hold" and tgt is None and "close" in note
+
+
+def test_order_session_after_close_targets_next_day():
+    b = _ClockBroker(is_open=False)
+    mode, tgt, note = pt.order_session(b, _et("2026-01-02", "17:00"), {})
+    assert mode == "closed" and tgt == pd.Timestamp("2026-01-05")
+    assert "2026-01-05" in note
+
+
+def test_order_session_preopen_targets_today():
+    b = _ClockBroker(is_open=False)
+    mode, tgt, _ = pt.order_session(b, _et("2026-01-05", "03:10"), {})
+    assert mode == "closed" and tgt == pd.Timestamp("2026-01-05")
+
+
+def test_order_session_weekend_targets_monday():
+    b = _ClockBroker(is_open=False)
+    mode, tgt, _ = pt.order_session(b, _et("2026-01-03", "12:00"), {})
+    assert mode == "closed" and tgt == pd.Timestamp("2026-01-05")
+
+
+def test_order_session_unresolvable_holds():
+    class Boom(_ClockBroker):
+        def calendar(self, s, e):
+            raise RuntimeError("calendar api down")
+
+    mode, tgt, _ = pt.order_session(Boom(is_open=False),
+                                    _et("2026-01-05", "17:00"), {})
+    assert mode == "hold" and tgt is None
+
+
+def test_last_closed_session_audit_day():
+    b = _ClockBroker(is_open=False)
+    # Saturday: the last ended session is Friday, not "yesterday"
+    assert pt.last_closed_session(
+        b, _et("2026-01-03", "12:00")) == pd.Timestamp("2026-01-02")
+    # Monday pre-open: still Friday
+    assert pt.last_closed_session(
+        b, _et("2026-01-05", "03:10")) == pd.Timestamp("2026-01-02")
+    # Monday post-close: Monday itself
+    assert pt.last_closed_session(
+        b, _et("2026-01-05", "17:00")) == pd.Timestamp("2026-01-05")
+
+
+def test_orders_for_session_target_keyed(monkeypatch):
+    """The anchor is the session an order serves, not the day it was
+    submitted: a Friday-night order queued for Monday counts as Monday's,
+    and a Monday-night order queued for Tuesday does NOT count as
+    Monday's."""
+    c = AB.PaperClient("k", "s")
+    monkeypatch.setattr(c, "orders_since", lambda day, status="all": [
+        {"symbol": "Q", "side": "buy", "status": "accepted",
+         "submitted_at": "2026-06-19T21:00:00Z",          # Fri night
+         "client_order_id": "qr-20260622-Q-buy"},          # -> Monday
+        {"symbol": "F", "side": "buy", "status": "filled",
+         "submitted_at": "2026-06-19T15:00:00Z"},          # Fri in-session
+        {"symbol": "T", "side": "buy", "status": "accepted",
+         "submitted_at": "2026-06-22T21:30:00Z",           # Mon night
+         "client_order_id": "qr-20260623-T-buy"},          # -> Tuesday
+        {"symbol": "D", "side": "buy", "status": "canceled",
+         "submitted_at": "2026-06-19T15:10:00Z",
+         "client_order_id": "qr-20260622-D-buy"}])         # dead
+    mon = [o["symbol"] for o in pt.orders_for_session(
+        c, pd.Timestamp("2026-06-22"))]
+    assert mon == ["Q"]
+    fri = [o["symbol"] for o in pt.orders_for_session(
+        c, pd.Timestamp("2026-06-19"))]
+    assert fri == ["F"]
+
+
+def test_orders_for_session_strict_reraises():
+    class Boom(pt.FakeBroker):
+        def orders_since(self, day, status="all"):
+            raise RuntimeError("orders api down")
+
+    with pytest.raises(RuntimeError):
+        pt.orders_for_session(Boom(), pd.Timestamp("2026-06-22"),
+                              strict=True)
+    # non-strict degrades to [] — used by the missed-session audit only
+    assert pt.orders_for_session(Boom(),
+                                 pd.Timestamp("2026-06-22")) == []
+
+
+def test_queued_tif_whole_share_only():
+    assert pt.queued_tif({"side": "buy", "qty": 5.0}) == "day"
+    assert pt.queued_tif({"side": "buy", "notional": 50}) == "day"
+    assert pt.queued_tif({"side": "sell", "qty": 5.0}) == "opg"
+    assert pt.queued_tif({"side": "sell", "qty": 0.5}) == "day"
+
+
+def test_sell_qty_truncates_never_rounds_up(monkeypatch):
+    """A sell must never request MORE than the held position — the old
+    %.6f formatting rounded up and Alpaca 403'd 'insufficient qty' on a
+    full-position exit (AMG 2026-11-22). Fractional qty is truncated to
+    Alpaca's 9 decimals."""
+    c = AB.PaperClient("k", "s")
+    sent = []
+    monkeypatch.setattr(c, "_req",
+                        lambda m, p, **kw: sent.append(kw.get("json")))
+    c.sell_qty("AMG", 0.002720773, tif="day")
+    assert sent[0]["qty"] == "0.002720773"
+    c.sell_qty("X", 5.0, tif="opg")        # whole share: clean int
+    assert sent[1]["qty"] == "5"
+    c.sell_qty("Y", 1.2345678919)          # >9dp input still truncates
+    assert float(sent[2]["qty"]) <= 1.2345678919
+
+
 def test_traded_today_anchors_on_et_date(monkeypatch):
     """'Already traded today' means the US/Eastern trading date — orders
     submitted on an earlier ET day (even on what is now the signal day)

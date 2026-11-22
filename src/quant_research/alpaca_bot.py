@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 import zoneinfo
+from decimal import Decimal, ROUND_DOWN
 
 import pandas as pd
 import requests
@@ -151,28 +152,40 @@ class PaperClient:
         return n
 
     # -- orders (all long-only; no shorts ever) --------------------------------
+    # `tif` stays "day" for every order shape this bot places: `opg` is
+    # only legal for whole-share qty orders (notional/fractional can't
+    # use it), and a `day` order submitted while the market is closed is
+    # queued to the next session's open either way.
     def buy_notional(self, sym: str, usd: float,
-                     reason: str = "", coid: str | None = None) -> dict | None:
+                     reason: str = "", coid: str | None = None,
+                     tif: str = "day") -> dict | None:
         if usd < MIN_NOTIONAL_USD:
             log(f"skip buy {sym}: ${usd:.2f} < ${MIN_NOTIONAL_USD} minimum")
             return None
         from quant_research.live import to_alpaca
         body = {"symbol": to_alpaca(sym), "notional": round(usd, 2),
-                "side": "buy", "type": "market", "time_in_force": "day"}
+                "side": "buy", "type": "market", "time_in_force": tif}
         if coid:
             body["client_order_id"] = coid
-        log(f"order BUY {sym} ${usd:.2f} ({reason})")
+        log(f"order BUY {sym} ${usd:.2f} tif={tif} ({reason})")
         return self._req("POST", "/v2/orders", json=body)
 
     def sell_qty(self, sym: str, qty: float,
-                 reason: str = "", coid: str | None = None) -> dict | None:
+                 reason: str = "", coid: str | None = None,
+                 tif: str = "day") -> dict | None:
         if qty <= 0:
             return None
         from quant_research.live import to_alpaca
-        body = {"symbol": to_alpaca(sym), "qty": f"{qty:.6f}".rstrip("0")
+        # truncate, never round up: Alpaca takes fractional qty to 9
+        # decimals, and a rounded-up request 403s "insufficient qty"
+        # when a trade targets the full position (hit 2026-11-22 on an
+        # AMG exit: held 0.002720773, %.6f formatting asked 0.002721)
+        q = Decimal(str(qty)).quantize(
+            Decimal("1e-9"), rounding=ROUND_DOWN)
+        body = {"symbol": to_alpaca(sym), "qty": f"{q:f}".rstrip("0")
                 .rstrip("."), "side": "sell", "type": "market",
-                "time_in_force": "day"}
+                "time_in_force": tif}
         if coid:
             body["client_order_id"] = coid
-        log(f"order SELL {sym} {qty} ({reason})")
+        log(f"order SELL {sym} {qty} tif={tif} ({reason})")
         return self._req("POST", "/v2/orders", json=body)
