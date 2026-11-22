@@ -258,6 +258,23 @@ def test_queued_tif_whole_share_only():
     assert pt.queued_tif({"side": "sell", "qty": 0.5}) == "day"
 
 
+def test_sell_qty_truncates_never_rounds_up(monkeypatch):
+    """A sell must never request MORE than the held position — the old
+    %.6f formatting rounded up and Alpaca 403'd 'insufficient qty' on a
+    full-position exit (AMG 2026-11-22). Fractional qty is truncated to
+    Alpaca's 9 decimals."""
+    c = AB.PaperClient("k", "s")
+    sent = []
+    monkeypatch.setattr(c, "_req",
+                        lambda m, p, **kw: sent.append(kw.get("json")))
+    c.sell_qty("AMG", 0.002720773, tif="day")
+    assert sent[0]["qty"] == "0.002720773"
+    c.sell_qty("X", 5.0, tif="opg")        # whole share: clean int
+    assert sent[1]["qty"] == "5"
+    c.sell_qty("Y", 1.2345678919)          # >9dp input still truncates
+    assert float(sent[2]["qty"]) <= 1.2345678919
+
+
 def test_traded_today_anchors_on_et_date(monkeypatch):
     """'Already traded today' means the US/Eastern trading date — orders
     submitted on an earlier ET day (even on what is now the signal day)

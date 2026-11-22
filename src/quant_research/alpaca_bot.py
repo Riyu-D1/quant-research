@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 import zoneinfo
+from decimal import Decimal, ROUND_DOWN
 
 import pandas as pd
 import requests
@@ -175,7 +176,13 @@ class PaperClient:
         if qty <= 0:
             return None
         from quant_research.live import to_alpaca
-        body = {"symbol": to_alpaca(sym), "qty": f"{qty:.6f}".rstrip("0")
+        # truncate, never round up: Alpaca takes fractional qty to 9
+        # decimals, and a rounded-up request 403s "insufficient qty"
+        # when a trade targets the full position (hit 2026-11-22 on an
+        # AMG exit: held 0.002720773, %.6f formatting asked 0.002721)
+        q = Decimal(str(qty)).quantize(
+            Decimal("1e-9"), rounding=ROUND_DOWN)
+        body = {"symbol": to_alpaca(sym), "qty": f"{q:f}".rstrip("0")
                 .rstrip("."), "side": "sell", "type": "market",
                 "time_in_force": tif}
         if coid:
