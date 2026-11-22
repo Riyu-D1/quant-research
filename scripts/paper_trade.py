@@ -20,10 +20,34 @@ Honesty contract: `validated` from the pinned config is stamped on every
 log line and every journal entry — until the holdout gate passes it stays
 false and the journal says UNVALIDATED.
 
-Idempotent: if any Alpaca order was already submitted today, the run
-places NO new orders (re-runs are safe). Journalling is also date-guarded.
-All state that must survive runs lives in Alpaca (positions/orders) or
-Notion (summary STATE blobs) — never on runner disk.
+Session handling: GitHub schedules routinely land hours late (observed
+2026-11-19/20: every order slot ran 22:00-04:00 UTC, after the close),
+so the order gate is a session decision, not a clock refusal —
+  in window (open+15m .. close-15m): trade now, market orders fill this
+                                     session
+  in-session but inside a buffer:    refuse (no orders into the close
+                                     auction, none before the open
+                                     settles) — a later or post-close
+                                     run serves the session instead
+  out of session (post-close, pre-open, weekend, holiday): compute the
+      signal on the latest completed close and queue DAY market orders
+      for the NEXT session's open — Alpaca holds them until the open.
+      `opg` (market-on-open) only for whole-share qty orders; notional
+      and fractional-qty orders can't use opg, so they go `day`, which
+      Alpaca queues to the next open the same way.
+
+Idempotent: keyed on the TARGET session, not the run date — a late run
+queueing Monday orders and the Monday-morning run share one anchor
+(client_order_id qr-<session>-... plus anything submitted inside the
+session), so lagged schedules can't double-order. Journalling is also
+date-guarded. All state that must survive runs lives in Alpaca
+(positions/orders) or Notion (summary STATE blobs) — never on runner
+disk.
+
+Missed-session alarm: if the last ended trading day got zero orders AND
+the book is off its targets by more than the rebalance band, the run
+writes an `error` row (once per session) and exits 1 — a skipped day can
+never hide behind a green checkmark again.
 
 Failure contract: any crash -> a `error` entry in the journal (best
 effort) AND exit code 1 (workflow fails loudly).
@@ -79,6 +103,7 @@ class FakeBroker:
         self.orders: list[dict] = []
         self.api_orders: list[dict] = []
         self.day = None
+        self.now = None            # tests pin the wall clock here
         self.clock_ret = {"is_open": False}
         self.acct = {"cash": "12.70", "portfolio_value": "12.70"}
 
@@ -98,22 +123,22 @@ class FakeBroker:
                     None).normalize() >= d0]
 
     def traded_today(self, day):
-        # >= semantics like PaperClient: orders recorded with the signal day
-        # they were placed for; anything since `day` means already traded
+        # >= semantics like PaperClient: orders recorded with the TARGET
+        # session they were placed for; anything since `day` counts
         return [o for o in self.orders if o["day"] >= day]
 
-    def buy_notional(self, sym, usd, reason="", coid=None):
+    def buy_notional(self, sym, usd, reason="", coid=None, tif="day"):
         if usd < AB.MIN_NOTIONAL_USD:
             log(f"fake skip buy {sym}: ${usd:.2f} < min")
             return None
         o = {"day": self.day, "sym": sym, "side": "buy", "notional": usd,
-             "reason": reason, "client_order_id": coid}
+             "reason": reason, "client_order_id": coid, "tif": tif}
         self.orders.append(o)
         return o
 
-    def sell_qty(self, sym, qty, reason="", coid=None):
+    def sell_qty(self, sym, qty, reason="", coid=None, tif="day"):
         o = {"day": self.day, "sym": sym, "side": "sell", "qty": qty,
-             "reason": reason, "client_order_id": coid}
+             "reason": reason, "client_order_id": coid, "tif": tif}
         self.orders.append(o)
         return o
 
@@ -429,6 +454,154 @@ def order_window(broker, now: pd.Timestamp, cfg: dict,
     return True, f"market open (no calendar; open+{after}m assumed by cron)"
 
 
+# ---------------------------------------------------------------------------
+# sessions: where a run's orders land (the schedule-lag fix)
+#
+# order_window answers "may orders execute NOW". order_session answers the
+# bigger question — in-window trade / in-session buffer refusal / queue for
+# the next open — so a run landing hours late still trades.
+
+
+def next_session(broker, now: pd.Timestamp,
+                 horizon_days: int = 14) -> pd.Timestamp | None:
+    """First trading session whose close is still ahead of `now` — the
+    session a queued order would fill at. Pre-open today -> today;
+    post-close, weekend or holiday -> the next calendar row (holidays and
+    half-days are just rows with shifted/absent close times). None if the
+    calendar can't answer — the caller then refuses to queue blind."""
+    n_et = now.tz_convert(ET) if now.tzinfo else now.tz_localize(
+        "UTC").tz_convert(ET)
+    try:
+        cal = broker.calendar(
+            n_et.normalize(),
+            n_et.normalize() + pd.Timedelta(days=horizon_days))
+    except Exception as e:  # noqa: BLE001
+        log(f"calendar() failed: {e} — can't resolve next session")
+        return None
+    for row in cal or []:
+        close = pd.Timestamp(f"{row['date']} {row['close']}") \
+            .tz_localize(ET)
+        if n_et < close:
+            return pd.Timestamp(row["date"])
+    return None
+
+
+def last_closed_session(broker, now: pd.Timestamp,
+                        horizon_days: int = 14) -> pd.Timestamp | None:
+    """The most recent trading session that has already ended — the
+    session the missed-day alarm audits."""
+    n_et = now.tz_convert(ET) if now.tzinfo else now.tz_localize(
+        "UTC").tz_convert(ET)
+    try:
+        cal = broker.calendar(
+            n_et.normalize() - pd.Timedelta(days=horizon_days),
+            n_et.normalize())
+    except Exception as e:  # noqa: BLE001
+        log(f"calendar() failed: {e} — can't audit last session")
+        return None
+    ended = [r for r in (cal or [])
+             if n_et >= pd.Timestamp(f"{r['date']} {r['close']}")
+             .tz_localize(ET)]
+    return pd.Timestamp(ended[-1]["date"]) if ended else None
+
+
+def order_session(broker, now: pd.Timestamp, cfg: dict) -> tuple[
+        str, pd.Timestamp | None, str]:
+    """Where do this run's orders land? Returns (mode, target, note):
+
+      open   — in-session inside the order window: market orders fill in
+               this session; target = today's US/Eastern trading date
+      hold   — in-session but inside a buffer (before open+15m, inside
+               close-15m), or the session can't be resolved: no orders;
+               a later or post-close run serves the session instead
+      closed — out of session (post-close, pre-open, weekend, holiday):
+               queue DAY orders for `target`'s open
+    """
+    ok, note = order_window(broker, now, cfg)
+    n_et = now.tz_convert(ET) if now.tzinfo else now.tz_localize(
+        "UTC").tz_convert(ET)
+    if ok:
+        return "open", n_et.tz_localize(None).normalize(), note
+    try:
+        is_open = bool((broker.clock() or {}).get("is_open"))
+    except Exception:  # noqa: BLE001
+        is_open = False
+    if is_open:
+        return "hold", None, note          # in-session buffer refusal
+    tgt = next_session(broker, now)
+    if tgt is None:
+        return "hold", None, ("market closed and next session "
+                              "unresolved — not queueing blind")
+    return "closed", tgt, f"market closed — queuing for {tgt.date()} open"
+
+
+def orders_for_session(broker, session: pd.Timestamp,
+                       strict: bool = False) -> list[dict]:
+    """Orders belonging to `session`'s trading day — the idempotency
+    anchor, keyed on the TARGET session rather than the run date so a
+    late-night queue run and the next-morning run can't double-order.
+
+    Three order shapes:
+      - FakeBroker records: `o["day"]` IS the target session
+      - our API orders: client_order_id qr-<session>-... encodes the
+        target (a Friday-night order queued for Monday's open carries
+        Monday's id even though it was submitted Friday)
+      - foreign orders (no qr- coid): attributed to their submitted
+        US/Eastern date
+
+    Dead orders never count. `strict=True` re-raises orders_since
+    failures — the idempotency gate must fail closed (a crash beats a
+    possible double-order; the client_order_id dedupe is the last line).
+    """
+    d0 = pd.Timestamp(session)
+    if d0.tzinfo is not None:
+        d0 = d0.tz_localize(None)
+    d0 = d0.normalize()
+    out, pref = [], f"qr-{d0.strftime('%Y%m%d')}-"
+    for o in getattr(broker, "orders", []):
+        if o.get("day") is not None:
+            od = pd.Timestamp(o["day"])
+            if od.tzinfo is not None:
+                od = od.tz_localize(None)
+            if od.normalize() == d0:
+                out.append(o)
+    try:
+        ords = broker.orders_since(d0 - pd.Timedelta(days=7))
+    except Exception:  # noqa: BLE001
+        if strict:
+            raise
+        ords = []
+    for o in ords:
+        if o.get("status") in ("canceled", "expired", "rejected"):
+            continue
+        coid = str(o.get("client_order_id") or "")
+        if coid.startswith(pref):
+            out.append(o)
+        elif not coid.startswith("qr-") and o.get("submitted_at"):
+            try:
+                sub = pd.Timestamp(o["submitted_at"])
+                if not sub.tzinfo:
+                    sub = sub.tz_localize("UTC")
+                if sub.tz_convert(ET).tz_localize(
+                        None).normalize() == d0:
+                    out.append(o)
+            except (TypeError, ValueError):
+                continue
+    return out
+
+
+def queued_tif(trade: dict) -> str:
+    """TIF for an order submitted out-of-session. Market-on-open (`opg`)
+    rides the opening auction, but Alpaca only accepts it for whole-share
+    qty orders — notional and fractional-qty orders go `day`, which
+    Alpaca queues to the next session's open the same way."""
+    q = trade.get("qty")
+    if trade["side"] == "sell" and q is not None \
+            and float(q).is_integer():
+        return "opg"
+    return "day"
+
+
 def pdt_guard(orders_today: list[dict], trades: list[dict]) -> tuple[
         list, list]:
     """PDT guard for accounts < $25k: never open and close the same symbol
@@ -577,6 +750,36 @@ def corp_actions(journal, held: dict, day: pd.Timestamp,
     return notes
 
 
+def target_map(want: list[str], targets: dict | None,
+               exposure: float) -> dict[str, float]:
+    """{sym: equity fraction} — the explicit core+sleeve map when the
+    book runs that way, else the legacy top-N equal-weight map."""
+    if targets is not None:
+        return dict(targets)
+    return {s: exposure / max(len(want), 1) for s in want}
+
+
+def drift_rows(tgt_map: dict[str, float], held: dict, prices: dict,
+               equity: float) -> list[tuple[str, float]]:
+    """(sym, actual_w - target_w) over the union of target + held names."""
+    act = {s: p["qty"] * prices.get(s, 0.0) / equity
+           for s, p in held.items() if prices.get(s)}
+    return [(s, act.get(s, 0.0) - tgt_map.get(s, 0.0))
+            for s in sorted(set(tgt_map) | set(act))]
+
+
+def book_off_target(tgt_map: dict[str, float], held: dict, prices: dict,
+                    equity: float, band: float) -> tuple[bool, str]:
+    """max |actual_w - target_w| > band? Unreadable equity can't verify
+    the book — count it as off target (a loud false alarm beats a silent
+    missed day)."""
+    if equity <= 0:
+        return True, "equity unreadable — book unverifiable"
+    worst = max((abs(d) for _, d in drift_rows(tgt_map, held, prices,
+                                              equity)), default=0.0)
+    return worst > band, f"max |dW| {worst:.1%} vs band {band:.0%}"
+
+
 def drift_report(want: list[str], n_positions: int, exposure: float,
                  held: dict, prices: dict, equity: float,
                  targets: dict | None = None) -> str:
@@ -585,15 +788,10 @@ def drift_report(want: list[str], n_positions: int, exposure: float,
     explicit core+satellite map when the book runs that way."""
     if equity <= 0:
         return "drift n/a (no equity)"
-    tgt = dict(targets) if targets is not None else \
-        {s: exposure / max(len(want), 1) for s in want}
-    act = {s: p["qty"] * prices.get(s, 0.0) / equity
-           for s, p in held.items() if prices.get(s)}
-    rows = []
-    for s in sorted(set(tgt) | set(act)):
-        d = act.get(s, 0.0) - tgt.get(s, 0.0)
-        if abs(d) > 0.02:
-            rows.append(f"{s} {d:+.1%}")
+    rows = [f"{s} {d:+.1%}"
+            for s, d in drift_rows(target_map(want, targets, exposure),
+                                   held, prices, equity)
+            if abs(d) > 0.02]
     return ("drift ok (max |Δ| <=2%)" if not rows
             else "drift: " + ", ".join(rows))
 
@@ -766,8 +964,6 @@ def run_day(args) -> None:
                               end - pd.Timedelta(days=900), end)
         log(f"bars: {closes.shape}")
     day = resolve_day(closes, args.date)
-    if dry:
-        broker.day = day
     log(f"signal day: {day.date()}")
 
     # -- clock / staleness -----------------------------------------------------
@@ -838,6 +1034,25 @@ def run_day(args) -> None:
     log(f"top-{sleeve_n} (sector_max={sleeve_cfg.get('sector_max')}): "
         f"{', '.join(want) or '(none — flat)'}")
 
+    # -- order targets: the weight map this run trades toward ----------------
+    # computed before the session gates — the missed-session alarm needs
+    # the same map to judge "off target" on days that place no orders.
+    if use_core:
+        iv = CS.invvol(closes, want, day) \
+            if sleeve_cfg.get("weighting") == "invvol" else None
+        targets = CS.build_targets(
+            want, float(core_cfg.get("weight", 0.0)), invvol_w=iv,
+            exposure=exposure,
+            risk_off=sleeve_cfg.get("risk_off", "to_core"),
+            core_sym=core_sym,
+            cap=float(cfg.get("risk", {}).get("max_position_weight",
+                                             0.20)))
+        log("targets: " + ", ".join(
+            f"{s} {v:.0%}" for s, v in sorted(
+                targets.items(), key=lambda kv: -kv[1])))
+    else:
+        targets = None
+
     # -- budget --------------------------------------------------------------------
     fx = LV.gbpusd() if not dry else 1.27
     # book_size picks the sizing source — config-driven, not a code fork:
@@ -873,14 +1088,6 @@ def run_day(args) -> None:
     log(f"budget: book_size={book_size} -> ${budget_usd:.2f} "
         f"(£{cfg['budget_gbp']} pin @ {fx:.4f})")
 
-    # -- idempotency gate ------------------------------------------------------------
-    # "Already traded" anchors on today's US/Eastern TRADING DATE (wall
-    # clock), not the signal day — the backup cron slots rerun the same
-    # session, so any order submitted since ET midnight means today's
-    # rebalance already ran. Dry runs treat the signal day as the
-    # trading date.
-    today = day if dry else pd.Timestamp.now(tz=ET)
-    already = broker.traded_today(today)
     journaled = journal.day_logged(day) if hasattr(journal, "day_logged") \
         else False
     spy_px = float(spy.loc[:day].iloc[-1]) if len(spy.loc[:day]) else None
@@ -931,24 +1138,84 @@ def run_day(args) -> None:
         _write_rec(rec, args, day)
         return
 
-    # -- order window (calendar-gated; holidays + half-days handled) -------------
-    if dry:
-        win_ok, win_note = getattr(broker, "window_override", None) or \
-            (True, "dry-run: window forced open")
+    # -- session: where do this run's orders land? ------------------------------
+    # `now` is the wall clock; under --dry-run tests pin broker.now (an
+    # unset dry clock simulates an in-window run on the signal day —
+    # legacy dry-run semantics).
+    now = getattr(broker, "now", None)
+    now = pd.Timestamp(now) if now is not None \
+        else pd.Timestamp.now(tz="UTC")
+    if now.tzinfo is None:
+        now = now.tz_localize("UTC")
+    override = getattr(broker, "window_override", None) if dry else None
+    if override is not None:
+        mode = "open" if override[0] else "hold"
+        win_note, target = override[1], day
+    elif dry and getattr(broker, "now", None) is None:
+        mode, win_note, target = "open", \
+            "dry-run: window forced open", day
     else:
-        now = pd.Timestamp.now(tz="UTC")
-        win_ok, win_note = order_window(broker, now, cfg, dry)
+        mode, target, win_note = order_session(broker, now, cfg)
     rec["gates"]["order_window"] = win_note
-    log(f"order window: {win_note}")
+    rec["session_mode"] = mode
+    rec["target_session"] = str(target.date()) \
+        if target is not None else None
+    log(f"order session: {win_note} | mode={mode}"
+        + (f" target={target.date()}" if target is not None else ""))
+    if mode == "closed":
+        ctx["summary"] += f" | {win_note}"
+
+    # -- idempotency gate: keyed on the TARGET session -------------------------
+    # "Already traded" anchors on the trading session the orders serve —
+    # not the run date and not the signal day. A Friday-night lagged run
+    # queueing Monday orders and the Monday-morning rerun share the same
+    # anchor, so lagged GitHub schedules can't double-order.
+    already = orders_for_session(broker, target, strict=True) \
+        if target is not None else []
+    if dry and target is not None:
+        broker.day = target   # fake order records carry the target date
+
+    # -- missed-session alarm ---------------------------------------------------
+    # If the trading day that just ended got zero orders AND the book is
+    # off its target map by more than the band, that day was silently
+    # skipped — write an error row (deduped per session) and fail the run
+    # so a green checkmark can never hide a no-trade day again. Audited
+    # only once the session has closed (mode=closed covers post-close,
+    # weekend, holiday and pre-open runs — all see the last ended
+    # session). The flag fires only on the FIRST detecting run; reruns
+    # see the error row and stay green.
+    missed = None
+    if mode == "closed":
+        ended = last_closed_session(broker, now)
+        if ended is not None and not orders_for_session(broker, ended):
+            off, why_off = book_off_target(
+                target_map(want, targets, exposure), held, prices,
+                recon["equity"], float(cfg.get("rebalance_band", 0.02)))
+            if off:
+                flagged = hasattr(journal, "day_logged") and \
+                    journal.day_logged(ended, "error")
+                if not flagged:
+                    missed = (f"missed session {ended.date()}: zero "
+                          f"orders submitted and book off target "
+                          f"({why_off})")
+                    log(f"MISSED {missed}")
+                    rec["gates"]["missed_session"] = missed
+                    ctx["summary"] += f" | MISSED {missed}"
+                    try:
+                        journal.log_error(ended, missed, ctx)
+                    except Exception as e:  # noqa: BLE001
+                        log(f"missed-day error row failed: {e}")
 
     if already:
-        log(f"{len(already)} order(s) already submitted {day.date()} — "
-            "idempotent skip (no new orders)")
+        log(f"{len(already)} order(s) already for session "
+            f"{target.date()} — idempotent skip (no new orders)")
         if not journaled:
             journal.log_day_summary(day, ctx)
         _write_rec(rec, args, day)
+        if missed:
+            sys.exit(missed)
         return
-    if not win_ok:
+    if mode == "hold":
         ctx["summary"] += f" | no orders: {win_note}"
         if not journaled:
             journal.log_day_summary(day, ctx)
@@ -956,6 +1223,8 @@ def run_day(args) -> None:
         return
 
     # -- cancel stale open orders before rebalancing -------------------------------
+    # queued leftovers from an earlier partial run must go — they'd fill
+    # into this session too and fight the fresh batch.
     if not dry:
         try:
             n_cancelled = broker.cancel_all()
@@ -967,18 +1236,6 @@ def run_day(args) -> None:
 
     # -- trade ----------------------------------------------------------------------
     if use_core:
-        iv = CS.invvol(closes, want, day) \
-            if sleeve_cfg.get("weighting") == "invvol" else None
-        targets = CS.build_targets(
-            want, float(core_cfg.get("weight", 0.0)), invvol_w=iv,
-            exposure=exposure,
-            risk_off=sleeve_cfg.get("risk_off", "to_core"),
-            core_sym=core_sym,
-            cap=float(cfg.get("risk", {}).get("max_position_weight",
-                                             0.20)))
-        log("targets: " + ", ".join(
-            f"{s} {v:.0%}" for s, v in sorted(
-                targets.items(), key=lambda kv: -kv[1])))
         rec["targets"] = {s: round(v, 6) for s, v in targets.items()}
         step = MC.weights_step(
             targets, budget_usd, prices,
@@ -986,7 +1243,6 @@ def run_day(args) -> None:
             cfg.get("cost_bps", 0.0) / 1e4,
             band=float(cfg.get("rebalance_band", 0.02)))
     else:
-        targets = None
         step = MC.rebalance_step(
             scores, budget_usd, cfg["n_positions"], prices,
             {s: p["qty"] for s, p in held.items()},
@@ -1012,18 +1268,10 @@ def run_day(args) -> None:
         return
 
     # -- PDT: same-day open+close of one symbol is impossible ------------------------
-    # "today" is the same ET trading date as the idempotency gate — a
-    # late-day backup run must see the morning's orders here too.
-    d0 = pd.Timestamp(today).normalize()
-    if d0.tzinfo is None:
-        d0 = d0.tz_localize(ET)
-    try:
-        today_ords = [o for o in broker.orders_since(d0.tz_localize(None))
-                      if pd.Timestamp(o.get("submitted_at", d0))
-                      .tz_convert(ET).normalize() == d0]
-    except Exception:  # noqa: BLE001
-        today_ords = []
-    kept, pdt_blocked = pdt_guard(today_ords, step["trades"])
+    # the session anchor is the same target-session key the idempotency
+    # gate uses — an order queued Friday night for Monday's open counts
+    # against Monday's PDT, not Friday's.
+    kept, pdt_blocked = pdt_guard(already, step["trades"])
     for n in pdt_blocked:
         log(f"  {n}")
     if pdt_blocked:
@@ -1058,21 +1306,26 @@ def run_day(args) -> None:
             t["reason"] = ("exit top-5" if side == "sell" and sym not in want
                            else "regime trim" if side == "sell" and
                            exposure < 1 else "enter/rebalance")
-        coid = AB.client_order_id(day, sym, side)
+        if mode == "closed":
+            t["reason"] += f" (queued for {target.date()} open)"
+        coid = AB.client_order_id(target, sym, side)
         t["client_order_id"] = coid
-        if side == "sell" and buys and t is sells[-1] and not dry:
+        tif = queued_tif(t) if mode == "closed" else "day"
+        if side == "sell" and buys and t is sells[-1] and not dry \
+                and mode == "open":
             time.sleep(3)               # let sells settle -> buying power
         try:
             if side == "buy":
                 res = broker.buy_notional(sym, t["notional"], t["reason"],
-                                          coid=coid)
+                                          coid=coid, tif=tif)
                 if res is None:
                     skipped.append(f"buy {sym} ${t['notional']:.2f}<min")
                     continue
                 filled.append(t)
             else:
                 qty = float(t["qty"])
-                res = broker.sell_qty(sym, qty, t["reason"], coid=coid)
+                res = broker.sell_qty(sym, qty, t["reason"], coid=coid,
+                                      tif=tif)
                 if res is None:
                     skipped.append(f"sell {sym} rejected")
                     continue
@@ -1087,7 +1340,7 @@ def run_day(args) -> None:
             log(f"{side} {sym}: client_order_id exists — idempotent skip")
         rec["orders"].append({"sym": sym, "side": side,
                               "notional": t.get("notional"),
-                              "qty": t.get("qty"),
+                              "qty": t.get("qty"), "tif": tif,
                               "client_order_id": coid})
         # dedupe: an OrderExistsError above means this (day, sym, side)
         # order already went out — its trade row may already be journaled
@@ -1138,6 +1391,10 @@ def run_day(args) -> None:
                                    indent=1, default=str))
         log(f"dry-run journal -> {path}")
     log(f"done: {len(filled)} order(s), picks {want}, {banner}")
+    if missed:
+        # next-session orders are queued (recovery is in), but the
+        # session that ended unserved still fails the run loudly
+        sys.exit(missed)
 
 
 def _write_rec(rec: dict, args, day: pd.Timestamp) -> None:

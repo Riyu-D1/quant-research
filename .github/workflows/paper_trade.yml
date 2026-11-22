@@ -43,18 +43,26 @@ on:
   # Weekly/monthly auxiliaries stay off — enable them the same way.
   #
   # GitHub schedules routinely lag by minutes — occasionally by hours or
-  # dropped entirely (observed 2026-11-17/18: the 22:00 reconcile fired at
-  # 03:20, the 15:00 order run never came). Every daily slot below has
-  # off-the-hour backups; reruns are safe because the bot is idempotent
-  # (orders dedupe on submitted-today + client_order_id, journal rows
-  # dedupe per day) — see scripts/paper_trade.py.
+  # dropped entirely (observed 2026-11-19/20: EVERY order slot landed
+  # 22:00-04:00 UTC, after the close, and all 20 refused quietly). So:
+  #   - the 08:10 UTC slot queues orders pre-open; it only needs to land
+  #     before 13:30 UTC to serve that day's session
+  #   - every slot is session-aware, not wall-clock-strict: in-session
+  #     runs trade now; out-of-session runs queue DAY orders for the
+  #     next open (Alpaca holds them); reruns dedupe on the TARGET
+  #     session + client_order_id — see scripts/paper_trade.py
+  #   - a session that ends with zero orders AND an off-target book
+  #     fails the run loudly (error row + red X)
   schedule:
+    - cron: "10 8 * * 1-5"   # ORDERS pre-open 03:10 ET — queued orders
     - cron: "0 15 * * 1-5"   # ORDERS 10:00-11:00 ET year-round (past open+15m)
     - cron: "20 15 * * 1-5"  # ORDERS backup slots — skipped cleanly when
-    - cron: "10 16 * * 1-5"  # the earlier run already traded today (ET)
+    - cron: "10 16 * * 1-5"  # the earlier run already served the session
     - cron: "30 17 * * 1-5"
     - cron: "5 19 * * 1-5"
-    - cron: "0 22 * * 1-5"   # RECONCILE after the close (17:00-18:00 ET)
+    - cron: "0 22 * * 1-5"   # RECONCILE after the close (17:00-18:00 ET);
+                           # out-of-session runs also queue the next
+                           # open's orders and audit the ended session
     - cron: "20 22 * * 1-5"  # RECONCILE backups — reconcile is re-runnable
     - cron: "30 23 * * 1-5"  # (no duplicate journal rows)
   #     - cron: "0 14 * * 6"     # weekly Notion summary — Saturday 14:00 UTC
@@ -139,7 +147,8 @@ jobs:
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.job != 'refresh_snapshot')
       || (github.event_name == 'schedule'
-          && (github.event.schedule == '0 15 * * 1-5'
+          && (github.event.schedule == '10 8 * * 1-5'
+              || github.event.schedule == '0 15 * * 1-5'
               || github.event.schedule == '20 15 * * 1-5'
               || github.event.schedule == '10 16 * * 1-5'
               || github.event.schedule == '30 17 * * 1-5'
