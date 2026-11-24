@@ -104,6 +104,12 @@ llm:
   temperature: 0.7
   top_p: 0.9
   max_new_tokens: 450
+  # PRE-DEV AMENDMENT (2026-11-24, after the llm job, before any factor was
+  # scored): the first parser read only 'name | formula | reason' lines and
+  # kept 5 of the model's formulas. Three themes answered as markdown lists
+  # (`formula` in backticks, '- formula' bullets) or as 'formula | reason'.
+  # The parser now also reads those forms; the raw model text is unchanged
+  # and re-parsed with `phase11_llm.py reselect` (16 factors kept).
 
 # Algorithmic screen of the LLM factors, re-run every January (walk-forward).
 # Sample = month-start days in the trailing `years` whose 21d next-open

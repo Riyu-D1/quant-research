@@ -71,20 +71,97 @@
   },
   {
    "id": "L03",
+   "name": "",
+   "formula": "ebit_tev / bm",
+   "reason": "Lower leverage ratios suggest lower financial risk, implying higher expected returns due to reduced financing costs.",
+   "theme": "profitability and earnings quality"
+  },
+  {
+   "id": "L04",
+   "name": "",
+   "formula": "gpa / volume",
+   "reason": "Gross margin relative to sales can indicate pricing power; higher margins translate into stronger profitability fundamentals.",
+   "theme": "profitability and earnings quality"
+  },
+  {
+   "id": "L05",
+   "name": "",
+   "formula": "delta(volume, 14) / ts_mean(volume, 30)",
+   "reason": "",
+   "theme": "price trends and momentum"
+  },
+  {
+   "id": "L06",
+   "name": "",
+   "formula": "-ts_corr(ret, ret, 90)",
+   "reason": "",
+   "theme": "price trends and momentum"
+  },
+  {
+   "id": "L07",
+   "name": "",
+   "formula": "abs(bm) / ts_mean(ep, 30)",
+   "reason": "",
+   "theme": "price trends and momentum"
+  },
+  {
+   "id": "L08",
+   "name": "",
+   "formula": "-ts_corr(roe, ebit_tev, 30)",
+   "reason": "",
+   "theme": "price trends and momentum"
+  },
+  {
+   "id": "L09",
+   "name": "",
+   "formula": "-abs(gpa) / ts_mean(roa, 30)",
+   "reason": "",
+   "theme": "price trends and momentum"
+  },
+  {
+   "id": "L10",
+   "name": "",
+   "formula": "ts_std(open, 50) / ts_mean(close, 50)",
+   "reason": "",
+   "theme": "risk and volatility"
+  },
+  {
+   "id": "L11",
+   "name": "",
+   "formula": "ts_mean(ep, 90) / ts_std(ep, 90)",
+   "reason": "",
+   "theme": "risk and volatility"
+  },
+  {
+   "id": "L12",
+   "name": "",
+   "formula": "sign(roe) * (roa - ts_mean(roa, 180))",
+   "reason": "",
+   "theme": "risk and volatility"
+  },
+  {
+   "id": "L13",
+   "name": "",
+   "formula": "ts_mean(bm, 10)",
+   "reason": "",
+   "theme": "risk and volatility"
+  },
+  {
+   "id": "L14",
    "name": "gic_fund",
    "formula": "ts_mean(close, 21) - ts_mean(open, 21)",
    "reason": "captures momentum in pricing",
    "theme": "combining accounting data with price behaviour"
   },
   {
-   "id": "L04",
+   "id": "L15",
    "name": "ep_roa_diff",
    "formula": "-delta(ep, 20) / ts_mean(roa, 20)",
    "reason": "measures earnings growth against asset efficiency",
    "theme": "combining accounting data with price behaviour"
   },
   {
-   "id": "L05",
+   "id": "L16",
    "name": "bm_gpa_ratio",
    "formula": "ts_sum(bm, 35) / ts_sum(gpa, 35)",
    "reason": "balances leverage and operating efficiency",
@@ -124,16 +201,6 @@
   },
   {
    "theme": "profitability and earnings quality",
-   "formula": "Lower leverage ratios suggest lower financial risk, implying higher expected returns due to reduced financing costs.",
-   "reason": "syntax: invalid syntax"
-  },
-  {
-   "theme": "profitability and earnings quality",
-   "formula": "Gross margin relative to sales can indicate pricing power; higher margins translate into stronger profitability fundamentals.",
-   "reason": "syntax: invalid syntax"
-  },
-  {
-   "theme": "profitability and earnings quality",
    "formula": "Efficient use of debt lowers cost of equity, which increases ROA, predicting better long-term stock appreciation.",
    "reason": "syntax: invalid syntax"
   },
@@ -141,6 +208,21 @@
    "theme": "profitability and earnings quality",
    "formula": "Return on common equity combined with volatility measures systematic mispricing opportunities in the market.",
    "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "price trends and momentum",
+   "formula": "-log(close, 7) / ts_mean(open, 30)",
+   "reason": "bad call log/2"
+  },
+  {
+   "theme": "risk and volatility",
+   "formula": "ts_mean(bm, 365)",
+   "reason": "window 365 outside [2, 252]"
+  },
+  {
+   "theme": "risk and volatility",
+   "formula": "ts_mean(ebit_tev, 275) / ts_std(ebit_tev, 275)",
+   "reason": "window 275 outside [2, 252]"
   },
   {
    "theme": "trading activity and liquidity",
@@ -187,5 +269,6 @@
    "formula": "ts_sum(ebit_tev, 49) / ts_sum(enterprise_value, 49)",
    "reason": "unknown field 'enterprise_value'"
   }
- ]
+ ],
+ "reselected_at": "2026-11-24T23:42:39.280229"
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Phase-11 LLM layer, part 1 — a local open-weights model proposes factors.
 
-    python scripts/phase11_llm.py propose   # -> results/phase11/llm_factors.json
+    python scripts/phase11_llm.py propose    # -> results/phase11/llm_factors.json
+    python scripts/phase11_llm.py reselect   # re-parse the committed raw text only
 
 Heavy (a 1.5B model on CPU) — GitHub Actions only.
 
@@ -59,14 +60,35 @@ def log(msg: str) -> None:
 
 
 def parse_lines(text: str) -> list[tuple[str, str, str]]:
-    """'name | formula | reason' lines -> tuples (other lines ignored)."""
+    """Candidate (name, formula, reason) tuples, in text order, from
+    'name | formula | reason' or 'formula | reason' lines, `backticked`
+    formulas and '- formula' bullets (the small model mixes all three).
+    Non-formula text that slips through is rejected by factor_dsl."""
     out = []
     for ln in text.splitlines():
-        parts = [p.strip().strip("`") for p in ln.split("|")]
-        if len(parts) >= 2 and parts[1]:
+        ln = ln.strip()
+        if "|" in ln:
+            parts = [p.strip().strip("`") for p in ln.split("|")]
             name = re.sub(r"^\s*[\d\.\)\-\*]+\s*", "", parts[0])
-            out.append((name, parts[1], parts[2] if len(parts) > 2 else ""))
-    return out
+            if len(parts) >= 3:
+                out.append((name, parts[1], parts[2]))
+            elif _parses(parts[0]):
+                out.append(("", parts[0], parts[1]))
+            else:
+                out.append((name, parts[1], ""))
+        elif "`" in ln:
+            out += [("", f, "") for f in re.findall(r"`([^`]+)`", ln)]
+        elif ln.startswith("- "):
+            out.append(("", ln[2:].strip(), ""))
+    return [o for o in out if o[1]]
+
+
+def _parses(expr: str) -> bool:
+    try:
+        D.parse(expr)
+        return True
+    except D.FormulaError:
+        return False
 
 
 def select(raw: list[dict], max_factors: int) -> tuple[list[dict], list[dict]]:
@@ -122,10 +144,22 @@ def cmd_propose(spec: dict) -> dict:
     return out
 
 
+def cmd_reselect(spec: dict) -> dict:
+    """Re-run the (deterministic) parser + selection on the committed raw
+    model output — no model call, no data."""
+    out = json.loads(OUT.read_text())
+    out["factors"], out["rejected"] = select(out["raw"], spec["llm"]["max_factors"])
+    out["reselected_at"] = dt.datetime.now().isoformat()
+    OUT.write_text(json.dumps(out, indent=1))
+    log(f"{len(out['factors'])} factors kept, {len(out['rejected'])} rejected -> {OUT}")
+    return out
+
+
 def main() -> None:
-    if sys.argv[1:] != ["propose"]:
-        sys.exit("usage: phase11_llm.py propose")
-    cmd_propose(yaml.safe_load(SPEC_PATH.read_text()))
+    cmds = {"propose": cmd_propose, "reselect": cmd_reselect}
+    if len(sys.argv) != 2 or sys.argv[1] not in cmds:
+        sys.exit("usage: phase11_llm.py propose|reselect")
+    cmds[sys.argv[1]](yaml.safe_load(SPEC_PATH.read_text()))
 
 
 if __name__ == "__main__":

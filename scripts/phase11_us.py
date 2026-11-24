@@ -800,8 +800,8 @@ def cmd_holdout(spec: dict) -> dict:
     checks = {}
     for k in fins:
         kd = full[k]["dsr"]["DSR"]
-        c = {"holdout_sharpe_gt_base": hs[k]["sharpe"] > hs[base]["sharpe"],
-             "dsr_ok": kd >= spec["adoption"]["min_dsr"] and kd >= bd, "dsr": kd,
+        c = {"holdout_sharpe_gt_base": bool(hs[k]["sharpe"] > hs[base]["sharpe"]),
+             "dsr_ok": bool(kd >= spec["adoption"]["min_dsr"] and kd >= bd), "dsr": kd,
              "proxies_beaten": [p for p in pres if hs[k]["sharpe"] > hs[p]["sharpe"]]}
         c["adopt"] = c["holdout_sharpe_gt_base"] and c["dsr_ok"]
         checks[k] = c

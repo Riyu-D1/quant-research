@@ -216,6 +216,13 @@ def test_llm_output_parser_and_selection():
     assert keep[0]["name"] == "cheap" and keep[0]["id"] == "L01"
     assert {r["reason"] for r in rej} >= {"duplicate"}
     assert len(rej) == 2
+    md = [{"theme": "t", "text": "1. **Trend**\n   `ts_mean(ret, 63)`\n   prose\n"
+           "- ts_std(open, 50) / ts_mean(close, 50)\n   more prose\n"
+           "ebit_tev / bm | a reason\n"}]
+    keep, _ = L.select(md, max_factors=10)
+    assert [k["formula"] for k in keep] == ["ts_mean(ret, 63)",
+                                            "ts_std(open, 50) / ts_mean(close, 50)",
+                                            "ebit_tev / bm"]
 
 
 # ---------------------------------------------------------------------------
