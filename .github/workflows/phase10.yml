@@ -1,0 +1,173 @@
+name: phase10-alpha
+
+# Phase-10: documented multi-asset / factor candidates vs B50_momvq
+# (configs/experiments/phase10_us.yaml, committed BEFORE any run).
+#
+#   data     rebuild the Alpaca PIT dump through the spec's sample_end and
+#            fetch the ETF bars (adjustment=all) -> artifact phase10-inputs
+#            (+ results/phase10/etf_coverage.json committed).
+#   dev      dev walk-forward: every input sliced to days < holdout.start
+#            before any signal is built -> results/phase10_dev.json,
+#            results/phase10/dev_daily.csv, holdout_log rows; picks the
+#            finalists by the predeclared rule.
+#   holdout  the frozen finalists scored ONCE on the 12-month holdout
+#            (the script refuses a second run) -> results/phase10_holdout.json.
+#
+# Triggers: workflow_dispatch (needs this file on master), or a push to
+# phase10/alpha whose head commit message carries [p10:data], [p10:dev]
+# or [p10:holdout]. Nothing here trades or writes a paper/live config.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        required: true
+        type: choice
+        options: [data, dev, holdout]
+        default: dev
+  push:
+    branches: [phase10/alpha]
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  data:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'data')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p10:data]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: ALPACA_API_KEY   # paper data keys (historical bars only)
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: Rebuild the Alpaca PIT dump through sample_end (same steps as us-alpaca-data)
+        run: |
+          END_ARG=$(uv run --no-sync python -c "import yaml;print(yaml.safe_load(open('configs/experiments/phase10_us.yaml'))['sample_end'])")
+          echo "sample_end=$END_ARG"
+          uv run --no-sync python scripts/alpaca_us_data.py universe \
+            --start 2016-01-01 --end "$END_ARG" --out build/universe_sp500.csv
+          uv run --no-sync python scripts/alpaca_us_data.py fetch \
+            --universe-csv build/universe_sp500.csv --csv-dir data/us_alpaca_csv \
+            --start 2016-01-01 --end "$END_ARG" --feed auto \
+            --coverage-json build/coverage.json
+          uv run --no-sync python scripts/us_data_to_qlib.py \
+            --input-dir data/us_alpaca_csv --output-dir data/qlib/us_alpaca --universe sp500
+          uv run --no-sync python scripts/alpaca_us_data.py finalize \
+            --qlib-dir data/qlib/us_alpaca --csv-dir data/us_alpaca_csv \
+            --universe-csv build/universe_sp500.csv --universe sp500
+          tail -1 data/qlib/us_alpaca/calendars/day.txt
+      - name: ETF bars
+        run: uv run --no-sync python scripts/phase10_us.py fetch
+      - name: Events + fundamentals (phase3-events, phase4-inputs)
+        run: |
+          art() {
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+              -q ".artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id" | sort -n | tail -1)
+            [ -n "$AID" ] || { echo "artifact $1 not found"; return 1; }
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+            mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"
+          }
+          art phase3-events /tmp/p3ev
+          mkdir -p data/events
+          find /tmp/p3ev -name shares_out.parquet -exec cp {} data/events/ \;
+          find /tmp/p3ev -name features_us.parquet -exec cp {} data/events/ \;
+          art phase4-inputs data/events
+          test -f data/events/fundamentals.parquet
+          test -f data/events/shares_out.parquet
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase10-inputs
+          path: |
+            data/qlib/us_alpaca
+            data/events/fundamentals.parquet
+            data/events/shares_out.parquet
+            data/events/features_us.parquet
+            data/etf/etf_bars.parquet
+          retention-days: 90
+      - name: Commit ETF coverage to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp build/coverage.json results/phase10/sp500_coverage.json
+          git add results/phase10/etf_coverage.json results/phase10/sp500_coverage.json
+          git commit -qm "phase10 data — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+
+  score:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'dev' || inputs.job == 'holdout'))
+      || (github.event_name == 'push'
+          && (contains(github.event.head_commit.message, '[p10:dev]')
+              || contains(github.event.head_commit.message, '[p10:holdout]')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.job || (contains(github.event.head_commit.message, '[p10:holdout]') && 'holdout' || 'dev') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: Fetch phase10-inputs
+        run: |
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase10-inputs" and (.expired|not)) | .id' | sort -n | tail -1)
+          [ -n "$AID" ] || { echo "phase10-inputs not found — run [p10:data] first"; exit 1; }
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+          mkdir -p data && unzip -o -q /tmp/a.zip -d data
+          ls data data/events data/etf
+          tail -1 data/qlib/us_alpaca/calendars/day.txt
+      - name: Run phase-10 ${{ env.STAGE }}
+        run: |
+          uv run --no-sync python scripts/phase10_us.py "$STAGE"
+          uv run --no-sync python scripts/phase10_us.py report
+      - name: Commit results to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/phase10_dev.json results/phase10/ results/holdout_log.jsonl
+          [ -f results/phase10_holdout.json ] && git add results/phase10_holdout.json
+          git commit -qm "phase10 $STAGE — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase10-${{ env.STAGE }}-${{ github.run_id }}
+          path: |
+            results/phase10_dev.json
+            results/phase10_holdout.json
+            results/phase10/
+          if-no-files-found: ignore
+          retention-days: 90
