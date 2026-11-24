@@ -43,8 +43,9 @@ def test_paginated_lookups_do_not_reduce_per_page():
     assert not bad, f"per-page reduction under --paginate: {bad}"
 
 
-def test_phase6_7_8_use_streamed_artifact_lookup():
-    for name in ("phase6.yml", "phase7.yml", "phase8.yml"):
+def test_artifact_lookups_are_streamed_and_paginated():
+    for name in ("phase4.yml", "phase6.yml", "phase7.yml", "phase8.yml",
+                 "paper_trade.yml"):
         text = (WF / name).read_text()
         qs = _paginated_filters(text)
         assert qs, name
@@ -67,3 +68,15 @@ def test_pytest_workflow_runs_on_pull_requests():
     assert "pull_request" in on
     steps = " ".join(str(s.get("run", "")) for s in wf["jobs"]["test"]["steps"])
     assert "pytest tests/" in steps
+
+
+def test_every_artifact_list_call_paginates():
+    """An unpaginated `gh api .../actions/artifacts -q` sees only the newest
+    30 artifacts and silently misses older ones."""
+    bad = []
+    for f in WF.glob("*.yml"):
+        joined = re.sub(r"\\\n\s*", " ", f.read_text())
+        bad += [f"{f.name}: {ln.strip()[:80]}" for ln in joined.splitlines()
+                if re.search(r"gh api .*?/actions/artifacts(\s|$)", ln)
+                and "--paginate" not in ln]
+    assert not bad, bad

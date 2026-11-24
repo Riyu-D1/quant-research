@@ -244,8 +244,9 @@ jobs:
           gh run download -R ${{ github.repository }} -n us-qlib-dump \
             -D data/qlib/us_alpaca
           test -f data/qlib/us_alpaca/calendars/day.txt
-          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
-            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id' | sort -n | tail -1)
+          [ -n "$AID" ] || { echo "artifact phase3-events not found"; exit 1; }
           gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
             > /tmp/p3ev.zip
           mkdir -p data/events
