@@ -1,0 +1,191 @@
+{
+ "model": "Qwen/Qwen2.5-1.5B-Instruct",
+ "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+ "generated_at": "2026-11-24T23:32:09.678129",
+ "prompt": "Propose {k} cross-sectional stock-selection factors for large US\ncompanies. A higher factor value must mean a higher expected return over\nthe next month. Theme: {theme}.\n\nWrite each factor with ONLY this formula language:\n- fields (one value per stock per day): close, open, volume, ret (daily\n  return), bm (book/market), ep (earnings/price), roe (return on equity),\n  ebit_tev (operating income / enterprise value), gpa (gross profit /\n  assets), roa (return on assets)\n- operators: + - * / and parentheses, numbers\n- ts_mean(x, n), ts_std(x, n), ts_sum(x, n), ts_min(x, n), ts_max(x, n),\n  ts_rank(x, n), delay(x, n), delta(x, n), ts_corr(x, y, n): over the past\n  n trading days, n a whole number from 2 to 252 (delay/delta from 1)\n- rank(x), abs(x), log(x), sign(x)\n\nSyntax example (do not reuse it): -ts_std(ret, 21) / ts_mean(volume, 5)\n\nAnswer with exactly {k} lines and nothing else, each line:\nshort_name | formula | one-sentence economic reason",
+ "system": "You are a careful quantitative equity researcher.",
+ "settings": {
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+  "themes": [
+   "valuation",
+   "profitability and earnings quality",
+   "price trends and momentum",
+   "risk and volatility",
+   "trading activity and liquidity",
+   "combining accounting data with price behaviour"
+  ],
+  "per_theme": 6,
+  "max_factors": 24,
+  "seed": 11,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "max_new_tokens": 450
+ },
+ "raw": [
+  {
+   "theme": "valuation",
+   "seed": 11,
+   "text": "```plaintext\nvalue_price_ratio | (close / open)^(0.5) | measures relative pricing power\nebit_to_market_value | (ebit_tev / bm)^(0.5) | indicates potential earnings sustainability\npayout_ratio | (ret * bm)^(0.5) | assesses shareholder returns in relation to book value\ngrowth_in_operating_income | (roe - 1) * 100 | tracks revenue growth efficiency\nasset_turnover | (roa - 1) * 100 | gauges asset utilization effectiveness\nprofitability_index | ((ep - ret) / bm)^(0.5) | evaluates profitability vs. market conditions\n```"
+  },
+  {
+   "theme": "profitability and earnings quality",
+   "seed": 12,
+   "text": "```plaintext\nroe * (close / open) ** 0.5 | Higher ROE indicates better efficiency in using shareholder capital, leading to potentially higher future returns.\nep * (open / close) ** 0.5 | Earnings growth is often correlated with stock price performance; faster earnings growth implies more upside potential.\nebit_tev / bm | Lower leverage ratios suggest lower financial risk, implying higher expected returns due to reduced financing costs.\ngpa / volume | Gross margin relative to sales can indicate pricing power; higher margins translate into stronger profitability fundamentals.\nroa * (close / open) ** 0.5 | Efficient use of debt lowers cost of equity, which increases ROA, predicting better long-term stock appreciation.\nabs(roce) * (close / open) ** 0.5 | Return on common equity combined with volatility measures systematic mispricing opportunities in the market.\n```\n\n---\n\n### Economic Reasons:\n\n1. **Higher ROE**: Better management uses shareholders' funds more effectively, potentially leading to higher profits and dividends, indicating future gains.\n   \n2. **Faster EPS Growth**: Increased earnings per share signal improved operational efficiency or new product launches, suggesting strong performance ahead.\n\n3. **Lower Leverage**: Reduced reliance on debt allows companies to manage risks more effectively, lowering overall costs and boosting intrinsic value.\n\n4. **Stronger Pricing Power**: Higher gross margins imply that firms can charge more for their products/services without reducing prices, enhancing profitability.\n\n5. **Efficient Use of Debt**: Low return on common equity when compared to borrowing costs suggests prudent capital allocation strategies, supporting higher returns.\n\n6. **Volatility-Mispricing Signal**: High return on common equity adjusted by recent volatility can highlight undervalued stocks, offering investment opportunities."
+  },
+  {
+   "theme": "price trends and momentum",
+   "seed": 13,
+   "text": "1. **Price Trend**  \n   `-log(close, 7) / ts_mean(open, 30)`  \n   The logarithm of closing prices relative to opening prices can indicate recent upward or downward trends.\n\n2. **Volume Momentum**  \n   `delta(volume, 14) / ts_mean(volume, 30)`  \n   The percentage change in volume compared to the previous day's volume is an indicator of recent buying or selling pressure.\n\n3. **Return Correlation**  \n   `-ts_corr(ret, ret, 90)`  \n   Measures the correlation between daily returns over the past 90 days; high positive values suggest similar movements.\n\n4. **Book-to-Market Ratio**  \n   `abs(bm) / ts_mean(ep, 30)`  \n   Higher book-to-market ratios often indicate undervalued stocks based on their earnings multiples.\n\n5. **Operating Income Growth**  \n   `-ts_corr(roe, ebit_tev, 30)`  \n   High correlations between return on equity and operating income growth suggest strong profitability trends.\n\n6. **Assets Growth**  \n   `-abs(gpa) / ts_mean(roa, 30)`  \n   Large absolute growth rates in gross profit as a ratio of total assets signal robust asset utilization efficiency."
+  },
+  {
+   "theme": "risk and volatility",
+   "seed": 14,
+   "text": "1. **Volatility Risk**  \n   - ts_std(open, 50) / ts_mean(close, 50)  \n     Higher volatility means greater uncertainty about future returns.\n\n2. **Market Beta (bm)**  \n   - ts_mean(bm, 365)  \n     Stocks with high beta move in tandem with the overall market.\n\n3. **Earnings Quality (ep)**  \n   - ts_mean(ep, 90) / ts_std(ep, 90)  \n     Earnings quality is inversely related to volatility; better earnings = lower vol.\n\n4. **Return on Assets (roe)**  \n   - sign(roe) * (roa - ts_mean(roa, 180))  \n     ROA can be positive or negative, but its historical average helps predict future performance.\n\n5. **Operating Leverage (ebit_tev)**  \n   - ts_mean(ebit_tev, 275) / ts_std(ebit_tev, 275)  \n     High leverage increases volatility when prices drop significantly.\n\n6. **Book-to-Market Ratio (bm)**  \n   - ts_mean(bm, 10)  \n     BM < 1 indicates that stocks are undervalued relative to their book value."
+  },
+  {
+   "theme": "trading activity and liquidity",
+   "seed": 15,
+   "text": "gma | close / open - short-term relative strength | measures how much larger today's closing price is compared to yesterday's opening price.\nlga | long_term_gross_profit / total_assets - measure of long-term profitability based on gross profit and asset levels.\nvlg | ts_sum(close, 30) / ts_sum(open, 30) - volatility ratio indicating market impact of trades.\nebit_te_lag_7 | ebit_tev - lagged operating income divided by enterprise value | tracks earnings growth over time relative to valuation metrics.\npca | close / bs_close - P/E Ratio adjusted for beta (market risk). | assesses pricing multiples relative to overall market performance.\nroce | (roe + ret)/2 - Return on Equity plus Return on Assets | combines ROE and ROA into one metric, reflecting both operational efficiency and capital structure."
+  },
+  {
+   "theme": "combining accounting data with price behaviour",
+   "seed": 16,
+   "text": "gic_fund | ts_mean(close, 21) - ts_mean(open, 21) | captures momentum in pricing\n\nebit_te_ratio | -ts_sum(ebit_tev, 7) / ts_sum(assets, 7) | reflects profitability relative to size\n\nroe_bm_ratio | ts_sum(roce, 20) / ts_sum(bm, 20) | compares returns on capital employed vs book value\n\nep_roa_diff | -delta(ep, 20) / ts_mean(roa, 20) | measures earnings growth against asset efficiency\n\nbm_gpa_ratio | ts_sum(bm, 35) / ts_sum(gpa, 35) | balances leverage and operating efficiency\n\nebit_tev_growth | ts_sum(ebit_tev, 49) / ts_sum(enterprise_value, 49) | tracks cash generation versus debt burden"
+  }
+ ],
+ "factors": [
+  {
+   "id": "L01",
+   "name": "growth_in_operating_income",
+   "formula": "(roe - 1) * 100",
+   "reason": "tracks revenue growth efficiency",
+   "theme": "valuation"
+  },
+  {
+   "id": "L02",
+   "name": "asset_turnover",
+   "formula": "(roa - 1) * 100",
+   "reason": "gauges asset utilization effectiveness",
+   "theme": "valuation"
+  },
+  {
+   "id": "L03",
+   "name": "gic_fund",
+   "formula": "ts_mean(close, 21) - ts_mean(open, 21)",
+   "reason": "captures momentum in pricing",
+   "theme": "combining accounting data with price behaviour"
+  },
+  {
+   "id": "L04",
+   "name": "ep_roa_diff",
+   "formula": "-delta(ep, 20) / ts_mean(roa, 20)",
+   "reason": "measures earnings growth against asset efficiency",
+   "theme": "combining accounting data with price behaviour"
+  },
+  {
+   "id": "L05",
+   "name": "bm_gpa_ratio",
+   "formula": "ts_sum(bm, 35) / ts_sum(gpa, 35)",
+   "reason": "balances leverage and operating efficiency",
+   "theme": "combining accounting data with price behaviour"
+  }
+ ],
+ "rejected": [
+  {
+   "theme": "valuation",
+   "formula": "(close / open)^(0.5)",
+   "reason": "disallowed syntax BinOp"
+  },
+  {
+   "theme": "valuation",
+   "formula": "(ebit_tev / bm)^(0.5)",
+   "reason": "disallowed syntax BinOp"
+  },
+  {
+   "theme": "valuation",
+   "formula": "(ret * bm)^(0.5)",
+   "reason": "disallowed syntax BinOp"
+  },
+  {
+   "theme": "valuation",
+   "formula": "((ep - ret) / bm)^(0.5)",
+   "reason": "disallowed syntax BinOp"
+  },
+  {
+   "theme": "profitability and earnings quality",
+   "formula": "Higher ROE indicates better efficiency in using shareholder capital, leading to potentially higher future returns.",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "profitability and earnings quality",
+   "formula": "Earnings growth is often correlated with stock price performance; faster earnings growth implies more upside potential.",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "profitability and earnings quality",
+   "formula": "Lower leverage ratios suggest lower financial risk, implying higher expected returns due to reduced financing costs.",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "profitability and earnings quality",
+   "formula": "Gross margin relative to sales can indicate pricing power; higher margins translate into stronger profitability fundamentals.",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "profitability and earnings quality",
+   "formula": "Efficient use of debt lowers cost of equity, which increases ROA, predicting better long-term stock appreciation.",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "profitability and earnings quality",
+   "formula": "Return on common equity combined with volatility measures systematic mispricing opportunities in the market.",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "trading activity and liquidity",
+   "formula": "close / open - short-term relative strength",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "trading activity and liquidity",
+   "formula": "long_term_gross_profit / total_assets - measure of long-term profitability based on gross profit and asset levels.",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "trading activity and liquidity",
+   "formula": "ts_sum(close, 30) / ts_sum(open, 30) - volatility ratio indicating market impact of trades.",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "trading activity and liquidity",
+   "formula": "ebit_tev - lagged operating income divided by enterprise value",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "trading activity and liquidity",
+   "formula": "close / bs_close - P/E Ratio adjusted for beta (market risk).",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "trading activity and liquidity",
+   "formula": "(roe + ret)/2 - Return on Equity plus Return on Assets",
+   "reason": "syntax: invalid syntax"
+  },
+  {
+   "theme": "combining accounting data with price behaviour",
+   "formula": "-ts_sum(ebit_tev, 7) / ts_sum(assets, 7)",
+   "reason": "unknown field 'assets'"
+  },
+  {
+   "theme": "combining accounting data with price behaviour",
+   "formula": "ts_sum(roce, 20) / ts_sum(bm, 20)",
+   "reason": "unknown field 'roce'"
+  },
+  {
+   "theme": "combining accounting data with price behaviour",
+   "formula": "ts_sum(ebit_tev, 49) / ts_sum(enterprise_value, 49)",
+   "reason": "unknown field 'enterprise_value'"
+  }
+ ]
+}
