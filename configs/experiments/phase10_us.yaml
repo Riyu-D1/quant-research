@@ -1,0 +1,199 @@
+# Phase-10 US — hunt for a higher-benchmarking, documented quant model.
+# PREDECLARED 2026-11-24, committed BEFORE any phase-10 run. This file is
+# the method contract: every candidate, the holdout window, the finalist
+# selection rule and the adoption rule were written down before the
+# harness (scripts/phase10_us.py) executed on any data.
+#
+# Brief: ~/quant-research-prompts/PHASE10_ALPHA.md (+ ADDENDUM). Beat
+# B50_momvq AND SPY on out-of-sample RISK-ADJUSTED terms (Sharpe, DSR,
+# max drawdown), and beat most investable quant/factor proxies on the
+# holdout. Phase 9 (PR #13) already rejected: breadth/sleeve-size, sleeve
+# risk parity, sleeve vol-management/vol scaling, IC-weighted factor
+# weights, purged LightGBM, ensembles, the adaptive retrain stack and
+# FinBERT news. None of those is re-run here.
+#
+# Honesty protocol
+#   * Pre-registered FINAL HOLDOUT = the last 12 months of the sample:
+#     holdout.start .. sample_end. The `dev` command slices every input
+#     (S&P feed, ETF bars, fundamentals visibility) to days < holdout.start
+#     before any signal is built, so no dev-time choice can read it.
+#     All "best of N" selection happens on dev only (finalists rule
+#     below). The `holdout` command then runs the frozen finalists ONCE
+#     (it refuses to run twice) and reports that number separately.
+#   * Dev = yearly episodes 2017 .. 2025 (2025 truncated at holdout.start),
+#     book starts flat each 1 January (phase-8/9 convention). Signal state
+#     (look-backs, vol estimates) is continuous. Holdout = one episode
+#     that starts flat on holdout.start.
+#   * One simulator for everything: the phase-8 micro sim (paper book
+#     ~$100k, next-open fills, liquidity-bucket half-spread + 5 bps per
+#     side, $1 floor, 2% band, delist liquidation) trading explicit
+#     weight targets. ETF bars are appended to the honest Alpaca feed
+#     exactly like SPY. Long-only, cash accounts: no shorting, no CFDs,
+#     no leveraged ETFs. Uninvested cash earns 0 in the sim; strategies
+#     that want "cash" hold BIL (1-3m T-bills), paying its spread.
+#   * Sharpe = annualised mean/std of daily returns IN EXCESS OF BIL
+#     (BIL's own daily total return is the risk-free proxy). AR, MDD,
+#     P&L ($ on the $100k book, compounded) and turnover from the sim.
+#   * DSR counts ALL trials cumulatively: n_trials = the running total in
+#     results/holdout_log.jsonl before phase 10 (574) + every phase-10
+#     scored candidate-window (dev years + holdout runs), including
+#     discarded candidates, B50/SPY re-runs and the leverage
+#     sensitivities. The investable proxies (benchmarks imposed by the
+#     brief, never selected) are reported but not counted as trials.
+#   * Free data only: Alpaca historical bars (adjustment=all: split +
+#     dividend adjusted, i.e. total return) for the S&P feed and every
+#     ETF; SEC XBRL facts already in the repo artifacts. No paid data.
+#   * Paper only. This phase never writes configs/paper_signal.yaml or
+#     configs/live_signal.yaml; adoption is a separate reviewed commit.
+
+provider: data/qlib/us_alpaca
+etf_bars: data/etf/etf_bars.parquet
+fundamentals: data/events/fundamentals.parquet
+shares: data/events/shares_out.parquet
+sector_map: configs/benchmarks/assets/sp500_sector_map.csv
+costs: {flat_bps: 5.0, spread: liquidity_buckets}
+fill: next_open
+delist_liquidate: true
+rebalance_band: 0.02
+min_order_usd: 1.0
+max_stock_weight: 0.20        # single stocks only; ETFs are funds (exempt, like the SPY core)
+core_symbol: SPY
+cash_symbol: BIL
+fwd_h: 21
+books:
+  paper: {cash_gbp: 78740.16, gbpusd: 1.27}   # ~$100k — the paper account
+
+# Sample + pre-registered holdout (12 months). The data job rebuilds the
+# Alpaca dump with --end sample_end so every run reads the same sample.
+sample_end: "2026-11-23"
+holdout: {start: "2025-11-24", end: "2026-11-23"}
+dev_start_year: 2017
+data_start: "2016-01-01"
+
+# ETFs fetched from Alpaca (adjustment=all). SPY comes from the feed.
+etfs:
+  multi_asset: [EFA, EEM, TLT, IEF, SHY, AGG, GLD, DBC, VNQ, BIL]
+  sectors: [XLB, XLE, XLF, XLI, XLK, XLP, XLU, XLV, XLY]
+  proxies: [MTUM, QUAL, USMV, VLUE, DBMF, KMLM, QMOM, QVAL]
+
+# Asset universes (SPY included from the feed)
+universes:
+  u8: [SPY, EFA, EEM, TLT, IEF, GLD, DBC, VNQ]      # 4 equity / 2 bond / gold / commodities
+  gtaa5: [SPY, EFA, IEF, DBC, VNQ]                   # Faber (2007) five-asset set
+  sectors9: [XLB, XLE, XLF, XLI, XLK, XLP, XLU, XLV, XLY]
+
+# Shared estimation windows (trading days; all read closes <= t only)
+est:
+  vol_win: 63          # per-asset realised vol (inverse-vol, vol target)
+  cov_win: 252         # covariance for ERC + portfolio vol
+  mom_long: 252        # 12m
+  mom_skip: 21         # 12-1 (sector rotation)
+  trend_horizons: [21, 63, 252]
+  sma_days: 210        # ~10 months (Faber)
+  target_vol: 0.10     # portfolio vol target (unlevered: gross cap 1.0)
+  rebalance: monthly   # weights recomputed on the first trading day of each month
+
+# Candidates. kind:
+#   b50       the phase-9 B50_momvq book (50% SPY + 6-name mom+vq sleeve)
+#   hold      fixed weights (benchmarks / proxies)
+#   tsmom     12m time-series momentum, inverse-vol, vol target   (MOP 2012)
+#   trend     1/3/12m trend blend, inverse-vol, vol target        (Hurst-Ooi-Pedersen 2017)
+#   gtaa      Faber 10-month SMA timing, equal weight              (Faber 2007)
+#   gem       Antonacci global equities momentum                   (Antonacci 2014)
+#   dualmom   top-k relative momentum + absolute (vs BIL) filter
+#   erc       equal risk contribution + vol target                 (Maillard-Roncalli-Teiletche 2010)
+#   sector    sector-ETF 12-1 momentum rotation                    (Moskowitz-Grinblatt 1999)
+#   lowvol    lowest 252d residual-vol S&P names (vs SPY)          (Ang et al. 2006; Blitz-van Vliet 2007)
+#   strev     5-day short-term reversal sleeve                      (Jegadeesh 1990; Lehmann 1990)
+#   pead      SUE (seasonal NI surprise at 10-Q filing) sleeve      (Bernard-Thomas 1989)
+#   combo     weighted mix of two candidates' daily targets in ONE book
+#   crash     B50 with a crash overlay (SPY<SMA200 AND vol spike -> half the book to BIL)
+# leverage: sensitivity only — gross capped at `gross_cap` > 1, financing
+# = BIL + spread on the borrowed share. NEVER adoptable (brief + ADDENDUM).
+leverage_financing_spread: 0.015
+
+candidates:
+  # benchmarks / baseline (re-scored on the same days; counted as trials)
+  - {name: A_spy,          kind: hold, weights: {SPY: 1.0}}
+  - {name: B50_momvq,      kind: b50, n: 6}
+  # PRE-RUN AMENDMENT (2026-11-24, before any phase-10 run): the B50
+  # walk-forward universe is every name that was EVER an S&P 500 member
+  # in 2016-2026 (load_feed masked=False + priced-today eligibility), so
+  # a 2024 decision can pick a name that only joined the index later
+  # (instruments/sp500.txt: SMCI joined 2024-03-18, APP 2025-09-22, CVNA
+  # 2025-12-22 — the three names that carried B50's 2024). B50_pit is the
+  # identical book with picks restricted to names that are index members
+  # ON the signal day. Diagnostic only (never a finalist); counted as a
+  # trial. Every NEW single-name candidate below uses the PIT universe.
+  - {name: B50_pit,        kind: b50, n: 6, members: pit, diagnostic: true}
+  # 1. multi-asset time-series momentum / trend / dual momentum
+  - {name: TS1_tsmom12,    kind: tsmom, universe: u8}
+  - {name: TS2_trend3h,    kind: trend, universe: u8}
+  - {name: TS3_gtaa5,      kind: gtaa, universe: gtaa5}
+  - {name: DM1_gem,        kind: gem}
+  - {name: DM2_dual_top3,  kind: dualmom, universe: u8, k: 3}
+  # 2. cross-asset risk parity with vol targeting
+  - {name: RP1_erc,        kind: erc, universe: u8}
+  - {name: RP2_erc_trend,  kind: erc, universe: u8, trend_filter: true}
+  # 3. sector rotation
+  - {name: SR1_sector3,    kind: sector, universe: sectors9, k: 3}
+  - {name: SR2_sector3_abs, kind: sector, universe: sectors9, k: 3, abs_filter: true}
+  # 4. low volatility (distinct from the filings-based vq sleeve)
+  - {name: LV1_resvol50,   kind: lowvol, n: 50, win: 252, members: pit}
+  # 5. high-turnover anomalies, realistic costs
+  - {name: ST1_rev5_50,    kind: strev, core: 0.5, n: 20, members: pit}
+  - {name: PE1_sue_50,     kind: pead, core: 0.5, n: 20, max_age_days: 63, members: pit}
+  # 6. portfolio of strategies (one book, merged targets)
+  - {name: PF1_b50_rp30,   kind: combo, parts: {B50_momvq: 0.7, RP1_erc: 0.3}}
+  - {name: PF2_b50_tr30,   kind: combo, parts: {B50_momvq: 0.7, TS2_trend3h: 0.3}}
+  - {name: PF3_b50_tr50,   kind: combo, parts: {B50_momvq: 0.5, TS2_trend3h: 0.5}}
+  # 7. drawdown / crash overlay (a risk overlay, not an alpha source)
+  - {name: OV1_b50_crash,  kind: crash, base: B50_momvq, sma: 200, vol_win: 21,
+     vol_lookback: 504, vol_q: 0.80, risk_mult: 0.5, min_hold: 10}
+  # leverage sensitivities (FLAGGED, never adoptable)
+  - {name: LX1_erc_x15,    kind: erc, universe: u8, gross_cap: 1.5, leverage_sensitivity: true}
+  - {name: LX2_trend_x15,  kind: trend, universe: u8, gross_cap: 1.5, leverage_sensitivity: true}
+
+# Investable quant/factor proxies (ADDENDUM). Buy-and-hold through the
+# same sim; scored on every window where they trade (DBMF from 2019-05,
+# KMLM from 2020-12 — overlapping windows stated in the report). NOT
+# trials (never selected).
+proxies:
+  - {name: X_MTUM,  weights: {MTUM: 1.0}}
+  - {name: X_QUAL,  weights: {QUAL: 1.0}}
+  - {name: X_USMV,  weights: {USMV: 1.0}}
+  - {name: X_VLUE,  weights: {VLUE: 1.0}}
+  - {name: X_DBMF,  weights: {DBMF: 1.0}}
+  - {name: X_KMLM,  weights: {KMLM: 1.0}}
+  - {name: X_QMOM,  weights: {QMOM: 1.0}}
+  - {name: X_QVAL,  weights: {QVAL: 1.0}}
+  - {name: X_SPY,   weights: {SPY: 1.0}}
+  - {name: X_6040,  weights: {SPY: 0.6, AGG: 0.4}}
+
+# Finalists (dev data only). Eligible = every phase-10 candidate except
+# A_spy, B50_momvq, diagnostics and the leverage sensitivities, whose dev MDD is no
+# worse than B50's dev MDD - mdd_tol. Finalists = the top `k` eligible by
+# dev Sharpe (excess of BIL). Exactly these go to the holdout, with
+# B50_momvq, A_spy and every proxy. Nothing is tuned after this.
+finalists:
+  k: 3
+  mdd_tol: 0.02
+
+# Adoption (replace B50_momvq in the paper config) needs ALL of:
+#   1. holdout Sharpe > B50 holdout Sharpe AND > SPY holdout Sharpe;
+#   2. holdout MDD >= B50 holdout MDD - mdd_tol AND full-sample
+#      (dev + holdout) MDD >= B50 full-sample MDD - mdd_tol;
+#   3. dev Sharpe >= B50 dev Sharpe;
+#   4. DSR (dev + holdout daily excess-of-BIL returns, n_trials =
+#      cumulative total) >= min_dsr AND >= B50's DSR at the same n;
+#   5. holdout Sharpe above at least `min_proxies_beaten` of the 10
+#      proxies' holdout Sharpes;
+#   6. not a leverage sensitivity, no leveraged product.
+# Several pass -> highest DSR. None -> keep B50_momvq and say why. Even
+# a pass only produces a separate, clearly-labelled config commit with
+# validated: false and live_trading: false.
+adoption:
+  baseline: B50_momvq
+  mdd_tol: 0.02
+  min_dsr: 0.95
+  min_proxies_beaten: 6

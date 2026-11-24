@@ -160,7 +160,8 @@ jobs:
         run: |
           art() {  # fetch latest unexpired artifact $1 -> $2 via API
             AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
-              -q "[.artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id] | max")
+              -q ".artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id" | sort -n | tail -1)
+            [ -n "$AID" ] || { echo "artifact $1 not found"; return 1; }
             gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
               > /tmp/a.zip
             mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"
@@ -215,7 +216,8 @@ jobs:
         run: |
           art() {
             AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
-              -q "[.artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id] | max")
+              -q ".artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id" | sort -n | tail -1)
+            [ -n "$AID" ] || { echo "artifact $1 not found"; return 1; }
             gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
               > /tmp/a.zip
             mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"

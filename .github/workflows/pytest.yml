@@ -1,0 +1,36 @@
+name: pytest
+
+# Unit tests on every pull request and on pushes to master. The suite is
+# synthetic (no data files, no network, no secrets) — tests that need a
+# local data build skip themselves when the file is absent.
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pytest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - name: Install (locked; heavy optional stacks skipped, as in the phase workflows)
+        run: >-
+          uv sync --frozen --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: pytest
+        run: uv run --no-sync python -m pytest tests/ -q
