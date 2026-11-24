@@ -1,0 +1,67 @@
+# Phase-11 US — hybrid LLM + algorithmic bot vs an HONEST B50 baseline.
+# PREDECLARED. Part 1 (this block) was committed 2026-11-24 BEFORE any
+# phase-11 run: the point-in-time universe, the sealed holdout and the
+# baseline books. Candidates, the finalist rule and the adoption rule
+# are appended in a later commit, also before any candidate is scored.
+#
+# Honesty protocol
+#   * Universe: a name is pickable on signal day d only if it was an S&P
+#     500 member on d (src/quant_research/pit.py). Membership = the
+#     fja05680/sp500 spells file pinned to `membership.fja_sha`, carried
+#     forward to sample_end with daily Wikipedia revision snapshots. The
+#     data job rebuilds the Alpaca dump from that universe so names that
+#     joined after the pin have prices.
+#   * Sealed FINAL HOLDOUT = the last 12 months: holdout.start ..
+#     sample_end. Every command except `holdout` slices the feed, ETF bars,
+#     SPY and the calendar to days < holdout.start BEFORE any signal is
+#     built (asserted). The holdout is scored once, at the end.
+#     Caveat stated up front: phase 10 already scored B50, B50_pit, SPY
+#     and the ETF proxies on this same window (results/phase10_holdout.json),
+#     so for those books it is a re-viewed window, not a fresh one.
+#   * One simulator: the phase-8 micro sim (paper book ~$100k, next-open
+#     fills, liquidity-bucket half-spread + 5 bps per side, $1 floor, 2%
+#     band, delist liquidation, 20% single-stock cap), ETF bars appended
+#     like SPY. Long-only cash account; no shorting, CFDs or leverage.
+#   * Metrics as phase 10: Sharpe on daily returns in excess of BIL; AR,
+#     MDD, $ P&L on the $100k book (episodes chained), turnover.
+#   * Trials: n_trials = running total before phase 11 (769) + every
+#     phase-11 scored candidate-window, re-runs of B50/SPY included.
+#     DSR (Bailey & Lopez de Prado) at the cumulative n; trial-Sharpe
+#     dispersion from the phase-10 and phase-11 dev Sharpes.
+#   * Paper only. Nothing here writes configs/paper_signal.yaml or
+#     configs/live_signal.yaml.
+
+provider: data/qlib/us_alpaca
+etf_bars: data/etf/etf_bars.parquet
+fundamentals: data/events/fundamentals.parquet
+shares: data/events/shares_out.parquet
+cik_map: data/events/cik_map.parquet
+sector_map: configs/benchmarks/assets/sp500_sector_map.csv
+membership_csv: results/phase11/sp500_membership.csv
+costs: {flat_bps: 5.0, spread: liquidity_buckets}
+fill: next_open
+delist_liquidate: true
+rebalance_band: 0.02
+min_order_usd: 1.0
+max_stock_weight: 0.20
+core_symbol: SPY
+cash_symbol: BIL
+fwd_h: 21
+books:
+  paper: {cash_gbp: 78740.16, gbpusd: 1.27}   # ~$100k — the paper account
+
+data_start: "2016-01-01"
+sample_end: "2026-11-23"
+holdout: {start: "2025-11-24", end: "2026-11-23"}
+dev_start_year: 2017
+
+membership:
+  fja_sha: a2430f2af0c79ddf0748e91de11bdeb1616ab5a7   # fja05680/sp500, 2026-09-07 update
+  wiki_from: "2026-09-01"     # daily Wikipedia snapshots from here to sample_end
+  persist: 5                  # a flip must hold 5 daily snapshots
+
+# Step 1 — baseline books on the dev window (holdout sealed)
+baseline:
+  - {name: A_spy,      kind: hold, weights: {SPY: 1.0}}
+  - {name: B50_honest, kind: b50, members: pit, n: 6}   # the new bar to beat
+  - {name: B50_ever,   kind: b50, members: ever, n: 6}  # the old universe, diagnostic only

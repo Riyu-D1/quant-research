@@ -33,16 +33,24 @@ NI_TAGS = ["NetIncomeLoss", "ProfitLoss"]
 REV_TAGS = ["RevenueFromContractWithCustomerExcludingAssessedTax",
             "Revenues", "SalesRevenueNet"]
 MAX_QUARTER_DAYS = 130          # ~90d periods; tolerates 53-week years
+VQ_GROUPS = (("book", BOOK_TAGS), ("ni", NI_TAGS), ("rev", REV_TAGS))
+# phase 11 value/quality tilt (EBIT/TEV, gross profitability, ROA)
+QV_GROUPS = (("ebit", ["OperatingIncomeLoss"]),
+             ("assets", ["Assets"]),
+             ("cash", ["CashAndCashEquivalentsAtCarryingValue",
+                       "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"]),
+             ("debt", ["LongTermDebt", "LongTermDebtNoncurrent"]),
+             ("gp", ["GrossProfit"]),
+             ("cogs", ["CostOfRevenue", "CostOfGoodsAndServicesSold"]))
 
 
-def parse_companyfacts(payload: dict) -> pd.DataFrame:
+def parse_companyfacts(payload: dict, groups=VQ_GROUPS) -> pd.DataFrame:
     """companyfacts JSON -> tidy rows (tag, end, start, filed, val, fp, form).
 
     Only us-gaap facts for the declared tag set, USD/share units only."""
     gaap = payload.get("facts", {}).get("us-gaap", {})
     rows = []
-    for group, tags in (("book", BOOK_TAGS), ("ni", NI_TAGS),
-                        ("rev", REV_TAGS)):
+    for group, tags in groups:
         for tag in tags:
             fact = gaap.get(tag)
             if not fact:
