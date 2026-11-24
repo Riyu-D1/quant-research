@@ -11,6 +11,12 @@ name: phase11-hybrid
 #   baseline  honest B50 vs the old ever-member B50 and SPY on the dev
 #             window (holdout sealed) -> results/phase11/baseline_dev.json
 #             and every honest pick (checked by tests/test_phase11.py).
+#   text      10-K Item 1A sections from EDGAR -> ChronoBERT-2016 embeddings
+#             (4 CPU shards) -> artifact phase11-text-emb.
+#   llm       local Qwen2.5-1.5B-Instruct proposes formulaic factors ->
+#             results/phase11/llm_factors.json committed (hypotheses only).
+#   dev       every candidate on the dev window, holdout sealed; finalists.
+#   holdout   the frozen finalists scored ONCE on the 12-month holdout.
 #
 # Triggers: workflow_dispatch (needs this file on master), or a push to
 # phase11/hybrid whose head commit message carries [p11:<job>].
@@ -22,7 +28,7 @@ on:
       job:
         required: true
         type: choice
-        options: [data, baseline]
+        options: [data, baseline, text, llm, dev, holdout]
         default: baseline
   push:
     branches: [phase11/hybrid]
@@ -144,6 +150,171 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add results/phase11/ results/holdout_log.jsonl
           git commit -qm "phase11 baseline — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+
+  text:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'text')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p11:text]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: cik_map from phase11-inputs
+        run: |
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase11-inputs" and (.expired|not)) | .id' | sort -n | tail -1)
+          [ -n "$AID" ] || { echo "phase11-inputs not found — run [p11:data] first"; exit 1; }
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+          mkdir -p data/events && unzip -o -j /tmp/a.zip events/cik_map.parquet -d data/events/
+      - name: 10-K Item 1A sections (EDGAR, ~8 req/s)
+        run: uv run --no-sync python scripts/phase11_text.py fetch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase11-text
+          path: data/text/tenk_1a.parquet
+          retention-days: 7
+
+  embed:
+    needs: text
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: CPU torch + transformers (ModernBERT needs >= 4.48)
+        run: |
+          pip install -q "torch==2.5.1" --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "transformers==4.48.3" "numpy<2" "pandas==2.2.3" "pyarrow==17.0.0" pyyaml
+      - uses: actions/download-artifact@v4
+        with:
+          name: phase11-text
+          path: data/text
+      - name: ChronoBERT-2016 embeddings, shard ${{ matrix.shard }}
+        run: python scripts/phase11_text.py embed --shard ${{ matrix.shard }} --of 4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase11-emb-${{ matrix.shard }}
+          path: data/text/tenk_emb_${{ matrix.shard }}.parquet
+          retention-days: 7
+
+  merge:
+    needs: embed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q "numpy<2" "pandas==2.2.3" "pyarrow==17.0.0" pyyaml
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: phase11-emb-*
+          path: data/text
+          merge-multiple: true
+      - run: python scripts/phase11_text.py merge
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase11-text-emb
+          path: data/text/tenk_emb.parquet
+          retention-days: 90
+
+  llm:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'llm')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p11:llm]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: CPU torch + transformers
+        run: |
+          pip install -q "torch==2.5.1" --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "transformers==4.48.3" "numpy<2" "pandas==2.2.3" pyyaml
+      - name: Factor proposals (hypotheses only; validated by factor_dsl)
+        run: python scripts/phase11_llm.py propose
+      - name: Commit the proposals to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/phase11/llm_factors.json
+          git commit -qm "phase11 llm factor proposals — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+
+  score:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'dev' || inputs.job == 'holdout'))
+      || (github.event_name == 'push'
+          && (contains(github.event.head_commit.message, '[p11:dev]')
+              || contains(github.event.head_commit.message, '[p11:holdout]')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.job || (contains(github.event.head_commit.message, '[p11:holdout]') && 'holdout' || 'dev') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: Fetch phase11-inputs + phase11-text-emb
+        run: |
+          art() {
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+              -q ".artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id" | sort -n | tail -1)
+            [ -n "$AID" ] || { echo "artifact $1 not found"; return 1; }
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+          }
+          art phase11-inputs && mkdir -p data && unzip -o -q /tmp/a.zip -d data
+          art phase11-text-emb && mkdir -p data/text && unzip -o -q /tmp/a.zip -d data/text
+          ls data data/text
+      - name: Run phase-11 ${{ env.STAGE }}
+        run: uv run --no-sync python scripts/phase11_us.py "$STAGE"
+      - name: Commit results to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/phase11/ results/holdout_log.jsonl
+          [ -d state/phase11 ] && git add state/phase11
+          git commit -qm "phase11 $STAGE — run ${{ github.run_id }}" || exit 0
           for i in 1 2 3; do
             git push -q origin "HEAD:${{ github.ref_name }}" && break
             git pull -q --rebase origin "${{ github.ref_name }}"
