@@ -1,0 +1,194 @@
+# Phase-9 US — research + improve B50_momvq. PREDECLARED 2026-11-24,
+# committed BEFORE any phase-9 run. This file is the method contract:
+# every candidate, threshold and the adoption rule below were written
+# down before the walk-forward harness executed on any data.
+#
+# Starting point (docs/PHASE8_AUDIT.md): B50_momvq = 50% SPY + 6-name
+# equal-weight mom+vq sleeve. Walk-forward 2017-2026 AR +27.8% vs SPY
+# +14.9%, but excess-vs-SPY DSR 0.36 at 392 trials, 2024 carried by
+# APP/CVNA/SMCI, and "sleeve_n=8 -> AR +7.7%". validated: false.
+#
+# Pre-run observation (arithmetic, not a data look): on the $12.70 micro
+# book an 8-name sleeve is 0.5 * 12.70 / 8 = $0.79 per name — below the
+# $1 Alpaca order floor — so the n=8 audit run could never buy its sleeve
+# (≈ 50% SPY + 50% cash: AR ≈ SPY/2, mdd ≈ SPY mdd/2 — which is what it
+# printed). The paper account trades ~$100k, where the floor never binds.
+# Phase 9 therefore scores every candidate at the PAPER book size and
+# re-runs the $12.70 B50 (n=6 and n=8) only as reproduction anchors.
+#
+# Honesty protocol (unchanged from phase 8 unless stated):
+#   * Yearly walk-forward: every calendar year 2017..2026 on the honest
+#     Alpaca PIT feed is an independent episode (book starts flat). Every
+#     signal/weight/model/exposure used on day t reads data <= t only.
+#   * Adaptive parts are re-estimated INSIDE the walk-forward exactly as
+#     the live retrain job would: IC weights monthly from realised ICs
+#     only; LightGBM refit monthly on an expanding window with the label
+#     horizon purged + an embargo; hyper-parameters picked each January
+#     by purged CV inside the training window only; regime / vol overlay
+#     and drift monitor read lagged data only. Before an adaptive part
+#     has enough history it falls back to the B50 composite (so early
+#     years can equal B50 by construction — that is the fallback working,
+#     not a bug).
+#   * n_trials continues the results/holdout_log.jsonl running total (392
+#     at phase-8 end) and counts EVERY scored candidate-window below,
+#     including the reproduction anchors and any candidate later
+#     discarded. DSR is reported on total, excess-vs-SPY and
+#     active-vs-B50 daily returns.
+#   * Nothing here is tuned on results. If no candidate clears the
+#     adoption rule the live/paper configs stay on B50_momvq.
+
+provider: data/qlib/us_alpaca
+fundamentals: data/events/fundamentals.parquet
+shares: data/events/shares_out.parquet
+sector_map: configs/benchmarks/assets/sp500_sector_map.csv
+news_daily: results/news_sentiment/daily_sentiment.parquet   # FinBERT, optional
+costs: {flat_bps: 5.0, spread: liquidity_buckets}
+fill: next_open
+delist_liquidate: true
+rebalance_band: 0.02
+min_order_usd: 1.0
+max_stock_weight: 0.20
+core_symbol: SPY
+fwd_h: 21
+gate_start_year: 2017
+news_start_year: 2021          # Alpaca news fetched from 2020-09 -> first full year
+
+books:
+  paper: {cash_gbp: 78740.16, gbpusd: 1.27}   # ~$100k — the paper account
+  micro: {cash_gbp: 10.0, gbpusd: 1.27}       # ~$12.70 — phase-8 anchor only
+
+# Same leg names as phase 8 (signals6 / live.py). The adaptive library
+# adds the remaining live-computable price legs; amihud excluded (it
+# rewards illiquidity — the wrong bet in an S&P 500 book).
+signals:
+  momvq: [mom, vq]
+  library: [mom, vq, mom6, lowvol, beta, rev]
+  momvqnews: [mom, vq, news]
+required_legs: [mom, vq]       # a name must have both to be pickable (B50 parity)
+
+# Idea 3 — adaptive factor weighting (online, factor-momentum style).
+# Month m: w_leg = max(0, EW-mean of the leg's realised daily rank-IC vs
+# 21d forward over the trailing ic_days usable observations, halflife
+# halflife_days). Realised = forward window closed by the decision close
+# (IC series shifted fwd_h+1 days on the full trading grid). Blend:
+# w = (1-lam)*prior + lam*w_ic/sum(w_ic). < min_obs usable ICs or all
+# ICs <= 0 -> w = prior (the B50 composite).
+ic_weights:
+  ic_days: 252
+  halflife_days: 126
+  min_obs: 126
+  lam: 0.5
+  prior: {mom: 0.5, vq: 0.5}
+
+# Idea 4 — LightGBM, monthly refit, expanding window, purged.
+# Features: per-day pct-ranks of mom, mom6, rev, srev5, lowvol, beta,
+# vq, vq_bm, vq_ep, vq_roe. Label: per-day pct-rank of the 21d forward
+# return (next-open convention). A row (day d) may train the month-m
+# model only if its label closed before m: d <= pos(m) - (fwd_h+1) -
+# embargo. Training rows subsampled every `stride` days. Each January
+# (with >= cv_min_days of trainable days) a purged 3-fold blocked CV
+# inside the training window picks one grid point by mean daily rank-IC;
+# other months reuse it. < min_train_days trainable days -> B50 composite.
+gbm:
+  features: [mom, mom6, rev, srev5, lowvol, beta, vq, vq_bm, vq_ep, vq_roe]
+  stride: 5
+  cv_stride: 10
+  embargo: 5
+  min_train_days: 252
+  cv_min_days: 504
+  cv_folds: 3
+  base: {learning_rate: 0.05, num_leaves: 15, n_estimators: 300,
+         min_child_samples: 500, subsample: 0.8, subsample_freq: 1,
+         colsample_bytree: 0.8, reg_lambda: 1.0, seed: 0}
+  grid:
+    - {num_leaves: 7, n_estimators: 150}
+    - {num_leaves: 7, n_estimators: 400}
+    - {num_leaves: 31, n_estimators: 150}
+    - {num_leaves: 31, n_estimators: 400}
+
+# Idea 2 — overlays on the sleeve (freed share -> SPY core, never levered).
+#   vol:   Barroso/Santa-Clara-style managed sleeve: exposure =
+#          clip(target / sigma_63, 0, 1), sigma_63 = 63d realised vol of
+#          the shadow sleeve (equal-weight yesterday's top-n, close-to-
+#          close, no costs), target = trailing 504d median of sigma_63
+#          (>= 126 obs, else exposure 1).
+#   trend: graded regime — SPY close < SMA200 (both lagged a day) ->
+#          sleeve exposure x 0.5.
+overlays:
+  vol: {win: 63, target_win: 504, target_min_obs: 126, floor: 0.0}
+  trend: {sma: 200, risk_off_mult: 0.5}
+
+# Drift monitor + fallback (the adaptive model's safety net). On day t:
+#   act  = sum over 126d of (shadow adaptive sleeve - shadow B50 sleeve)
+#   ic   = EW (hl 63) mean of the adaptive composite's realised rank-IC
+#          over 126 usable obs (>= 63 obs, else treated as healthy)
+#   bxs  = sum over 252d of (shadow B50 sleeve - SPY)
+#   adaptive -> fallback_b50 when act < -act_tol OR ic < 0
+#   fallback_b50 -> adaptive when act >= 0 AND ic > 0
+#   any -> fallback_spy (sleeve to core) when bxs < -spy_tol;
+#   fallback_spy -> previous mode when bxs > -spy_recover
+#   every switch holds >= min_hold days.
+drift:
+  act_win: 126
+  act_tol: 0.05
+  ic_hl: 63
+  ic_win: 126
+  ic_min_obs: 63
+  bxs_win: 252
+  spy_tol: 0.15
+  spy_recover: 0.05
+  min_hold: 21
+
+# Candidates. book defaults to paper. comp: b50 (equal mom+vq ranks) |
+# ic (idea 3) | gbm (idea 4) | ens (rank-mean of ic and gbm) | news.
+# weighting: equal | invvol. overlay: list of vol/trend. drift: true =
+# fallback machine wraps the composite. Every row = one trial per year.
+candidates:
+  - {name: A_spy,        core: 1.00, comp: null}
+  - {name: B50_momvq,    core: 0.50, comp: b50, n: 6}                  # baseline (paper book)
+  - {name: B50_micro,    core: 0.50, comp: b50, n: 6, book: micro}     # phase-8 reproduction anchor
+  - {name: B50_n8_micro, core: 0.50, comp: b50, n: 8, book: micro}     # audit n=8 anchor ($1 floor)
+  # idea 1 — breadth / concentration / risk weighting
+  - {name: B50_n8,       core: 0.50, comp: b50, n: 8}
+  - {name: B50_n10,      core: 0.50, comp: b50, n: 10}
+  - {name: B50_n15,      core: 0.50, comp: b50, n: 15}
+  - {name: B50_n20,      core: 0.50, comp: b50, n: 20}
+  - {name: R50_n15_ivol, core: 0.50, comp: b50, n: 15, weighting: invvol}
+  # idea 2 — vol-managed sleeve / regime
+  - {name: V50_vol,      core: 0.50, comp: b50, n: 6, overlay: [vol]}
+  - {name: T50_trendvol, core: 0.50, comp: b50, n: 6, overlay: [trend, vol]}
+  # idea 3 / 4 — adaptive weighting, ML, ensemble
+  - {name: IC50_adapt,   core: 0.50, comp: ic,  n: 6}
+  - {name: GB50_lgbm,    core: 0.50, comp: gbm, n: 6}
+  - {name: EN50_ens,     core: 0.50, comp: ens, n: 6}
+  # the end model: ensemble + vol overlay + drift fallback
+  - {name: AD50_full,    core: 0.50, comp: ens, n: 6, overlay: [vol], drift: true}
+  - {name: AD50_n10,     core: 0.50, comp: ens, n: 10, overlay: [vol], drift: true}
+
+# Idea 5 — FinBERT headline sentiment (scored by phase9.yml news jobs or
+# the Kaggle MODELS="phase4_news_score" path). Scored on news years only
+# (2021..), compared against B50_momvq on the SAME days. If the scores
+# are absent the run says so and these trials are not counted.
+news_candidates:
+  - {name: NW50_momvqnews, core: 0.50, comp: news, n: 6}
+  - {name: NWAD50_full,    core: 0.50, comp: ens_news, n: 6, overlay: [vol], drift: true}
+
+# Phase-8 deploy gate vs SPY (unchanged) — a necessary condition.
+deploy_gate:
+  mdd_tol: 0.02
+  match_tol: 0.005
+  min_match_frac: 0.60
+  worst_year_tol: 0.05
+
+# Adoption rule vs the CURRENT strategy (B50_momvq, paper book). A
+# candidate replaces B50 only if ALL hold:
+#   1. passes deploy_gate above;
+#   2. active-vs-B50 daily returns: annualised mean > 0 AND
+#      DSR(active, n_trials=all, trial SRs=all phase-9 actives) >= min_dsr;
+#   3. beats B50's AR in >= min_year_frac of gate years;
+#   4. excess-vs-SPY DSR >= B50's excess-vs-SPY DSR.
+# Several pass -> highest active DSR. None -> keep B50_momvq, say why.
+adoption:
+  baseline: B50_momvq
+  min_dsr: 0.95
+  min_year_frac: 0.60

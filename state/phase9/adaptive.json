@@ -1,0 +1,92 @@
+{
+ "asof": "2026-11-23",
+ "generated": "2026-11-24T13:31:12.740278",
+ "git_sha": "0868dd9",
+ "model": {
+  "name": "AD50_full",
+  "core": 0.5,
+  "comp": "ens",
+  "n": 6,
+  "overlay": [
+   "vol"
+  ],
+  "drift": true
+ },
+ "live_effect": "shadow \u2014 no live/paper config reads this file (adoption rule not met; see docs/PHASE9_IMPROVE.md)",
+ "mode": "fallback_b50",
+ "drift": {
+  "act_126": -0.05496955862370266,
+  "ic_ew": -0.06033282755501093,
+  "b50_vs_spy_252": 0.14447267082524945
+ },
+ "sleeve_exposure": 1.0,
+ "picks_adaptive_model": [
+  "SNDK",
+  "APA",
+  "LYB",
+  "VLO",
+  "MPC",
+  "PSX"
+ ],
+ "picks_b50": [
+  "SNDK",
+  "APA",
+  "LYB",
+  "VLO",
+  "MPC",
+  "PSX"
+ ],
+ "targets": {
+  "SNDK": 0.08333333333333333,
+  "APA": 0.08333333333333333,
+  "LYB": 0.08333333333333333,
+  "VLO": 0.08333333333333333,
+  "MPC": 0.08333333333333333,
+  "PSX": 0.08333333333333333,
+  "SPY": 0.5
+ },
+ "ic_weights_latest": {
+  "date": "2026-11-02",
+  "src": "ic",
+  "nobs": 252,
+  "ic": {
+   "mom": 0.02814,
+   "vq": 0.03011,
+   "mom6": -0.00049,
+   "lowvol": -0.03093,
+   "beta": -0.01273,
+   "rev": 0.0131
+  },
+  "w": {
+   "mom": 0.4472,
+   "vq": 0.461,
+   "mom6": 0.0,
+   "lowvol": 0.0,
+   "beta": 0.0,
+   "rev": 0.0918
+  }
+ },
+ "gbm_latest": {
+  "month": "2026-11-02",
+  "train_last_day": "2026-09-24",
+  "n_train_days": 489,
+  "n_rows": 268220,
+  "params": {
+   "num_leaves": 31,
+   "n_estimators": 400
+  },
+  "cv": null,
+  "importance": {
+   "mom": 1241,
+   "mom6": 1155,
+   "rev": 852,
+   "srev5": 454,
+   "lowvol": 1029,
+   "beta": 1300,
+   "vq": 1154,
+   "vq_bm": 1571,
+   "vq_ep": 1486,
+   "vq_roe": 1758
+  }
+ }
+}

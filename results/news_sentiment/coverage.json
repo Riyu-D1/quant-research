@@ -1,0 +1,79 @@
+{
+ "rows": 790014,
+ "row_coverage": 1.0,
+ "daily_rows": 302913,
+ "symbols": 720,
+ "first_day": "2012-04-17",
+ "last_day": "2026-11-09",
+ "score_mean": 0.16012605625255086,
+ "frac_pos": 0.09019207254554983,
+ "frac_neg": 0.01606427227871911,
+ "shards": [
+  {
+   "shard": 0,
+   "n_texts": 56828,
+   "n_scored": 56828,
+   "complete": true,
+   "minutes": 46.5,
+   "texts_per_s": 20.4
+  },
+  {
+   "shard": 1,
+   "n_texts": 56588,
+   "n_scored": 56588,
+   "complete": true,
+   "minutes": 46.0,
+   "texts_per_s": 20.5
+  },
+  {
+   "shard": 2,
+   "n_texts": 56624,
+   "n_scored": 56624,
+   "complete": true,
+   "minutes": 46.7,
+   "texts_per_s": 20.2
+  },
+  {
+   "shard": 3,
+   "n_texts": 56775,
+   "n_scored": 56775,
+   "complete": true,
+   "minutes": 10.9,
+   "texts_per_s": 86.8
+  },
+  {
+   "shard": 4,
+   "n_texts": 56812,
+   "n_scored": 56812,
+   "complete": true,
+   "minutes": 13.7,
+   "texts_per_s": 69.2
+  },
+  {
+   "shard": 5,
+   "n_texts": 57135,
+   "n_scored": 57135,
+   "complete": true,
+   "minutes": 47.1,
+   "texts_per_s": 20.2
+  },
+  {
+   "shard": 6,
+   "n_texts": 56966,
+   "n_scored": 56966,
+   "complete": true,
+   "minutes": 17.4,
+   "texts_per_s": 54.4
+  },
+  {
+   "shard": 7,
+   "n_texts": 56300,
+   "n_scored": 56300,
+   "complete": true,
+   "minutes": 20.7,
+   "texts_per_s": 45.3
+  }
+ ],
+ "model": "ProsusAI/finbert",
+ "text": "headline only, max_len 64, int8 dynamic quantisation"
+}

@@ -1,0 +1,286 @@
+name: phase9-improve
+
+# Phase-9: research + improve B50_momvq with an adaptive model.
+#
+#   news         FinBERT headline sentiment on CPU, 8 hash shards in
+#                parallel (phase4-news artifact -> results/news_sentiment/
+#                daily_sentiment.parquet committed to the running branch).
+#                GPU alternative: Kaggle MODELS="phase4_news_score".
+#   walkforward  the predeclared grid (configs/experiments/phase9_us.yaml,
+#                committed BEFORE any run) on the honest Alpaca PIT feed ->
+#                results/phase9_us_walkforward.json + holdout_log.jsonl.
+#                Never writes a live/paper config.
+#   retrain      the adaptive model's production step (weekly schedule
+#                once this file is on master): rebuild the Alpaca dump,
+#                recompute IC weights / LightGBM refits / overlays / drift
+#                monitor -> state/phase9/adaptive.json + drift_log.jsonl.
+#                SHADOW ONLY until a candidate clears the adoption rule —
+#                no config reads state/phase9/.
+#
+# Triggers: workflow_dispatch (needs this file on master), or a push to
+# phase9/improve whose head commit message carries [p9:news], [p9:wf] or
+# [p9:retrain] (lets the branch run before merge; other pushes skip every
+# job). Nothing here trades; the paper/live bots are untouched.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        required: true
+        type: choice
+        options: [walkforward, news, retrain]
+        default: walkforward
+      refresh_data:
+        description: "retrain: rebuild the Alpaca dump first (else latest us-qlib-dump artifact)"
+        type: boolean
+        default: true
+  push:
+    branches: [phase9/improve]
+  schedule:
+    - cron: "0 6 * * 1"    # weekly retrain, Mondays 06:00 UTC (default branch only)
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  # ── FinBERT news sentiment ────────────────────────────────────────────
+  news_prep:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'news')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p9:news]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q "numpy<2" "pandas==2.2.3" "pyarrow==17.0.0" requests
+      - name: Fetch phase4-news headlines
+        run: |
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase4-news" and (.expired|not)) | .id' | sort -n | tail -1)
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/n.zip
+          mkdir -p data/news && unzip -o -j -q /tmp/n.zip -d data/news
+          test -f data/news/headlines.parquet
+      - run: python scripts/phase9_news.py prep --headlines data/news/headlines.parquet --shards 8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p9-news-work-${{ github.run_id }}
+          path: data/news9/
+          retention-days: 7
+
+  news_score:
+    needs: news_prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: CPU torch + transformers (pinned, CPU wheel index)
+        run: |
+          pip install -q "torch==2.5.1" --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "transformers==4.46.3" "numpy<2" "pandas==2.2.3" "pyarrow==17.0.0" requests
+      - uses: actions/download-artifact@v4
+        with:
+          name: p9-news-work-${{ github.run_id }}
+          path: data/news9/
+      - run: python scripts/phase9_news.py score --shard ${{ matrix.shard }} --max-minutes 300
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p9-news-scored-${{ github.run_id }}-${{ matrix.shard }}
+          path: |
+            data/news9/scored_${{ matrix.shard }}.parquet
+            data/news9/scored_${{ matrix.shard }}.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  news_merge:
+    needs: [news_prep, news_score]
+    if: always() && needs.news_prep.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q "numpy<2" "pandas==2.2.3" "pyarrow==17.0.0" requests
+      - uses: actions/download-artifact@v4
+        with:
+          name: p9-news-work-${{ github.run_id }}
+          path: data/news9/
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: p9-news-scored-${{ github.run_id }}-*
+          path: data/news9/
+          merge-multiple: true
+      - run: python scripts/phase9_news.py merge
+      - name: Commit sentiment to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/news_sentiment/daily_sentiment.parquet results/news_sentiment/coverage.json
+          git commit -qm "phase9 FinBERT headline sentiment — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p9-news-sentiment-${{ github.run_id }}
+          path: results/news_sentiment/
+          retention-days: 90
+
+  # ── walk-forward grid ─────────────────────────────────────────────────
+  walkforward:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'walkforward')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p9:wf]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: Fetch US dump + events + fundamentals
+        run: |
+          art() {
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+              -q ".artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id" | sort -n | tail -1)
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+            mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"
+          }
+          art us-qlib-dump data/qlib/us_alpaca
+          test -f data/qlib/us_alpaca/calendars/day.txt
+          art phase3-events /tmp/p3ev
+          mkdir -p data/events
+          find /tmp/p3ev -name features_us.parquet -exec cp {} data/events/ \;
+          find /tmp/p3ev -name shares_out.parquet -exec cp {} data/events/ \;
+          art phase4-inputs data/events || true
+          test -f data/events/fundamentals.parquet
+          test -f data/events/shares_out.parquet
+          ls -la data/events/ results/news_sentiment/ 2>/dev/null || true
+      - name: Run phase-9 walk-forward
+        run: |
+          uv run --no-sync python scripts/phase9_us.py walkforward \
+            --out results/phase9_us_walkforward.json
+          uv run --no-sync python scripts/phase9_us.py report \
+            --out results/phase9_us_walkforward.json
+      - name: Commit results to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/phase9_us_walkforward.json results/holdout_log.jsonl
+          git commit -qm "phase9 walk-forward — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase9-walkforward-${{ github.run_id }}
+          path: results/phase9_us_walkforward.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+  # ── weekly adaptive retrain (shadow) ──────────────────────────────────
+  retrain:
+    if: >-
+      github.event_name == 'schedule'
+      || (github.event_name == 'workflow_dispatch' && inputs.job == 'retrain')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p9:retrain'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: ALPACA_API_KEY   # paper data keys for the dump rebuild
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+      REFRESH: ${{ github.event_name == 'schedule' || inputs.refresh_data == true || contains(github.event.head_commit.message, '[p9:retrain-refresh]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: Rebuild the Alpaca PIT dump (same steps as us-alpaca-data)
+        if: env.REFRESH == 'true'
+        run: |
+          END_ARG=$(date -d yesterday +%F)
+          uv run --no-sync python scripts/alpaca_us_data.py universe \
+            --start 2016-01-01 --end "$END_ARG" --out build/universe_sp500.csv
+          uv run --no-sync python scripts/alpaca_us_data.py fetch \
+            --universe-csv build/universe_sp500.csv --csv-dir data/us_alpaca_csv \
+            --start 2016-01-01 --end "$END_ARG" --feed auto \
+            --coverage-json build/coverage.json
+          uv run --no-sync python scripts/us_data_to_qlib.py \
+            --input-dir data/us_alpaca_csv --output-dir data/qlib/us_alpaca --universe sp500
+          uv run --no-sync python scripts/alpaca_us_data.py finalize \
+            --qlib-dir data/qlib/us_alpaca --csv-dir data/us_alpaca_csv \
+            --universe-csv build/universe_sp500.csv --universe sp500
+      - name: Fetch inputs (dump if not rebuilt, shares, fundamentals)
+        run: |
+          art() {
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+              -q ".artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id" | sort -n | tail -1)
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+            mkdir -p "$2" && unzip -o -q /tmp/a.zip -d "$2"
+          }
+          [ -f data/qlib/us_alpaca/calendars/day.txt ] || art us-qlib-dump data/qlib/us_alpaca
+          test -f data/qlib/us_alpaca/calendars/day.txt
+          art phase3-events /tmp/p3ev
+          mkdir -p data/events
+          find /tmp/p3ev -name shares_out.parquet -exec cp {} data/events/ \;
+          find /tmp/p3ev -name features_us.parquet -exec cp {} data/events/ \;
+          art phase4-inputs data/events || true
+          test -f data/events/fundamentals.parquet
+          tail -1 data/qlib/us_alpaca/calendars/day.txt
+      - name: Retrain (shadow) + drift monitor
+        run: uv run --no-sync python scripts/phase9_us.py retrain --out state/phase9
+      - name: Commit state to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/phase9/
+          git commit -qm "phase9 adaptive retrain (shadow) — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+      - uses: actions/upload-artifact@v4
+        if: env.REFRESH == 'true'
+        with:
+          name: phase9-qlib-dump
+          path: data/qlib/us_alpaca
+          retention-days: 14
