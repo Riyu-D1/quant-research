@@ -116,6 +116,16 @@ candidates:
   # benchmarks / baseline (re-scored on the same days; counted as trials)
   - {name: A_spy,          kind: hold, weights: {SPY: 1.0}}
   - {name: B50_momvq,      kind: b50, n: 6}
+  # PRE-RUN AMENDMENT (2026-11-24, before any phase-10 run): the B50
+  # walk-forward universe is every name that was EVER an S&P 500 member
+  # in 2016-2026 (load_feed masked=False + priced-today eligibility), so
+  # a 2024 decision can pick a name that only joined the index later
+  # (instruments/sp500.txt: SMCI joined 2024-03-18, APP 2025-09-22, CVNA
+  # 2025-12-22 — the three names that carried B50's 2024). B50_pit is the
+  # identical book with picks restricted to names that are index members
+  # ON the signal day. Diagnostic only (never a finalist); counted as a
+  # trial. Every NEW single-name candidate below uses the PIT universe.
+  - {name: B50_pit,        kind: b50, n: 6, members: pit, diagnostic: true}
   # 1. multi-asset time-series momentum / trend / dual momentum
   - {name: TS1_tsmom12,    kind: tsmom, universe: u8}
   - {name: TS2_trend3h,    kind: trend, universe: u8}
@@ -129,10 +139,10 @@ candidates:
   - {name: SR1_sector3,    kind: sector, universe: sectors9, k: 3}
   - {name: SR2_sector3_abs, kind: sector, universe: sectors9, k: 3, abs_filter: true}
   # 4. low volatility (distinct from the filings-based vq sleeve)
-  - {name: LV1_resvol50,   kind: lowvol, n: 50, win: 252}
+  - {name: LV1_resvol50,   kind: lowvol, n: 50, win: 252, members: pit}
   # 5. high-turnover anomalies, realistic costs
-  - {name: ST1_rev5_50,    kind: strev, core: 0.5, n: 20}
-  - {name: PE1_sue_50,     kind: pead, core: 0.5, n: 20, max_age_days: 63}
+  - {name: ST1_rev5_50,    kind: strev, core: 0.5, n: 20, members: pit}
+  - {name: PE1_sue_50,     kind: pead, core: 0.5, n: 20, max_age_days: 63, members: pit}
   # 6. portfolio of strategies (one book, merged targets)
   - {name: PF1_b50_rp30,   kind: combo, parts: {B50_momvq: 0.7, RP1_erc: 0.3}}
   - {name: PF2_b50_tr30,   kind: combo, parts: {B50_momvq: 0.7, TS2_trend3h: 0.3}}
@@ -161,7 +171,7 @@ proxies:
   - {name: X_6040,  weights: {SPY: 0.6, AGG: 0.4}}
 
 # Finalists (dev data only). Eligible = every phase-10 candidate except
-# A_spy, B50_momvq and the leverage sensitivities, whose dev MDD is no
+# A_spy, B50_momvq, diagnostics and the leverage sensitivities, whose dev MDD is no
 # worse than B50's dev MDD - mdd_tol. Finalists = the top `k` eligible by
 # dev Sharpe (excess of BIL). Exactly these go to the holdout, with
 # B50_momvq, A_spy and every proxy. Nothing is tuned after this.
