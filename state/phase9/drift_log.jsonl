@@ -1,0 +1,1 @@
+{"asof": "2026-11-23", "generated": "2026-11-24T13:31:12.740278", "mode": "fallback_b50", "drift": {"act_126": -0.05496955862370266, "ic_ew": -0.06033282755501093, "b50_vs_spy_252": 0.14447267082524945}, "sleeve_exposure": 1.0, "picks_adaptive_model": ["SNDK", "APA", "LYB", "VLO", "MPC", "PSX"], "picks_b50": ["SNDK", "APA", "LYB", "VLO", "MPC", "PSX"]}
