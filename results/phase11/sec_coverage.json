@@ -1,0 +1,14 @@
+{
+ "issuers": 745,
+ "with_facts": 744,
+ "with_shares": 704,
+ "failed": [],
+ "no_cik": [
+  "CBS",
+  "FRC",
+  "SBNY",
+  "VIAB",
+  "VIAC",
+  "WYND"
+ ]
+}
