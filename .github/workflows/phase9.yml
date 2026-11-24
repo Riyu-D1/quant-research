@@ -221,7 +221,7 @@ jobs:
     env:
       ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
       ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
-      REFRESH: ${{ github.event_name == 'schedule' || inputs.refresh_data == true }}
+      REFRESH: ${{ github.event_name == 'schedule' || inputs.refresh_data == true || contains(github.event.head_commit.message, '[p9:retrain-refresh]') }}
     steps:
       - uses: actions/checkout@v4
         with:

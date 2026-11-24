@@ -772,7 +772,34 @@ def cmd_walkforward(spec: dict, out: Path) -> dict:
         news_block = {"scored": True, "years": nyears,
                       "last_news_day": str(nlast.date())}
 
-    n_windows = sum(len(r["by_year"]) for r in results.values()) + \
+    # reproduction anchor: B50_micro vs (a) the phase-8 stored years and
+    # (b) the phase-8 CODE PATH (P8.composite_for + P8.daily_targets with
+    # the verbatim phase-8 candidate) re-run on THIS run's inputs — (b)
+    # separates code parity from input-vintage drift.
+    stored = json.loads((REPO / "results/phase8_us_walkforward.json")
+                        .read_text())["results"]["B50_momvq"]["by_year"]
+    p8c = {"name": "B50_momvq", "core": 0.50, "sleeve_signal": "momvq",
+           "guard": "none"}
+    p8s = {**spec8(spec, "micro"), "signals": {"momvq": ["mom", "vq"]}}
+    comp8 = P8.composite_for(p8s, p8c, inp["panels"], inp["fwd"])
+    p8code = {}
+    for y in years:
+        yd = feed["days"][feed["days"].year == y]
+        tg = P8.daily_targets(comp8, feed["close"], yd, p8c, p8s, {},
+                              inp["smap"])
+        p8code[y] = P8.run_candidate(feed, tg, yd, p8s, inp["cmap"],
+                                     None)["annualized_return"]
+    repro = {str(y): {"phase9": r["micro_ar"],
+                      "phase8_code_same_inputs": p8code.get(y),
+                      "phase8_stored": stored[str(y)]["annualized_return"],
+                      "code_match": abs(r["micro_ar"] - p8code.get(y, 9))
+                      < 1e-12,
+                      "stored_match": abs(r["micro_ar"] - stored[str(y)]
+                                          ["annualized_return"]) < 5e-3}
+             for y, r in results["B50_micro"]["by_year"].items()
+             if str(y) in stored}
+    n_windows = len(p8code) + \
+        sum(len(r["by_year"]) for r in results.values()) + \
         sum(len(r["by_year"]) for k, r in nres.items()
             if k != spec["adoption"]["baseline"])
     prior = prior_trials_ex_phase9()
@@ -793,15 +820,6 @@ def cmd_walkforward(spec: dict, out: Path) -> dict:
                                       nspy_by, nspy_wf)
         news_block["adoption"] = adoption(news_block["eval"], nres, spec)
 
-    # reproduction anchor: B50_micro must equal the phase-8 stored years
-    stored = json.loads((REPO / "results/phase8_us_walkforward.json")
-                        .read_text())["results"]["B50_momvq"]["by_year"]
-    repro = {str(y): {"phase9": r["micro_ar"],
-                      "phase8": stored[str(y)]["annualized_return"],
-                      "match": abs(r["micro_ar"] - stored[str(y)]
-                                   ["annualized_return"]) < 5e-3}
-             for y, r in results["B50_micro"]["by_year"].items()
-             if str(y) in stored}
 
     ts = dt.datetime.now().isoformat()
     drop_phase9_log_rows()
@@ -828,8 +846,14 @@ def cmd_walkforward(spec: dict, out: Path) -> dict:
         "results": clean(results), "eval": ev_, "adoption": adopt,
         "news": {**news_block, "results": clean(nres)} if nres
         else news_block,
-        "reproduction_b50_micro": {"years": repro, "all_match": all(
-            v["match"] for v in repro.values())},
+        "reproduction_b50_micro": {
+            "years": repro,
+            "code_parity": all(v["code_match"] for v in repro.values()),
+            "stored_match_all": all(v["stored_match"]
+                                    for v in repro.values()),
+            "note": "stored phase-8 numbers were produced locally on the "
+                    "owner's data/events vintage; this run reads the CI "
+                    "artifacts — code_parity isolates the code path"},
         "ledgers": ledgers, "n_trials": n_trials, "prior_trials": prior,
         "n_phase9_windows": n_windows,
         "runtime_s": round(time.time() - t0, 1)}
