@@ -330,3 +330,17 @@ def test_spec_part2_predeclares_candidates_and_rules():
     for c in SPEC["candidates"]:
         if c["kind"] == "meta":
             assert c["sleeves"][0] == "B50_honest"
+
+
+def test_committed_holdout_was_scored_once_on_the_sealed_window():
+    h = json.loads(_committed("results/phase11/holdout.json").read_text())
+    d = json.loads(_committed("results/phase11/dev.json").read_text())
+    assert h["holdout_window"][0] >= SPEC["holdout"]["start"]
+    assert h["holdout_window"][1] <= SPEC["holdout"]["end"]
+    assert T(d["dev_window"][1]) < T(SPEC["holdout"]["start"])
+    assert h["finalists"] == d["finalists"]["finalists"]
+    assert h["n_trials"] == d["n_trials"] + h["n_holdout_windows"] + h["n_new_screen_trials"]
+    rows = [json.loads(ln) for ln in (REPO / "results/holdout_log.jsonl").read_text().splitlines()
+            if ln.strip() and json.loads(ln).get("spec") == "phase11_us.yaml"
+            and json.loads(ln).get("stage") == "holdout"]
+    assert len(rows) == h["n_holdout_windows"]
