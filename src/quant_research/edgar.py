@@ -230,6 +230,11 @@ def fetch_shares_outstanding(edgar: Edgar, cik: int) -> pd.DataFrame:
     only from its filed date onward.
     """
     d = edgar.get(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json").json()
+    return parse_shares(d)
+
+
+def parse_shares(d: dict) -> pd.DataFrame:
+    """companyfacts JSON -> dei shares-outstanding rows (end, val, filed)."""
     dei = d.get("facts", {}).get("dei", {})
     rows = []
     for fact in dei.get("EntityCommonStockSharesOutstanding", {}).get("units", {}).get("shares", []):

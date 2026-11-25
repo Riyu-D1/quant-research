@@ -87,8 +87,9 @@ jobs:
 
       - name: Restore phase-3 events (cik_map needed for fundamentals)
         run: |
-          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
-            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id' | sort -n | tail -1)
+          [ -n "$AID" ] || { echo "artifact phase3-events not found"; exit 1; }
           gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
             > /tmp/p3ev.zip
           mkdir -p data/events
@@ -175,8 +176,9 @@ jobs:
           test -f data/qlib/us_alpaca/calendars/day.txt
           # selective extract — the 185MB artifact is mostly insider/13f raw
           # tables the store does not read
-          AID=$(gh api repos/${{ github.repository }}/actions/artifacts \
-            -q '[.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id] | max')
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase3-events" and (.expired|not)) | .id' | sort -n | tail -1)
+          [ -n "$AID" ] || { echo "artifact phase3-events not found"; exit 1; }
           gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip \
             > /tmp/p3ev.zip
           mkdir -p data/events

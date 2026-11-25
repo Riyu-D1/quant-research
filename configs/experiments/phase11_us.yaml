@@ -1,0 +1,177 @@
+# Phase-11 US — hybrid LLM + algorithmic bot vs an HONEST B50 baseline.
+# PREDECLARED. Part 1 (this block) was committed 2026-11-24 BEFORE any
+# phase-11 run: the point-in-time universe, the sealed holdout and the
+# baseline books. Candidates, the finalist rule and the adoption rule
+# are appended in a later commit, also before any candidate is scored.
+#
+# Honesty protocol
+#   * Universe: a name is pickable on signal day d only if it was an S&P
+#     500 member on d (src/quant_research/pit.py). Membership = the
+#     fja05680/sp500 spells file pinned to `membership.fja_sha`, carried
+#     forward to sample_end with daily Wikipedia revision snapshots. The
+#     data job rebuilds the Alpaca dump from that universe so names that
+#     joined after the pin have prices.
+#   * Sealed FINAL HOLDOUT = the last 12 months: holdout.start ..
+#     sample_end. Every command except `holdout` slices the feed, ETF bars,
+#     SPY and the calendar to days < holdout.start BEFORE any signal is
+#     built (asserted). The holdout is scored once, at the end.
+#     Caveat stated up front: phase 10 already scored B50, B50_pit, SPY
+#     and the ETF proxies on this same window (results/phase10_holdout.json),
+#     so for those books it is a re-viewed window, not a fresh one.
+#   * One simulator: the phase-8 micro sim (paper book ~$100k, next-open
+#     fills, liquidity-bucket half-spread + 5 bps per side, $1 floor, 2%
+#     band, delist liquidation, 20% single-stock cap), ETF bars appended
+#     like SPY. Long-only cash account; no shorting, CFDs or leverage.
+#   * Metrics as phase 10: Sharpe on daily returns in excess of BIL; AR,
+#     MDD, $ P&L on the $100k book (episodes chained), turnover.
+#   * Trials: n_trials = running total before phase 11 (769) + every
+#     phase-11 scored candidate-window, re-runs of B50/SPY included.
+#     DSR (Bailey & Lopez de Prado) at the cumulative n; trial-Sharpe
+#     dispersion from the phase-10 and phase-11 dev Sharpes.
+#   * Paper only. Nothing here writes configs/paper_signal.yaml or
+#     configs/live_signal.yaml.
+
+provider: data/qlib/us_alpaca
+etf_bars: data/etf/etf_bars.parquet
+fundamentals: data/events/fundamentals.parquet
+shares: data/events/shares_out.parquet
+cik_map: data/events/cik_map.parquet
+sector_map: configs/benchmarks/assets/sp500_sector_map.csv
+membership_csv: results/phase11/sp500_membership.csv
+costs: {flat_bps: 5.0, spread: liquidity_buckets}
+fill: next_open
+delist_liquidate: true
+rebalance_band: 0.02
+min_order_usd: 1.0
+max_stock_weight: 0.20
+core_symbol: SPY
+cash_symbol: BIL
+fwd_h: 21
+books:
+  paper: {cash_gbp: 78740.16, gbpusd: 1.27}   # ~$100k — the paper account
+
+data_start: "2016-01-01"
+sample_end: "2026-11-23"
+holdout: {start: "2025-11-24", end: "2026-11-23"}
+dev_start_year: 2017
+
+membership:
+  fja_sha: a2430f2af0c79ddf0748e91de11bdeb1616ab5a7   # fja05680/sp500, 2026-09-07 update
+  wiki_from: "2026-09-01"     # daily Wikipedia snapshots from here to sample_end
+  persist: 5                  # a flip must hold 5 daily snapshots
+
+# Step 1 — baseline books on the dev window (holdout sealed)
+baseline:
+  - {name: A_spy,      kind: hold, weights: {SPY: 1.0}}
+  - {name: B50_honest, kind: b50, members: pit, n: 6}   # the new bar to beat
+  - {name: B50_ever,   kind: b50, members: ever, n: 6}  # the old universe, diagnostic only
+
+# ===========================================================================
+# Part 2 — the hybrid. Appended 2026-11-24 BEFORE the text, LLM, dev or
+# holdout jobs ran. Only the baseline job (part 1) had run, on dev data.
+# ===========================================================================
+
+# (b) LLM layer, role 1: text scores from a model whose knowledge cutoff
+# (2016-12-31) precedes every signal date (2017-01-03 onwards).
+text:
+  model: manelalab/chrono-bert-v1-20161231
+  revision: 89dff1bb2043cc929c00756002469dfa9482f280
+  embeddings: data/text/tenk_emb.parquet
+  chunk_tokens: 512
+  chunks: 4                 # evenly spaced windows of each Item 1A section
+  shards: 4                 # parallel Actions jobs for the embedding
+  min_gap_days: 300         # consecutive 10-Ks compared only if 300-500 days apart
+  max_gap_days: 500
+  valid_days: 400           # a similarity score is live for 400 days after filing
+  exclude_quantile: 0.20    # Lazy Prices: drop the bottom-20% similarity names
+
+# (b) LLM layer, role 2: hypotheses only. Open-weights model run locally;
+# trained before its 2024-09 release, so dev-window results of its
+# factors are contaminated and only the holdout tests them cleanly.
+llm:
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+  themes:
+    - valuation
+    - profitability and earnings quality
+    - price trends and momentum
+    - risk and volatility
+    - trading activity and liquidity
+    - combining accounting data with price behaviour
+  per_theme: 6
+  max_factors: 24
+  seed: 11
+  temperature: 0.7
+  top_p: 0.9
+  max_new_tokens: 450
+  # PRE-DEV AMENDMENT (2026-11-24, after the llm job, before any factor was
+  # scored): the first parser read only 'name | formula | reason' lines and
+  # kept 5 of the model's formulas. Three themes answered as markdown lists
+  # (`formula` in backticks, '- formula' bullets) or as 'formula | reason'.
+  # The parser now also reads those forms; the raw model text is unchanged
+  # and re-parsed with `phase11_llm.py reselect` (16 factors kept).
+
+# Algorithmic screen of the LLM factors, re-run every January (walk-forward).
+# Sample = month-start days in the trailing `years` whose 21d next-open
+# forward return has closed before the decision (purge = fwd_h + 1 days).
+screen:
+  years: 5
+  min_samples: 12           # monthly rank-IC observations
+  min_t: 2.0                # mean IC / se > 2 in the proposed direction
+  max_corr_b50: 0.7         # mean cross-sectional rank corr with B50 composite
+  max_accepted: 5           # best t-stats kept
+
+# (c) learning layer: Hedge weights over sleeves, stress reset, fallback.
+meta:
+  lookback: 126             # trailing days of shadow sleeve log returns
+  eta: 4.0                  # w_k ~ exp(eta * trailing log return)
+  shrink: 0.5               # w = shrink * equal + (1 - shrink) * Hedge
+  stress: {sma: 200, vol_win: 21, vol_lookback: 504, vol_q: 0.80, min_hold: 10}
+  fallback: {win: 126, tol: 0.05, min_hold: 21}   # hybrid shadow lags B50 shadow by >5%
+                                                  # over 126d -> 100% B50 until lag >= 0
+
+# Candidates (dev = yearly episodes 2017-2025, book flat each 1 January;
+# all single-name sleeves rank PIT members only; 50% SPY core each).
+#   comp    b50   honest mom + vq
+#           qv    0.5 rank(EBIT/TEV) + 0.5 mean rank(GP/A, ROA)       (QVAL-style)
+#           bq    1/3 mom + 1/3 vq + 1/3 qv                           (B50 + tilt)
+#           lf    1/2 b50 + 1/2 mean rank of the accepted LLM factors (b50 if none)
+#           tx    b50 with the Lazy Prices bottom quintile excluded
+#   meta    Hedge-weighted mix of the listed sleeves' books
+candidates:
+  - {name: A_spy,      kind: hold, weights: {SPY: 1.0}}
+  - {name: B50_honest, kind: sleeve, comp: b50, n: 6}
+  - {name: QV50,       kind: sleeve, comp: qv, n: 20}
+  - {name: BQ50,       kind: sleeve, comp: bq, n: 6}
+  - {name: LF50,       kind: sleeve, comp: lf, n: 6, llm: true}
+  - {name: TX50,       kind: sleeve, comp: tx, n: 6, llm: true}
+  - {name: HY_algo,    kind: meta, sleeves: [B50_honest, QV50, BQ50]}
+  - {name: HY_full,    kind: meta, sleeves: [B50_honest, QV50, BQ50, LF50, TX50], llm: true}
+
+# Investable proxies — buy-and-hold through the same sim, never selected,
+# not trials. DBMF from 2019-05, KMLM from 2020-12 (own windows).
+proxies:
+  - {name: X_MTUM,  weights: {MTUM: 1.0}}
+  - {name: X_QUAL,  weights: {QUAL: 1.0}}
+  - {name: X_USMV,  weights: {USMV: 1.0}}
+  - {name: X_VLUE,  weights: {VLUE: 1.0}}
+  - {name: X_DBMF,  weights: {DBMF: 1.0}}
+  - {name: X_KMLM,  weights: {KMLM: 1.0}}
+  - {name: X_QMOM,  weights: {QMOM: 1.0}}
+  - {name: X_QVAL,  weights: {QVAL: 1.0}}
+  - {name: X_SPY,   weights: {SPY: 1.0}}
+  - {name: X_6040,  weights: {SPY: 0.6, AGG: 0.4}}
+
+# Finalists (dev only): eligible = every candidate except A_spy and
+# B50_honest whose dev MDD >= B50_honest dev MDD - mdd_tol; the top k by
+# dev Sharpe, plus HY_full (the end model) if it is not among them.
+finalists: {k: 2, mdd_tol: 0.02, always: [HY_full]}
+
+# Adoption (replace B50_momvq in the paper config) needs BOTH:
+#   1. holdout Sharpe > B50_honest holdout Sharpe;
+#   2. full-sample (dev + holdout) DSR >= min_dsr AND >= B50_honest's DSR
+#      at the same cumulative n_trials.
+# Several pass -> highest DSR. None -> keep B50_momvq. A pass only produces
+# a separate, clearly labelled config commit with validated: false and
+# live_trading: false.
+adoption: {baseline: B50_honest, min_dsr: 0.95}

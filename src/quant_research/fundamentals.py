@@ -33,16 +33,24 @@ NI_TAGS = ["NetIncomeLoss", "ProfitLoss"]
 REV_TAGS = ["RevenueFromContractWithCustomerExcludingAssessedTax",
             "Revenues", "SalesRevenueNet"]
 MAX_QUARTER_DAYS = 130          # ~90d periods; tolerates 53-week years
+VQ_GROUPS = (("book", BOOK_TAGS), ("ni", NI_TAGS), ("rev", REV_TAGS))
+# phase 11 value/quality tilt (EBIT/TEV, gross profitability, ROA)
+QV_GROUPS = (("ebit", ["OperatingIncomeLoss"]),
+             ("assets", ["Assets"]),
+             ("cash", ["CashAndCashEquivalentsAtCarryingValue",
+                       "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"]),
+             ("debt", ["LongTermDebt", "LongTermDebtNoncurrent"]),
+             ("gp", ["GrossProfit"]),
+             ("cogs", ["CostOfRevenue", "CostOfGoodsAndServicesSold"]))
 
 
-def parse_companyfacts(payload: dict) -> pd.DataFrame:
+def parse_companyfacts(payload: dict, groups=VQ_GROUPS) -> pd.DataFrame:
     """companyfacts JSON -> tidy rows (tag, end, start, filed, val, fp, form).
 
     Only us-gaap facts for the declared tag set, USD/share units only."""
     gaap = payload.get("facts", {}).get("us-gaap", {})
     rows = []
-    for group, tags in (("book", BOOK_TAGS), ("ni", NI_TAGS),
-                        ("rev", REV_TAGS)):
+    for group, tags in groups:
         for tag in tags:
             fact = gaap.get(tag)
             if not fact:
@@ -114,6 +122,20 @@ def _ttm(facts: pd.DataFrame, days: pd.DatetimeIndex) -> np.ndarray:
     return out
 
 
+def vq_mcap(shares: pd.DataFrame | None, close: np.ndarray,
+            days: pd.DatetimeIndex) -> np.ndarray:
+    """Latest-filed (filed < D) shares outstanding x close."""
+    if shares is None or shares.empty:
+        return np.full(len(days), np.nan)
+    sh = shares.dropna(subset=["filed", "shares"]).sort_values("filed")
+    filed = sh["filed"].values.astype("datetime64[D]")
+    vals = sh["shares"].values.astype(float)
+    d64 = days.values.astype("datetime64[D]")
+    pos = np.searchsorted(filed, d64, side="left") - 1      # filed < D
+    so = np.where(pos >= 0, vals[np.clip(pos, 0, len(vals) - 1)], np.nan)
+    return pd.Series(so).ffill().values * close
+
+
 def vq_features(facts: pd.DataFrame, shares: pd.DataFrame | None,
                 close: np.ndarray, days: pd.DatetimeIndex) -> dict:
     """One symbol -> {vq_bm, vq_ep, vq_roe} arrays on `days`.
@@ -125,18 +147,39 @@ def vq_features(facts: pd.DataFrame, shares: pd.DataFrame | None,
         return out
     book = _latest_point(facts[facts["group"] == "book"], days)
     ni = _ttm(facts[facts["group"] == "ni"], days)
-    mcap = np.full(len(days), np.nan)
-    if shares is not None and not shares.empty:
-        sh = shares.dropna(subset=["filed", "shares"]).sort_values("filed")
-        filed = sh["filed"].values.astype("datetime64[D]")
-        vals = sh["shares"].values.astype(float)
-        d64 = days.values.astype("datetime64[D]")
-        pos = np.searchsorted(filed, d64, side="left") - 1      # filed < D
-        so = np.where(pos >= 0, vals[np.clip(pos, 0, len(vals) - 1)], np.nan)
-        so = pd.Series(so).ffill().values
-        mcap = so * close
+    mcap = vq_mcap(shares, close, days)
     with np.errstate(divide="ignore", invalid="ignore"):
         out["vq_bm"] = book / mcap
         out["vq_ep"] = ni / mcap
         out["vq_roe"] = ni / np.where(np.abs(book) > 0, book, np.nan)
+    return out
+
+
+def qv_features(facts: pd.DataFrame, shares: pd.DataFrame | None,
+                close: np.ndarray, days: pd.DatetimeIndex) -> dict:
+    """One symbol -> {ebit_tev, gpa, roa} arrays on `days` (phase-11 tilt).
+
+    ebit_tev  operating income TTM / (market cap + long-term debt - cash);
+              NaN unless TEV > 0                    (Gray & Carlisle value)
+    gpa       gross profit TTM / total assets        (Novy-Marx 2013); gross
+              profit = GrossProfit, else revenue - cost of revenue
+    roa       net income TTM / total assets
+    Same PIT rule as vq_features: only facts filed strictly before D."""
+    nan = np.full(len(days), np.nan)
+    out = {"ebit_tev": nan.copy(), "gpa": nan.copy(), "roa": nan.copy()}
+    if facts.empty:
+        return out
+    g = {k: facts[facts["group"] == k] for k in
+         ("ebit", "assets", "cash", "debt", "gp", "cogs", "rev", "ni")}
+    assets = _latest_point(g["assets"], days)
+    assets = np.where(assets > 0, assets, np.nan)
+    gp = _ttm(g["gp"], days)
+    gp = np.where(np.isfinite(gp), gp, _ttm(g["rev"], days) - _ttm(g["cogs"], days))
+    mcap = vq_mcap(shares, close, days)
+    tev = mcap + np.nan_to_num(_latest_point(g["debt"], days)) \
+        - np.nan_to_num(_latest_point(g["cash"], days))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out["ebit_tev"] = _ttm(g["ebit"], days) / np.where(tev > 0, tev, np.nan)
+        out["gpa"] = gp / assets
+        out["roa"] = _ttm(g["ni"], days) / assets
     return out

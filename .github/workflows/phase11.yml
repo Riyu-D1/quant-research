@@ -1,0 +1,321 @@
+name: phase11-hybrid
+
+# Phase-11: honest PIT baseline + hybrid LLM/algorithmic bot
+# (configs/experiments/phase11_us.yaml, predeclared before any run).
+#
+#   data      PIT membership (pinned fja05680 + Wikipedia snapshots), the
+#             Alpaca dump rebuilt from that universe through sample_end,
+#             one SEC companyfacts pull (vq + tilt tags, shares) and the
+#             phase-10 ETF bars -> artifact phase11-inputs; membership csv
+#             and audits committed.
+#   baseline  honest B50 vs the old ever-member B50 and SPY on the dev
+#             window (holdout sealed) -> results/phase11/baseline_dev.json
+#             and every honest pick (checked by tests/test_phase11.py).
+#   text      10-K Item 1A sections from EDGAR -> ChronoBERT-2016 embeddings
+#             (4 CPU shards) -> artifact phase11-text-emb.
+#   llm       local Qwen2.5-1.5B-Instruct proposes formulaic factors ->
+#             results/phase11/llm_factors.json committed (hypotheses only).
+#   dev       every candidate on the dev window, holdout sealed; finalists.
+#   holdout   the frozen finalists scored ONCE on the 12-month holdout.
+#
+# Triggers: workflow_dispatch (needs this file on master), or a push to
+# phase11/hybrid whose head commit message carries [p11:<job>].
+# Nothing here trades or writes a paper/live config.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        required: true
+        type: choice
+        options: [data, baseline, text, llm, dev, holdout]
+        default: baseline
+  push:
+    branches: [phase11/hybrid]
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  data:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'data')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p11:data]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: ALPACA_API_KEY   # paper data keys (historical bars only)
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: PIT membership (pinned fja05680 + Wikipedia snapshots)
+        run: uv run --no-sync python scripts/phase11_us.py universe --out build/universe_sp500.csv
+      - name: Rebuild the Alpaca dump from the PIT universe through sample_end
+        run: |
+          END_ARG=$(uv run --no-sync python -c "import yaml;print(yaml.safe_load(open('configs/experiments/phase11_us.yaml'))['sample_end'])")
+          uv run --no-sync python scripts/alpaca_us_data.py fetch \
+            --universe-csv build/universe_sp500.csv --csv-dir data/us_alpaca_csv \
+            --start 2016-01-01 --end "$END_ARG" --feed auto \
+            --coverage-json build/coverage.json
+          uv run --no-sync python scripts/us_data_to_qlib.py \
+            --input-dir data/us_alpaca_csv --output-dir data/qlib/us_alpaca --universe sp500
+          uv run --no-sync python scripts/alpaca_us_data.py finalize \
+            --qlib-dir data/qlib/us_alpaca --csv-dir data/us_alpaca_csv \
+            --universe-csv build/universe_sp500.csv --universe sp500
+          tail -1 data/qlib/us_alpaca/calendars/day.txt
+      - name: Inputs from earlier phases (cik_map, phase-10 ETF bars)
+        run: |
+          art() {
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+              -q ".artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id" | sort -n | tail -1)
+            [ -n "$AID" ] || { echo "artifact $1 not found"; return 1; }
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+          }
+          mkdir -p data/events data/etf
+          art phase3-events && unzip -o -j /tmp/a.zip cik_map.parquet -d data/events/
+          art phase10-inputs && unzip -o -j /tmp/a.zip etf/etf_bars.parquet -d data/etf/
+          test -f data/events/cik_map.parquet && test -f data/etf/etf_bars.parquet
+      - name: SEC companyfacts (vq + tilt tags, shares outstanding)
+        run: uv run --no-sync python scripts/phase11_us.py sec
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase11-inputs
+          path: |
+            data/qlib/us_alpaca
+            data/events/fundamentals.parquet
+            data/events/shares_out.parquet
+            data/events/cik_map.parquet
+            data/etf/etf_bars.parquet
+          retention-days: 90
+      - name: Commit membership + coverage to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp build/coverage.json results/phase11/sp500_coverage.json
+          git add results/phase11/
+          git commit -qm "phase11 data — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+
+  baseline:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'baseline')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p11:baseline]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: Fetch phase11-inputs
+        run: |
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase11-inputs" and (.expired|not)) | .id' | sort -n | tail -1)
+          [ -n "$AID" ] || { echo "phase11-inputs not found — run [p11:data] first"; exit 1; }
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+          mkdir -p data && unzip -o -q /tmp/a.zip -d data
+          tail -1 data/qlib/us_alpaca/calendars/day.txt
+      - name: Honest baseline (dev window, holdout sealed)
+        run: uv run --no-sync python scripts/phase11_us.py baseline
+      - name: Commit results to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/phase11/ results/holdout_log.jsonl
+          git commit -qm "phase11 baseline — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+
+  text:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'text')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p11:text]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: cik_map from phase11-inputs
+        run: |
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase11-inputs" and (.expired|not)) | .id' | sort -n | tail -1)
+          [ -n "$AID" ] || { echo "phase11-inputs not found — run [p11:data] first"; exit 1; }
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+          mkdir -p data/events && unzip -o -j /tmp/a.zip events/cik_map.parquet -d data/events/
+      - name: 10-K Item 1A sections (EDGAR, ~8 req/s)
+        run: uv run --no-sync python scripts/phase11_text.py fetch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase11-text
+          path: data/text/tenk_1a.parquet
+          retention-days: 7
+
+  embed:
+    needs: text
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: CPU torch + transformers (ModernBERT needs >= 4.48)
+        run: |
+          pip install -q "torch==2.5.1" --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "transformers==4.48.3" "numpy<2" "pandas==2.2.3" "pyarrow==17.0.0" pyyaml
+      - uses: actions/download-artifact@v4
+        with:
+          name: phase11-text
+          path: data/text
+      - name: ChronoBERT-2016 embeddings, shard ${{ matrix.shard }}
+        run: python scripts/phase11_text.py embed --shard ${{ matrix.shard }} --of 4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase11-emb-${{ matrix.shard }}
+          path: data/text/tenk_emb_${{ matrix.shard }}.parquet
+          retention-days: 7
+
+  merge:
+    needs: embed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q "numpy<2" "pandas==2.2.3" "pyarrow==17.0.0" pyyaml
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: phase11-emb-*
+          path: data/text
+          merge-multiple: true
+      - run: python scripts/phase11_text.py merge
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase11-text-emb
+          path: data/text/tenk_emb.parquet
+          retention-days: 90
+
+  llm:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'llm')
+      || (github.event_name == 'push'
+          && contains(github.event.head_commit.message, '[p11:llm]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: CPU torch + transformers
+        run: |
+          pip install -q "torch==2.5.1" --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "transformers==4.48.3" "numpy<2" "pandas==2.2.3" pyyaml
+      - name: Factor proposals (hypotheses only; validated by factor_dsl)
+        run: python scripts/phase11_llm.py propose
+      - name: Commit the proposals to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/phase11/llm_factors.json
+          git commit -qm "phase11 llm factor proposals — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
+
+  score:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'dev' || inputs.job == 'holdout'))
+      || (github.event_name == 'push'
+          && (contains(github.event.head_commit.message, '[p11:dev]')
+              || contains(github.event.head_commit.message, '[p11:holdout]')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.job || (contains(github.event.head_commit.message, '[p11:holdout]') && 'holdout' || 'dev') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: >-
+          uv sync --frozen --no-dev --no-install-package torch
+          --no-install-package xgboost --no-install-package mlflow
+          --no-install-package optuna --no-install-package cvxpy
+      - name: Fetch phase11-inputs + phase11-text-emb
+        run: |
+          art() {
+            AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+              -q ".artifacts[] | select(.name==\"$1\" and (.expired|not)) | .id" | sort -n | tail -1)
+            [ -n "$AID" ] || { echo "artifact $1 not found"; return 1; }
+            gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/a.zip
+          }
+          art phase11-inputs && mkdir -p data && unzip -o -q /tmp/a.zip -d data
+          art phase11-text-emb && mkdir -p data/text && unzip -o -q /tmp/a.zip -d data/text
+          ls data data/text
+      - name: Run phase-11 ${{ env.STAGE }}
+        run: uv run --no-sync python scripts/phase11_us.py "$STAGE"
+      - name: Commit results to the running branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/phase11/ results/holdout_log.jsonl
+          [ -d state/phase11 ] && git add state/phase11
+          git commit -qm "phase11 $STAGE — run ${{ github.run_id }}" || exit 0
+          for i in 1 2 3; do
+            git push -q origin "HEAD:${{ github.ref_name }}" && break
+            git pull -q --rebase origin "${{ github.ref_name }}"
+          done
