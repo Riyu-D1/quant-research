@@ -578,3 +578,67 @@ def test_log_trade_survives_nan_score(monkeypatch):
                  "validated": False})
     _json.dumps(bodies, allow_nan=False)      # raises if any NaN leaks
     assert bodies[0]["SignalScore"]["number"] == 0.0
+
+
+def _notion_page(title, strategy=None, outcome=""):
+    return {"created_time": "2026-01-01T00:00:00Z",
+            "properties": {
+                "Ticker": {"title": [{"plain_text": title}]},
+                "Strategy": {"select": {"name": strategy} if strategy else None},
+                "Outcome": {"rich_text": [{"plain_text": outcome}] if outcome else []}}}
+
+
+def test_notion_strategy_property_and_prefix_fallback(monkeypatch):
+    from quant_research import notion_journal as NJ
+    j = object.__new__(NJ.NotionJournal)
+    j.strategy = "QV50"
+    j.strategy_prop = True
+    bodies = []
+    monkeypatch.setattr(j, "_page", lambda props: bodies.append(props))
+    trade = {"sym": "AAPL", "side": "buy", "qty": 1, "price": 10,
+             "notional": 10, "score": 0.9, "reason": "enter"}
+    ctx = {"weights_str": "qv:1.00", "regime": "calm", "validated": False}
+    import pandas as _pd
+    j.log_trade(_pd.Timestamp("2026-11-27"), trade, ctx)
+    assert bodies[0]["Strategy"]["select"]["name"] == "QV50"
+    assert bodies[0]["Ticker"]["title"][0]["text"]["content"] == "AAPL"
+    j.strategy_prop = False
+    j.log_trade(_pd.Timestamp("2026-11-27"), trade, ctx)
+    assert "Strategy" not in bodies[1]
+    assert bodies[1]["Ticker"]["title"][0]["text"]["content"] == "[QV50] AAPL"
+
+
+def test_notion_book_inference_and_state_filtering():
+    import json
+    from quant_research import notion_journal as NJ
+    qstate = json.dumps({"date": "2026-11-27", "strategy": "QV50",
+                         "equity_usd": 101.0})
+    bstate = json.dumps({"date": "2026-11-27", "strategy": "B50",
+                         "equity_usd": 202.0})
+    pages = [
+        _notion_page("[QV50] — day summary —", outcome="STATE " + qstate),
+        _notion_page("— day summary —", outcome="STATE " + bstate),
+    ]
+    j = object.__new__(NJ.NotionJournal)
+    j.strategy = "QV50"
+    j.db = "db"
+    j._req = lambda *a, **kw: {"results": pages}
+    assert j.last_summary_state()["equity_usd"] == 101.0
+    j.strategy = "B50"
+    assert j.last_summary_state()["equity_usd"] == 202.0
+    assert NJ.NotionJournal._page_strategy(_notion_page("AAPL")) == "B50"
+    assert NJ.NotionJournal._page_ticker(_notion_page("[QV50] AAPL")) == "AAPL"
+
+
+def test_weekly_comparison_line_since_qv_start():
+    import weekly_summary as WS
+    b50 = [
+        {"date": "2026-11-20", "equity_usd": 100.0, "spy": 500.0},
+        {"date": "2026-11-27", "equity_usd": 110.0, "spy": 510.0},
+    ]
+    qv = [
+        {"date": "2026-11-20", "equity_usd": 200.0, "spy": 500.0},
+        {"date": "2026-11-27", "equity_usd": 220.0, "spy": 510.0},
+    ]
+    assert WS.comparison_line(b50, qv) == (
+        "since 2026-11-20: B50 +10.0% | QV50 +10.0% | SPY +2.0%")

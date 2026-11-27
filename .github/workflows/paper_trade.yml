@@ -37,7 +37,7 @@ on:
         description: "run = one paper day; refresh_snapshot = rebuild state/live snapshots"
         required: false
         type: choice
-        options: [run, refresh_snapshot]
+        options: [run, refresh_snapshot, refresh_qv50]
         default: run
   # Phase-8 enablement: the DAILY paper runs are on (orders + reconcile).
   # Weekly/monthly auxiliaries stay off — enable them the same way.
@@ -83,6 +83,7 @@ on:
       - tests/test_phase8.py
       - tests/test_production.py
       - configs/paper_signal.yaml
+      - configs/qv50_paper.yaml
       - configs/live_signal.yaml
       - configs/live_signal_test.yaml
       - configs/experiments/phase8_us.yaml
@@ -101,6 +102,7 @@ on:
       - tests/test_phase8.py
       - tests/test_production.py
       - configs/paper_signal.yaml
+      - configs/qv50_paper.yaml
       - configs/live_signal.yaml
       - configs/live_signal_test.yaml
       - configs/experiments/phase8_us.yaml
@@ -212,6 +214,72 @@ jobs:
           echo "::error::paper day failed — see the step log; the bot also"
           echo "::error::writes an 'error' row to the Notion Trade Journal"
 
+  run_qv50:
+    name: qv50 paper day
+    # Independent job: a QV50 failure can never block or cancel B50.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.job != 'refresh_snapshot' && inputs.job != 'refresh_qv50')
+      || (github.event_name == 'schedule'
+          && (github.event.schedule == '10 8 * * 1-5'
+              || github.event.schedule == '0 15 * * 1-5'
+              || github.event.schedule == '20 15 * * 1-5'
+              || github.event.schedule == '10 16 * * 1-5'
+              || github.event.schedule == '30 17 * * 1-5'
+              || github.event.schedule == '5 19 * * 1-5'
+              || github.event.schedule == '0 22 * * 1-5'
+              || github.event.schedule == '20 22 * * 1-5'
+              || github.event.schedule == '30 23 * * 1-5'))
+    runs-on: ubuntu-latest
+    environment: ALPACA_API_KEY   # same Environment; separate paper keys
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_QV50_KEY }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_QV50_SECRET }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+      NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+      LIVE_TRADING_ACK: ${{ secrets.LIVE_TRADING_ACK }}
+      BOT_HALT: ${{ vars.BOT_HALT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: env (slim)
+        run: |
+          uv sync --no-install-package torch --no-install-package xgboost \
+            --no-install-package mlflow --no-install-package optuna \
+            --no-install-package cvxpy
+          uv cache clean
+      - name: keys sanity
+        run: |
+          [ -n "$ALPACA_API_KEY" ] || { echo "ALPACA_QV50_KEY secret missing"; exit 1; }
+          [ -n "$ALPACA_SECRET_KEY" ] || { echo "ALPACA_QV50_SECRET secret missing"; exit 1; }
+          [ -n "$NOTION_TOKEN" ] || echo "::warning::NOTION_TOKEN missing — journal writes will fail unless dry_run"
+      - name: qv50 paper day
+        env:
+          ARGS: >-
+            --config configs/qv50_paper.yaml
+            --rec-dir results/paper_run_qv50
+            ${{ github.event.inputs.date != '' && format('--date {0}', github.event.inputs.date) || '' }}
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+            ${{ github.event.inputs.fixture != '' && format('--fixture {0}', github.event.inputs.fixture) || '' }}
+        run: |
+          set -x
+          uv run --no-sync python scripts/paper_trade.py $ARGS
+      - name: qv50 day journal artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qv50-day-${{ github.run_id }}
+          path: |
+            results/paper_dryrun/
+            results/paper_run_qv50/
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: failure annotation
+        if: failure()
+        run: |
+          echo "::error::QV50 paper day failed — B50 is an independent job;"
+          echo "::error::see this step log and the QV50 error row in Notion"
+
   # Rebuild state/live/{vq,news}_snapshot.parquet from the freshest store
   # inputs and commit them to master — post-merge the daily bot checks
   # out master, so master is where the snapshots must land (phase-8 audit:
@@ -270,6 +338,54 @@ jobs:
           for i in 1 2 3; do
             git push origin "master:master" && break
             git pull --rebase origin master
+          done
+
+  qv50_snapshot:
+    name: refresh qv50 filing snapshot
+    # Manual bootstrap/refresh only. It writes qv50_snapshot.parquet and
+    # never touches the B50 vq/news snapshots or the paper configs.
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.job == 'refresh_qv50'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: astral-sh/setup-uv@v5
+      - name: env (slim)
+        run: |
+          uv sync --no-install-package torch --no-install-package xgboost \
+            --no-install-package mlflow --no-install-package optuna \
+            --no-install-package cvxpy
+          uv cache clean
+      - name: Fetch phase11 SEC inputs
+        run: |
+          AID=$(gh api repos/${{ github.repository }}/actions/artifacts --paginate \
+            -q '.artifacts[] | select(.name=="phase11-inputs" and (.expired|not)) | .id' | sort -n | tail -1)
+          [ -n "$AID" ] || { echo "artifact phase11-inputs not found"; exit 1; }
+          gh api repos/${{ github.repository }}/actions/artifacts/$AID/zip > /tmp/p11.zip
+          mkdir -p data/events
+          unzip -o -j /tmp/p11.zip events/fundamentals.parquet events/shares_out.parquet -d data/events/
+          test -f data/events/fundamentals.parquet
+          test -f data/events/shares_out.parquet
+      - name: Build QV50 snapshot
+        run: uv run --no-sync python scripts/live_snapshot.py --qv50-only
+      - name: Commit QV50 snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/live/qv50_snapshot.parquet
+          if git diff --cached --quiet; then
+            echo "qv50 snapshot unchanged"; exit 0
+          fi
+          git commit -m "qv50 filing snapshot — run ${{ github.run_id }}"
+          for i in 1 2 3; do
+            git push origin "HEAD:${{ github.ref_name }}" && break
+            git pull --rebase origin "${{ github.ref_name }}"
           done
 
   # ── weekly Notion rollup (Saturday cron when enabled) ─────────────────

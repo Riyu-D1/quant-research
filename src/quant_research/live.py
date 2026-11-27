@@ -237,6 +237,92 @@ def snapshot_signal(path: Path, name: str, stale_days: int = 45,
 
 
 # ---------------------------------------------------------------------------
+# QV50 — the phase-11 value/quality sleeve, computed live from filing inputs
+
+QV_INPUT_COLS = ("ebit", "assets", "cash", "debt", "gp", "ni", "shares")
+
+
+def qv_snapshot_inputs(path: Path, stale_days: int = 45,
+                       asof_day: pd.Timestamp | None = None
+                       ) -> tuple[pd.DataFrame, str]:
+    """QV filing-input snapshot -> (frame, note), with the same staleness
+    rule as the score snapshots plus a hard no-lookahead guard: a snapshot
+    built after the requested signal day can never be used."""
+    empty = pd.DataFrame(columns=["symbol", *QV_INPUT_COLS, "asof"])
+    if not path.exists():
+        return empty, "qv: snapshot missing"
+    snap = pd.read_parquet(path)
+    missing = [c for c in ("symbol", "asof", *QV_INPUT_COLS)
+               if c not in snap.columns]
+    if missing:
+        return empty, f"qv: snapshot missing columns {missing} — dropped"
+    if snap.empty:
+        return empty, "qv: snapshot empty — dropped"
+    asof = pd.to_datetime(snap["asof"]).max()
+    ref = pd.Timestamp(asof_day) if asof_day is not None \
+        else pd.Timestamp.now().normalize()
+    note = f"qv: snapshot asof {asof.date()}"
+    if asof > ref:
+        return empty, f"{note} is after signal day {ref.date()} — dropped"
+    age = (ref - asof).days
+    note += f" (age {age}d)"
+    if age > stale_days:
+        return empty, f"{note} — STALE >{stale_days}d, dropped"
+    return snap.copy(), note
+
+
+def pit_members(path: Path, day: pd.Timestamp) -> set[str]:
+    """S&P 500 members on `day` from the phase-11 spell table:
+    start <= day < end; an empty end is an open spell."""
+    win = pd.read_csv(path)
+    win["start"] = pd.to_datetime(win["start"])
+    win["end"] = pd.to_datetime(win["end"])
+    day = pd.Timestamp(day).normalize()
+    ok = (win["start"] <= day) & (win["end"].isna() | (day < win["end"]))
+    return set(win.loc[ok, "symbol"].astype(str))
+
+
+def qv50_scores(inputs: pd.DataFrame, closes: pd.DataFrame,
+                day: pd.Timestamp, members: set[str]) -> pd.Series:
+    """Phase-11 QV50 composite at `day`, ranked among PIT members only.
+
+    0.5 * rank(EBIT/TEV) + 0.5 * mean rank(GP/A, ROA), then a final
+    cross-sectional member rank — scripts/phase11_us.py's qv_comp exactly,
+    except market cap uses the signal day's close. `inputs` is the filing
+    snapshot written by scripts/live_snapshot.py --qv50-only."""
+    if inputs.empty or not members:
+        return pd.Series(dtype=float, name="qv")
+    x = inputs.copy()
+    x["symbol"] = x["symbol"].astype(str).str.upper().str.replace(".", "-",
+                                                                  regex=False)
+    x = x.drop_duplicates("symbol", keep="last").set_index("symbol")
+    for c in QV_INPUT_COLS:
+        x[c] = pd.to_numeric(x[c], errors="coerce")
+    members = {str(s).upper().replace(".", "-") for s in members}
+    x = x[x.index.isin(members)]
+    if x.empty:
+        return pd.Series(dtype=float, name="qv")
+    hist = closes.loc[:pd.Timestamp(day)]
+    if hist.empty:
+        return pd.Series(dtype=float, name="qv")
+    px = hist.ffill().iloc[-1].reindex(x.index)
+    mcap = x["shares"] * px
+    tev = mcap + x["debt"].fillna(0.0) - x["cash"].fillna(0.0)
+    assets = x["assets"].where(x["assets"] > 0)
+    raw = pd.DataFrame({
+        "ebit_tev": x["ebit"] / tev.where(tev > 0),
+        "gpa": x["gp"] / assets,
+        "roa": x["ni"] / assets}, index=x.index)
+    v = raw["ebit_tev"].rank(pct=True)
+    gpa_r = raw["gpa"].rank(pct=True)
+    roa_r = raw["roa"].rank(pct=True)
+    cnt = gpa_r.notna().astype(float) + roa_r.notna().astype(float)
+    qual = (gpa_r.fillna(0.0) + roa_r.fillna(0.0)) / cnt.where(cnt > 0)
+    comp = (v + qual) / 2.0
+    return comp.rank(pct=True).dropna().rename("qv")
+
+
+# ---------------------------------------------------------------------------
 # regime + weights + final picks
 
 

@@ -80,3 +80,29 @@ def test_every_artifact_list_call_paginates():
                 if re.search(r"gh api .*?/actions/artifacts(\s|$)", ln)
                 and "--paginate" not in ln]
     assert not bad, bad
+
+
+def test_qv50_paper_job_is_independent_and_uses_separate_paper_keys():
+    wf = yaml.safe_load((WF / "paper_trade.yml").read_text())
+    jobs = wf["jobs"]
+    assert "run" in jobs and "run_qv50" in jobs
+    assert "needs" not in jobs["run"] and "needs" not in jobs["run_qv50"]
+    assert jobs["run"]["env"]["ALPACA_API_KEY"] == "${{ secrets.ALPACA_API_KEY }}"
+    qv_env = jobs["run_qv50"]["env"]
+    assert qv_env["ALPACA_API_KEY"] == "${{ secrets.ALPACA_QV50_KEY }}"
+    assert qv_env["ALPACA_SECRET_KEY"] == "${{ secrets.ALPACA_QV50_SECRET }}"
+    steps = jobs["run_qv50"]["steps"]
+    paper = next(s for s in steps if s.get("name") == "qv50 paper day")
+    args = paper["env"]["ARGS"]
+    assert "--config configs/qv50_paper.yaml" in args
+    assert "--rec-dir results/paper_run_qv50" in args
+    assert "inputs.config" not in args
+    qv = yaml.safe_load((WF.parents[1] / "configs" / "qv50_paper.yaml").read_text())
+    assert qv["validated"] is False and qv["live_trading"] is False
+    assert qv["strategy"] == "QV50"
+    assert qv["signals"] == ["qv"]
+    assert qv["core"] == {"symbol": "SPY", "weight": 0.5}
+    assert qv["sleeve"]["n"] == 20
+    assert qv["rebalance_band"] == 0.02
+    assert qv["risk"]["max_position_weight"] == 0.2
+    assert qv["membership_csv"] == "results/phase11/sp500_membership.csv"

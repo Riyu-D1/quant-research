@@ -170,21 +170,26 @@ class FakeBroker:
 class FakeJournal:
     """Records journal pages; dumps to results/paper_dryrun/<day>.json."""
 
-    def __init__(self):
+    def __init__(self, strategy="B50"):
         self.pages: list[dict] = []
+        self.strategy = strategy
+
+    def _mine(self, p):
+        return p.get("strategy", "B50") == self.strategy
 
     def day_logged(self, day, entry_type="day-summary"):
-        return any(p["entry_type"] == entry_type
+        return any(p["entry_type"] == entry_type and self._mine(p)
                    and p["date"] == pd.Timestamp(day).strftime("%Y-%m-%d")
                    for p in self.pages)
 
     def note_logged(self, day, text):
-        return any(p["entry_type"] == "note"
+        return any(p["entry_type"] == "note" and self._mine(p)
                    and p["date"] == pd.Timestamp(day).strftime("%Y-%m-%d")
                    and p.get("text") == text for p in self.pages)
 
     def trade_logged(self, sym, side, day):
-        return any(p["entry_type"] == "trade" and p.get("sym") == sym
+        return any(p["entry_type"] == "trade" and self._mine(p)
+                   and p.get("sym") == sym
                    and p.get("side") == side
                    and p["date"] == pd.Timestamp(day).strftime("%Y-%m-%d")
                    for p in self.pages)
@@ -192,6 +197,7 @@ class FakeJournal:
     def log_trade(self, day, t, ctx):
         self.pages.append({"entry_type": "trade", "date":
                            day.strftime("%Y-%m-%d"), **t,
+                           "strategy": ctx.get("strategy", self.strategy),
                            "validated": ctx["validated"]})
 
     def log_day_summary(self, day, ctx):
@@ -201,16 +207,21 @@ class FakeJournal:
     def log_weights_change(self, month, old, new, ctx):
         self.pages.append({"entry_type": "weights-change", "date": month,
                            "old": old, "new": new,
+                           "strategy": ctx.get("strategy", self.strategy),
                            "validated": ctx["validated"]})
 
     def log_error(self, day, message, ctx=None):
         self.pages.append({"entry_type": "error",
                            "date": pd.Timestamp(day).strftime("%Y-%m-%d"),
+                           "strategy": (ctx or {}).get("strategy",
+                                                      self.strategy),
                            "message": message})
 
     def log_note(self, day, text, ctx=None):
         self.pages.append({"entry_type": "note",
-                           "date": day.strftime("%Y-%m-%d"), "text": text})
+                           "date": day.strftime("%Y-%m-%d"), "text": text,
+                           "strategy": (ctx or {}).get("strategy",
+                                                      self.strategy)})
 
     def mark_fill(self, sym, day, qty, price):
         if any(p["entry_type"] == "fill" and p["sym"] == sym
@@ -221,13 +232,16 @@ class FakeJournal:
 
     def last_summary_state(self):
         for p in reversed(self.pages):
-            if p["entry_type"] == "day-summary" and p.get("recon_state"):
+            if p["entry_type"] == "day-summary" and self._mine(p) \
+                    and p.get("recon_state"):
                 return p["recon_state"]
         return {}
 
     def log_halt(self, day, reason, ctx=None):
         self.pages.append({"entry_type": "halt",
                            "date": pd.Timestamp(day).strftime("%Y-%m-%d"),
+                           "strategy": (ctx or {}).get("strategy",
+                                                      self.strategy),
                            "reason": reason})
 
     def open_buy(self, sym):
@@ -236,19 +250,21 @@ class FakeJournal:
     def open_buys(self):
         return [p["t"]["sym"] if "t" in p else p.get("sym")
                 for p in self.pages
-                if p["entry_type"] == "trade" and p.get("side") == "buy"
+                if p["entry_type"] == "trade" and self._mine(p)
+                and p.get("side") == "buy"
                 and not any(q["entry_type"] == "close-out"
+                            and q.get("strategy", "B50") == self.strategy
                             and q["sym"] == (p["t"]["sym"] if "t" in p
                                              else p.get("sym"))
                             for q in self.pages)]
 
     def day_summaries(self, n=10):
         return [p for p in self.pages
-                if p["entry_type"] == "day-summary"][-n:]
+                if p["entry_type"] == "day-summary" and self._mine(p)][-n:]
 
     def trades_between(self, start, end):
         return [p for p in self.pages
-                if p["entry_type"] == "trade"
+                if p["entry_type"] == "trade" and self._mine(p)
                 and start <= p["date"] <= end]
 
     def close_out(self, sym, exit_price, reason=""):
@@ -361,7 +377,8 @@ def reconcile(broker, journal, day: pd.Timestamp, held: dict,
     cum_bot = (1 + prev.get("cum_bot", 0.0)) * (1 + dd_bot) - 1
     cum_spy = (1 + prev.get("cum_spy", 0.0)) * (1 + dd_spy) - 1
     peak = max(float(prev.get("peak", eq) or eq), eq)
-    state = {"date": str(day.date()), "equity_usd": round(eq, 4),
+    state = {"date": str(day.date()), "strategy": ctx.get("strategy", "B50"),
+             "equity_usd": round(eq, 4),
              "equity_gbp": round(eq / fx, 4) if fx else None,
              "spy": round(spy_px, 4) if spy_px else None,
              "peak": round(peak, 4),
@@ -837,6 +854,20 @@ def compute_signals(cfg: dict, closes: pd.DataFrame,
             if cfg["weighting"] == "ewic":
                 sig_series[sig] = LV.bars_signals(
                     closes, days_lookback, [base])[base]
+        elif base == "qv":
+            inp, note = LV.qv_snapshot_inputs(
+                state_dir / "qv50_snapshot.parquet",
+                stale_days=cfg.get("snapshot_stale_days", 45), asof_day=day)
+            notes.append(note)
+            if not inp.empty:
+                if not cfg.get("membership_csv"):
+                    notes.append("qv: membership_csv missing — dropped")
+                else:
+                    members = LV.pit_members(REPO / cfg["membership_csv"], day)
+                    s_ = LV.qv50_scores(inp, closes, day, members)
+                    notes.append(f"qv: {len(s_)} scored PIT members")
+                    if not s_.empty:
+                        sig_scalars[sig] = s_
         elif base in ("vq", "news"):
             snap = state_dir / f"{base}_snapshot.parquet"
             s_, note = LV.snapshot_signal(
@@ -909,6 +940,7 @@ def run_day(args) -> None:
         log("WARNING: live_trading flag set + ack present — non-paper "
             "base URLs are now permitted")
     validated = bool(cfg.get("validated"))
+    strategy = str(cfg.get("strategy", "B50"))
     banner = "VALIDATED" if validated else "UNVALIDATED"
     # Phase-7 core+satellite schema: `core` pins a SPY share of equity,
     # `sleeve` sizes/weights the signal book around it. Absent `core` the
@@ -921,7 +953,7 @@ def run_day(args) -> None:
     sleeve_cfg = cfg.get("sleeve") or {}
     sleeve_n = int(sleeve_cfg.get("n", cfg["n_positions"])) \
         if use_core else cfg["n_positions"]
-    log(f"=== paper_trade {banner} config={args.config} "
+    log(f"=== paper_trade {banner} book={strategy} config={args.config} "
         f"signals={cfg['signals']} weighting={cfg['weighting']} "
         f"regime={cfg['regime']}"
         + (f" core={core_cfg.get('weight'):.0%}{core_sym} "
@@ -937,6 +969,7 @@ def run_day(args) -> None:
     dry = args.dry_run
     if dry:
         broker, journal = FakeBroker(), FakeJournal()
+        journal.strategy = strategy
         key = secret = ""
     else:
         key = os.environ.get("ALPACA_API_KEY", "")
@@ -949,7 +982,7 @@ def run_day(args) -> None:
         token = os.environ.get("NOTION_TOKEN", "")
         journal = NJ.NotionJournal(
             token, os.environ.get("NOTION_DB_ID", ""),
-            os.environ.get("NOTION_PARENT_PAGE_ID", ""))
+            os.environ.get("NOTION_PARENT_PAGE_ID", ""), strategy=strategy)
 
     # -- market data -------------------------------------------------------------
     end = pd.Timestamp(args.date) if args.date else pd.Timestamp.now()
@@ -1000,7 +1033,7 @@ def run_day(args) -> None:
                                                   state_dir)
     for n in notes:
         log(f"  {n}")
-    if not sig_scalars and not use_core:
+    if not sig_scalars and (cfg.get("require_signals") or not use_core):
         fail(journal, "no usable signals — nothing to trade")
     if not sig_scalars:
         log("no usable sleeve signals — book parks in the core")
@@ -1091,7 +1124,7 @@ def run_day(args) -> None:
     journaled = journal.day_logged(day) if hasattr(journal, "day_logged") \
         else False
     spy_px = float(spy.loc[:day].iloc[-1]) if len(spy.loc[:day]) else None
-    ctx = {"weights_str": weights_str, "regime": why,
+    ctx = {"weights_str": weights_str, "regime": why, "strategy": strategy,
            "validated": validated, "budget_usd": budget_usd, "fx": fx,
            "book_size": book_size,
            "summary": f"{banner} | picks {want} | exposure {exposure} | "
@@ -1100,7 +1133,8 @@ def run_day(args) -> None:
                       f"notes: {'; '.join(notes)}"}
     rec = {"day": str(day.date()), "config": args.config,
            "sha": os.environ.get("GITHUB_SHA", "local"),
-           "validated": validated, "want": want, "exposure": exposure,
+           "validated": validated, "strategy": strategy,
+           "want": want, "exposure": exposure,
            "book_size": book_size,
            "budget_usd": round(budget_usd, 2),
            "fx_gbpusd": round(fx, 6), "gates": {}, "orders": [],
@@ -1437,10 +1471,17 @@ def fail_loudly(args, e: Exception) -> None:
     log(f"FATAL {type(e).__name__}: {e}")
     try:
         if not getattr(args, "dry_run", False):
+            strategy = "B50"
+            try:
+                strategy = str(load_config(Path(args.config)).get(
+                    "strategy", strategy))
+            except Exception as cfg_e:  # noqa: BLE001
+                log(f"strategy read for crash journal failed: {cfg_e}")
             j = NJ.NotionJournal(
                 os.environ.get("NOTION_TOKEN", ""),
                 os.environ.get("NOTION_DB_ID", ""),
-                os.environ.get("NOTION_PARENT_PAGE_ID", ""))
+                os.environ.get("NOTION_PARENT_PAGE_ID", ""),
+                strategy=strategy)
             j.log_error(pd.Timestamp.now(),
                         f"{type(e).__name__}: {e}", {})
     except Exception as e2:  # noqa: BLE001
