@@ -147,7 +147,7 @@ jobs:
     # the schedule list mirrors the orders+reconcile crons above — every
     # backup slot must fire this job (idempotency makes reruns no-ops)
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.job != 'refresh_snapshot')
+      (github.event_name == 'workflow_dispatch' && inputs.job != 'refresh_snapshot' && inputs.job != 'refresh_qv50')
       || (github.event_name == 'schedule'
           && (github.event.schedule == '10 8 * * 1-5'
               || github.event.schedule == '0 15 * * 1-5'
