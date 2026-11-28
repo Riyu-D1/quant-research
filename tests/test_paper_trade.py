@@ -77,6 +77,34 @@ def write_vq(tmp: Path, scores: dict[str, float], asof="2026-06-01"):
     return sd
 
 
+def write_qv50(tmp: Path, symbols: list[str], asof="2026-06-01"):
+    """Synthetic QV filing-input snapshot + PIT membership for `symbols`."""
+    sd = tmp / "state"
+    sd.mkdir(exist_ok=True)
+    rows = []
+    for i, s in enumerate(symbols):
+        rows.append({"symbol": s, "ebit": 100.0 + i,
+                     "assets": 1_000.0, "cash": 0.0, "debt": 0.0,
+                     "gp": 300.0 + i, "ni": 80.0 + i,
+                     "shares": 1_000_000.0, "asof": asof})
+    pd.DataFrame(rows).to_parquet(sd / "qv50_snapshot.parquet", index=False)
+    pd.DataFrame({"symbol": symbols, "start": "2020-01-01", "end": ""}) \
+        .to_csv(tmp / "membership.csv", index=False)
+    return sd
+
+
+def qv50_cfg(tmp: Path, n=20, **over) -> Path:
+    cfg = {"signals": ["qv"], "strategy": "QV50", "require_signals": True,
+           "membership_csv": str(tmp / "membership.csv"),
+           "regime": "none",
+           "core": {"symbol": "SPY", "weight": 0.5},
+           "sleeve": {"n": n, "weighting": "equal", "risk_off": "to_core"},
+           "n_positions": n, "book_size": "account_equity",
+           "risk": {"max_orders": 40}}
+    cfg.update(over)
+    return write_cfg(tmp, **cfg)
+
+
 def run_bot(cfg: Path, fixture: Path, state: Path, date: str,
             broker=None, journal=None):
     argv = sys.argv
@@ -195,6 +223,101 @@ def test_ewic_weights_sum(tmp_path):
                      .read_text())
     assert abs(sum(out["weights"].values()) - 1.0) < 1e-6
     assert all(v >= 0 for v in out["weights"].values())
+
+
+
+
+# ---------------------------------------------------------------------------
+# QV50 — phase-11 value/quality shadow book (mocked; no keys)
+
+
+def test_qv50_scores_exact_formula_and_pit_filter():
+    day = pd.Timestamp(DAY)
+    rows = []
+    # ebit ranks B > A > C; quality ranks A > B > C, so the composite is
+    # B first, A second, C third. OUT is best on every input but is not a
+    # member on the signal day and must be impossible to pick.
+    vals = {
+        "A": (10e6, 50e6, 10e6),
+        "B": (20e6, 30e6, 30e6),
+        "C": (5e6, 40e6, 5e6),
+        "OUT": (100e6, 100e6, 100e6),
+    }
+    for s, (ebit, gp, ni) in vals.items():
+        rows.append({"symbol": s, "ebit": ebit, "assets": 100e6,
+                     "cash": 0.0, "debt": 0.0, "gp": gp, "ni": ni,
+                     "shares": 1e6, "asof": "2026-06-01"})
+    inp = pd.DataFrame(rows)
+    closes = pd.DataFrame({"A": [100.0], "B": [100.0], "C": [100.0],
+                           "OUT": [100.0]}, index=[day])
+    got = LV.qv50_scores(inp, closes, day, {"A", "B", "C"})
+    assert list(got.sort_values(ascending=False).index) == ["B", "A", "C"]
+    assert "OUT" not in got.index
+    assert got["B"] == pytest.approx(1.0)
+    assert got["A"] == pytest.approx(2 / 3)
+    assert got["C"] == pytest.approx(1 / 3)
+
+
+def test_qv50_target_weights_and_pit_exclusion(tmp_path):
+    qsyms = SYMS + ["OUT"]
+    cl = fixture_closes(qsyms)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, qsyms)
+    state = write_qv50(tmp_path, qsyms)
+    # OUT would be a valid row in the snapshot but its spell ended long
+    # before the signal day; the phase-11 PIT rule is start <= d < end.
+    mem = pd.read_csv(tmp_path / "membership.csv")
+    mem["end"] = mem["end"].astype(object)
+    mem.loc[mem["symbol"] == "OUT", "end"] = "2020-01-02"
+    mem.to_csv(tmp_path / "membership.csv", index=False)
+    cfg = qv50_cfg(tmp_path)
+    broker = PT.FakeBroker()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    journal = PT.FakeJournal()
+    run_bot(cfg, fx, state, DAY, broker, journal)
+    rec = json.loads((REPO / "results/paper_run" / f"{DAY}.json").read_text())
+    targets = rec["targets"]
+    stocks = {s: w for s, w in targets.items() if s != "SPY"}
+    assert rec["strategy"] == "QV50"
+    assert targets["SPY"] == pytest.approx(0.5)
+    assert len(stocks) == 20
+    assert set(stocks).issubset(set(SYMS))
+    assert "OUT" not in stocks
+    assert all(w == pytest.approx(0.025) for w in stocks.values())
+    assert sum(targets.values()) == pytest.approx(1.0)
+    assert all(p.get("strategy", "QV50") == "QV50" for p in journal.pages)
+
+
+def test_qv50_missing_snapshot_fails_loudly(tmp_path):
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = tmp_path / "state"
+    state.mkdir()                       # no qv50_snapshot.parquet
+    pd.DataFrame({"symbol": SYMS, "start": "2020-01-01", "end": ""}) \
+        .to_csv(tmp_path / "membership.csv", index=False)
+    cfg = qv50_cfg(tmp_path)
+    journal = PT.FakeJournal()
+    with pytest.raises(SystemExit, match="no usable signals"):
+        run_bot(cfg, fx, state, DAY, PT.FakeBroker(), journal)
+    assert any(p["entry_type"] == "error" for p in journal.pages)
+
+
+def test_qv50_snapshot_staleness_and_future_guards(tmp_path):
+    path = tmp_path / "qv.parquet"
+    base = {"symbol": ["A"], "ebit": [1.0], "assets": [1.0],
+            "cash": [0.0], "debt": [0.0], "gp": [1.0], "ni": [1.0],
+            "shares": [1.0]}
+    pd.DataFrame({**base, "asof": ["2026-04-01"]}).to_parquet(path)
+    out, note = LV.qv_snapshot_inputs(path, stale_days=45,
+                                      asof_day=pd.Timestamp("2026-06-15"))
+    assert out.empty and "STALE" in note
+    pd.DataFrame({**base, "asof": ["2026-06-16"]}).to_parquet(path)
+    out, note = LV.qv_snapshot_inputs(path, stale_days=45,
+                                      asof_day=pd.Timestamp("2026-06-15"))
+    assert out.empty and "after signal day" in note
 
 
 # ---------------------------------------------------------------------------
@@ -590,6 +713,32 @@ def test_paper_config_pins(tmp_path):
     for k in ("signals", "core", "sleeve", "regime", "rebalance_band"):
         assert paper[k] == live[k], k               # same strategy map
     assert "budget_gbp" in paper                    # fixed_gbp fallback
+
+
+def test_b50_output_byte_identical_to_pre_qv50_golden(tmp_path):
+    """The QV50 refactor must not move B50: canonical bytes of the exact
+    pre-change dry-run output (picks, signal weights, target map and order
+    batch) are pinned here. Journal rows are deliberately outside this
+    golden because B50 rows gain the required B50 book tag."""
+    cl = fixture_closes(SYMS)
+    fx = tmp_path / "cl.parquet"
+    cl.to_parquet(fx)
+    write_universe(tmp_path, SYMS)
+    state = write_vq(tmp_path, {s: 0.5 for s in SYMS})
+    cfg = core_cfg(tmp_path, book_size="account_equity")
+    broker = PT.FakeBroker()
+    broker.acct = {"cash": str(EQUITY), "portfolio_value": str(EQUITY)}
+    run_bot(cfg, fx, state, DAY, broker, PT.FakeJournal())
+    out = json.loads((REPO / "results/paper_dryrun" / f"{DAY}.json")
+                     .read_text())
+    rec = json.loads((REPO / "results/paper_run" / f"{DAY}.json")
+                     .read_text())
+    canon = {"want": out["want"], "exposure": out["exposure"],
+             "weights": out["weights"], "orders": out["orders"],
+             "targets": rec["targets"]}
+    text = json.dumps(canon, sort_keys=True, separators=(",", ":"),
+                      default=str)
+    assert text == '{"exposure":1.0,"orders":[{"client_order_id":"qr-20260615-SPY-buy","day":"2026-06-15 00:00:00","notional":50000.0,"reason":"core rebalance","side":"buy","sym":"SPY","tif":"day"},{"client_order_id":"qr-20260615-M7-buy","day":"2026-06-15 00:00:00","notional":8333.33,"reason":"enter/rebalance","side":"buy","sym":"M7","tif":"day"},{"client_order_id":"qr-20260615-M6-buy","day":"2026-06-15 00:00:00","notional":8333.33,"reason":"enter/rebalance","side":"buy","sym":"M6","tif":"day"},{"client_order_id":"qr-20260615-M5-buy","day":"2026-06-15 00:00:00","notional":8333.33,"reason":"enter/rebalance","side":"buy","sym":"M5","tif":"day"},{"client_order_id":"qr-20260615-M4-buy","day":"2026-06-15 00:00:00","notional":8333.33,"reason":"enter/rebalance","side":"buy","sym":"M4","tif":"day"},{"client_order_id":"qr-20260615-M2-buy","day":"2026-06-15 00:00:00","notional":8333.33,"reason":"enter/rebalance","side":"buy","sym":"M2","tif":"day"},{"client_order_id":"qr-20260615-M0-buy","day":"2026-06-15 00:00:00","notional":8333.33,"reason":"enter/rebalance","side":"buy","sym":"M0","tif":"day"}],"targets":{"M0":0.083333,"M2":0.083333,"M4":0.083333,"M5":0.083333,"M6":0.083333,"M7":0.083333,"SPY":0.5},"want":["M7","M6","M5","M4","M2","M0"],"weights":{"mom":0.5,"vq":0.5}}'
 
 
 # ---------------------------------------------------------------------------

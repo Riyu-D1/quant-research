@@ -58,6 +58,35 @@ def _date(page: dict) -> str:
         return ""
 
 
+def _state_rows(journal, n: int = 100) -> list[dict]:
+    """Chronological STATE blobs for one book."""
+    rows = []
+    for pg in journal.day_summaries(n):
+        s = _state_of(pg)
+        if s.get("equity_usd") and s.get("date"):
+            rows.append(s)
+    return sorted(rows, key=lambda s: s["date"])
+
+
+def comparison_line(b50_rows: list[dict], qv_rows: list[dict]) -> str:
+    """B50 vs QV50 vs SPY P&L since QV50's first journaled state."""
+    if not qv_rows:
+        return "since-start comparison: QV50 has no journaled state yet"
+    start = qv_rows[0]["date"]
+    before = [s for s in b50_rows if s["date"] <= start]
+    if not before or not b50_rows:
+        return "since-start comparison: waiting for overlapping B50/QV50 states"
+    b0, b1 = before[-1], b50_rows[-1]
+    q0, q1 = qv_rows[0], qv_rows[-1]
+    spy0 = float(b0.get("spy") or q0.get("spy") or 0.0)
+    spy1 = float(b1.get("spy") or q1.get("spy") or 0.0)
+    b50 = float(b1["equity_usd"]) / float(b0["equity_usd"]) - 1
+    qv = float(q1["equity_usd"]) / float(q0["equity_usd"]) - 1
+    spy = spy1 / spy0 - 1 if spy0 and spy1 else 0.0
+    return (f"since {start}: B50 {b50:+.1%} | QV50 {qv:+.1%} | "
+            f"SPY {spy:+.1%}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--dry-run", action="store_true")
@@ -77,7 +106,8 @@ def main() -> None:
 
     j = NJ.NotionJournal(os.environ.get("NOTION_TOKEN", ""),
                          os.environ.get("NOTION_DB_ID", ""),
-                         os.environ.get("NOTION_PARENT_PAGE_ID", ""))
+                         os.environ.get("NOTION_PARENT_PAGE_ID", ""),
+                         strategy="B50")
     today = pd.Timestamp.now().normalize()
     week_ago = today - pd.Timedelta(days=7)
 
@@ -129,13 +159,21 @@ def main() -> None:
     validated = bool((REPO / "configs" / "live_signal.yaml").exists() and
                      "validated: true" in
                      (REPO / "configs" / "live_signal.yaml").read_text())
+    try:
+        qv_journal = NJ.NotionJournal(os.environ.get("NOTION_TOKEN", ""),
+                                      os.environ.get("NOTION_DB_ID", ""),
+                                      os.environ.get("NOTION_PARENT_PAGE_ID", ""),
+                                      strategy="QV50")
+        comp = comparison_line(_state_rows(j), _state_rows(qv_journal))
+    except Exception as e:  # noqa: BLE001
+        comp = f"since-start comparison unavailable: {e}"
     ctx = {"equity_usd": eq, "weights_str": wstr,
            "validated": validated,
            "summary": (f"week: eq ${eq:.2f} (£{eq / fx:.2f}) "
                        f"{w_bot:+.1%} vs SPY {w_spy:+.1%} | "
                        f"dd {dd:.1%} | turnover {turnover:.2f} | "
-                       f"hit {hit} | trades {len(trades)}"),
-           "state": {"date": str(today.date()),
+                       f"hit {hit} | trades {len(trades)} | {comp}"),
+           "state": {"date": str(today.date()), "strategy": "B50",
                      "equity_usd": round(eq, 4),
                      "equity_gbp": round(eq / fx, 4),
                      "peak": round(peak, 4)},

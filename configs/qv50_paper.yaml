@@ -1,0 +1,60 @@
+# QV50 PAPER shadow book — the Phase-11 QV50 sleeve on its OWN Alpaca
+# paper account, next to (never replacing) the B50 paper bot.
+#
+# Definition (docs/PHASE11_HYBRID.md + configs/experiments/phase11_us.yaml):
+# 50% SPY core + 20 equal-weight S&P 500 point-in-time members ranked by
+#   0.5 * rank(EBIT/TEV) + 0.5 * mean rank(GP/A, ROA)
+# EBIT is OperatingIncomeLoss TTM; TEV = market cap + long-term debt - cash.
+# SEC facts are used only after filing. The filing inputs live in
+# state/live/qv50_snapshot.parquet; market cap uses the signal-day close.
+#
+# Paper-only interlocks stay OFF. This is a shadow/out-of-sample book, not
+# an adopted or validated strategy.
+validated: false
+live_trading: false
+
+strategy: QV50
+book_size: account_equity
+require_signals: true        # never silently degrade the comparison to SPY
+
+signals: [qv]
+weighting: equal
+ic_months: 12
+halflife_frac: 0.5
+
+# Phase-11 sleeve targets are fully invested every day (no regime overlay):
+# 50% SPY core + the 20-name sleeve, rebalanced inside the 2% band.
+regime: none
+regime_cfg:
+  sma: 200
+  vol_win: 21
+  vol_lookback: 504
+  vol_q: 0.90
+  actions: {none: 1.0, half: 0.5, cash: 0.0, to_core: 0.0}
+
+core: {symbol: SPY, weight: 0.5}
+sleeve:
+  n: 20
+  weighting: equal
+  risk_off: to_core
+n_positions: 20
+budget_gbp: 10.0        # fixed_gbp fallback only; account_equity is used
+cost_bps: 10.0
+rebalance_band: 0.02
+snapshot_stale_days: 45
+order_after_open_min: 15
+order_before_close_min: 15
+sector_map: configs/benchmarks/assets/sp500_sector_map.csv
+membership_csv: results/phase11/sp500_membership.csv
+fwd_h: 21
+
+risk:
+  max_drawdown: 0.25
+  daily_loss: 0.05
+  max_position_weight: 0.2
+  max_orders: 40            # 2x the 20-name sleeve, same cap shape as B50's 2x6
+  max_daily_notional_frac: 1.0
+  max_price_move: 0.50
+  min_universe: 100
+
+universe: configs/live_universe.txt

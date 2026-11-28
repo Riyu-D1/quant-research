@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import time
 
 import pandas as pd
@@ -45,6 +46,8 @@ DB_PROPS = {
         {"name": "calm"}, {"name": "spy<sma"}, {"name": "vol>q"},
         {"name": "spy<sma+vol>q"}]}},
     "Validated": {"checkbox": {}},
+    "Strategy": {"select": {"options": [
+        {"name": "B50"}, {"name": "QV50"}]}},
     "EntryType": {"select": {"options": [
         {"name": "trade"}, {"name": "day-summary"},
         {"name": "weights-change"}, {"name": "note"}, {"name": "error"},
@@ -57,9 +60,11 @@ DB_PROPS = {
 
 class NotionJournal:
     def __init__(self, token: str, db_id: str = "",
-                 parent_page_id: str = "") -> None:
+                 parent_page_id: str = "", strategy: str = "B50") -> None:
         if not token:
             raise RuntimeError("NOTION_TOKEN missing")
+        self.strategy = strategy or "B50"
+        self.strategy_prop = False       # older dbs may lack the column
         self.hdr = {"Authorization": f"Bearer {token}",
                     "Notion-Version": VERSION}
         if db_id:
@@ -73,11 +78,15 @@ class NotionJournal:
         self._ensure_entry_types()
 
     def _ensure_entry_types(self) -> None:
-        """Add any EntryType options the db is missing (older dbs predate
-        'error'/'weekly-summary'/'halt'). Best-effort — a schema read
-        failure must not stop a run."""
+        """Add missing EntryType options and, when permitted, the Strategy
+        column. Best-effort — a schema read/patch failure must not stop a
+        run; without the column writes fall back to a [BOOK] title prefix."""
         try:
             db = self._req("GET", f"/databases/{self.db}")
+        except Exception as e:  # noqa: BLE001
+            log(f"journal schema read failed (non-fatal): {e}")
+            return
+        try:
             prop = db["properties"].get("EntryType", {})
             have = {o["name"] for o in
                     prop.get("select", {}).get("options", [])}
@@ -92,6 +101,15 @@ class NotionJournal:
                 log(f"EntryType options extended: +{sorted(missing)}")
         except Exception as e:  # noqa: BLE001
             log(f"entry-type ensure failed (non-fatal): {e}")
+        self.strategy_prop = "Strategy" in db.get("properties", {})
+        if not self.strategy_prop:
+            try:
+                self._req("PATCH", f"/databases/{self.db}", json={
+                    "properties": {"Strategy": DB_PROPS["Strategy"]}})
+                self.strategy_prop = True
+                log("Strategy property added to Trade Journal")
+            except Exception as e:  # noqa: BLE001
+                log(f"Strategy property unavailable — using title prefix: {e}")
 
     # -- plumbing --------------------------------------------------------------
     def _req(self, method: str, path: str, **kw):
@@ -132,14 +150,63 @@ class NotionJournal:
             v = 0.0
         return round(v if math.isfinite(v) else 0.0, nd)
 
+    def _title(self, text: str):
+        """Ticker title, carrying the book as a prefix only when the db
+        does not expose the Strategy select column."""
+        prefix = "" if self.strategy_prop else f"[{self.strategy}] "
+        return self._rt(prefix + str(text))
+
+    def _tagged(self, props: dict) -> dict:
+        if self.strategy_prop:
+            props["Strategy"] = {"select": {"name": self.strategy}}
+        return props
+
+    @staticmethod
+    def _plain(parts: list[dict]) -> str:
+        return "".join(t.get("plain_text", "") for t in parts or [])
+
+    @classmethod
+    def _page_title(cls, page: dict) -> str:
+        return cls._plain(page.get("properties", {}).get("Ticker", {})
+                          .get("title", []))
+
+    @classmethod
+    def _page_ticker(cls, page: dict) -> str:
+        return re.sub(r"^\[(?:B50|QV50)\]\s*", "",
+                      cls._page_title(page))
+
+    @classmethod
+    def _page_strategy(cls, page: dict) -> str:
+        props = page.get("properties", {})
+        sel = props.get("Strategy", {}).get("select") or {}
+        if sel.get("name"):
+            return sel["name"]
+        m = re.match(r"^\[(B50|QV50)\]\s*", cls._page_title(page))
+        if m:
+            return m.group(1)
+        rt = props.get("Outcome", {}).get("rich_text", [])
+        txt = cls._plain(rt)
+        if txt.startswith("STATE "):
+            try:
+                strategy = json.loads(txt[len("STATE "):]).get("strategy")
+                if strategy:
+                    return str(strategy)
+            except ValueError:
+                pass
+        return "B50"      # every pre-split journal row was the B50 book
+
+    def _mine(self, pages: list[dict]) -> list[dict]:
+        return [p for p in pages
+                if self._page_strategy(p) == self.strategy]
+
     def _page(self, props: dict):
         return self._req("POST", "/pages",
                          json={"parent": {"database_id": self.db},
                                "properties": props})
 
     def log_trade(self, day: pd.Timestamp, t: dict, ctx: dict) -> None:
-        self._page({
-            "Ticker": {"title": self._rt(t["sym"])},
+        self._page(self._tagged({
+            "Ticker": {"title": self._title(t["sym"])},
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
             "Side": {"select": {"name": t["side"]}},
             "Qty": {"number": self._num(t.get("qty"), 6)},
@@ -152,12 +219,12 @@ class NotionJournal:
             "EntryType": {"select": {"name": "trade"}},
             "Reason": {"rich_text": self._rt(t.get("reason") or "")},
             "Outcome": {"rich_text": self._rt("")},
-            "Lesson": {"rich_text": self._rt("")}})
+            "Lesson": {"rich_text": self._rt("")}}))
 
     def log_day_summary(self, day: pd.Timestamp, ctx: dict) -> None:
         state = ctx.get("recon_state")
-        self._page({
-            "Ticker": {"title": self._rt("— day summary —")},
+        self._page(self._tagged({
+            "Ticker": {"title": self._title("— day summary —")},
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
             "Side": {"select": {"name": "info"}},
             "Qty": {"number": 0}, "Price": {"number": 0},
@@ -170,15 +237,15 @@ class NotionJournal:
             "Reason": {"rich_text": self._rt(ctx["summary"])},
             "Outcome": {"rich_text": self._rt(
                 "STATE " + json.dumps(state) if state else "")},
-            "Lesson": {"rich_text": self._rt(ctx.get("lesson") or "")}})
+            "Lesson": {"rich_text": self._rt(ctx.get("lesson") or "")}}))
 
     def log_error(self, day: pd.Timestamp, message: str,
                   ctx: dict | None = None) -> None:
         """A loud failure row — the workflow still exits non-zero, but the
         journal shows what died without digging through run logs."""
         ctx = ctx or {}
-        self._page({
-            "Ticker": {"title": self._rt("— ERROR —")},
+        self._page(self._tagged({
+            "Ticker": {"title": self._title("— ERROR —")},
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
             "Side": {"select": {"name": "info"}},
             "Qty": {"number": 0}, "Price": {"number": 0},
@@ -191,14 +258,14 @@ class NotionJournal:
             "Reason": {"rich_text": self._rt(message[:1900])},
             "Outcome": {"rich_text": self._rt("")},
             "Lesson": {"rich_text": self._rt(
-                "see the workflow run log for the traceback")}})
+                "see the workflow run log for the traceback")}}))
 
     def log_note(self, day: pd.Timestamp, text: str,
                  ctx: dict | None = None) -> None:
         """Anomaly row — rejected orders, partial fills, stale inputs."""
         ctx = ctx or {}
-        self._page({
-            "Ticker": {"title": self._rt("— note —")},
+        self._page(self._tagged({
+            "Ticker": {"title": self._title("— note —")},
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
             "Side": {"select": {"name": "info"}},
             "Qty": {"number": 0}, "Price": {"number": 0},
@@ -210,14 +277,14 @@ class NotionJournal:
             "EntryType": {"select": {"name": "note"}},
             "Reason": {"rich_text": self._rt(text[:1900])},
             "Outcome": {"rich_text": self._rt("")},
-            "Lesson": {"rich_text": self._rt("")}})
+            "Lesson": {"rich_text": self._rt("")}}))
 
     def log_weights_change(self, month: str, old: dict, new: dict,
                            ctx: dict) -> None:
         diff = ", ".join(f"{k}: {old.get(k,0):.2f}->{new.get(k,0):.2f}"
                          for k in sorted(set(old) | set(new)))
-        self._page({
-            "Ticker": {"title": self._rt("— what changed —")},
+        self._page(self._tagged({
+            "Ticker": {"title": self._title("— what changed —")},
             "Date": {"date": {"start": month}},
             "Side": {"select": {"name": "info"}},
             "Qty": {"number": 0}, "Price": {"number": 0},
@@ -228,13 +295,13 @@ class NotionJournal:
             "EntryType": {"select": {"name": "weights-change"}},
             "Reason": {"rich_text": self._rt(f"monthly reweight: {diff}")},
             "Outcome": {"rich_text": self._rt("")},
-            "Lesson": {"rich_text": self._rt("")}})
+            "Lesson": {"rich_text": self._rt("")}}))
 
     def log_weekly_summary(self, day: pd.Timestamp, ctx: dict) -> None:
         """One row per week: equity, return vs SPY, drawdown, turnover,
         hit rate, what changed in weights, lessons."""
-        self._page({
-            "Ticker": {"title": self._rt("— weekly summary —")},
+        self._page(self._tagged({
+            "Ticker": {"title": self._title("— weekly summary —")},
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
             "Side": {"select": {"name": "info"}},
             "Qty": {"number": 0}, "Price": {"number": 0},
@@ -249,14 +316,14 @@ class NotionJournal:
             "Outcome": {"rich_text": self._rt(
                 "STATE " + json.dumps(ctx.get("state"))
                 if ctx.get("state") else "")},
-            "Lesson": {"rich_text": self._rt(ctx.get("lesson") or "")}})
+            "Lesson": {"rich_text": self._rt(ctx.get("lesson") or "")}}))
 
     def log_halt(self, day: pd.Timestamp, reason: str,
                  ctx: dict | None = None) -> None:
         """Kill-switch / circuit-breaker row — unmistakable in the journal."""
         ctx = ctx or {}
-        self._page({
-            "Ticker": {"title": self._rt("— HALT —")},
+        self._page(self._tagged({
+            "Ticker": {"title": self._title("— HALT —")},
             "Date": {"date": {"start": day.strftime("%Y-%m-%d")}},
             "Side": {"select": {"name": "info"}},
             "Qty": {"number": 0}, "Price": {"number": 0},
@@ -269,7 +336,7 @@ class NotionJournal:
             "Reason": {"rich_text": self._rt(reason[:1900])},
             "Outcome": {"rich_text": self._rt("")},
             "Lesson": {"rich_text": self._rt(
-                "no orders placed this run")}})
+                "no orders placed this run")}}))
 
     # -- queries / updates ------------------------------------------------------
     def _query(self, filt: dict) -> list[dict]:
@@ -279,10 +346,10 @@ class NotionJournal:
 
     def day_logged(self, day: pd.Timestamp,
                    entry_type: str = "day-summary") -> bool:
-        return bool(self._query({"and": [
+        return bool(self._mine(self._query({"and": [
             {"property": "EntryType", "select": {"equals": entry_type}},
             {"property": "Date", "date": {
-                "equals": day.strftime("%Y-%m-%d")}}]}))
+                "equals": day.strftime("%Y-%m-%d")}}]})))
 
     def note_logged(self, day: pd.Timestamp, text: str) -> bool:
         """A note row for `day` carrying this exact Reason text already
@@ -291,7 +358,7 @@ class NotionJournal:
             {"property": "EntryType", "select": {"equals": "note"}},
             {"property": "Date", "date": {
                 "equals": day.strftime("%Y-%m-%d")}}]})
-        for p in pages:
+        for p in self._mine(pages):
             rt = p["properties"]["Reason"]["rich_text"]
             if "".join(t.get("plain_text", "")
                        for t in rt) == str(text)[:1900]:
@@ -306,10 +373,11 @@ class NotionJournal:
 
     def open_buy(self, sym: str) -> dict | None:
         pages = self._query({"and": [
-            {"property": "Ticker", "title": {"equals": sym}},
             {"property": "Side", "select": {"equals": "buy"}},
             {"property": "EntryType", "select": {"equals": "trade"}},
             {"property": "Outcome", "rich_text": {"is_empty": True}}]})
+        pages = [p for p in self._mine(pages)
+                 if self._page_ticker(p) == sym]
         return max(pages, key=lambda p: p["created_time"]) if pages else None
 
     def open_buys(self) -> list[str]:
@@ -319,37 +387,34 @@ class NotionJournal:
             {"property": "Side", "select": {"equals": "buy"}},
             {"property": "EntryType", "select": {"equals": "trade"}},
             {"property": "Outcome", "rich_text": {"is_empty": True}}]})
-        out = []
-        for p in pages:
-            t = p["properties"]["Ticker"]["title"]
-            txt = "".join(x.get("plain_text", "") for x in t)
-            if txt:
-                out.append(txt)
-        return out
+        return [self._page_ticker(p) for p in self._mine(pages)
+                if self._page_ticker(p)]
 
     def day_summaries(self, n: int = 10) -> list[dict]:
-        """The last n day-summary pages (newest first) — weekly rollup
-        and the equity-peak baseline for the drawdown breaker."""
+        """The last n day-summary pages for this book (newest first) —
+        weekly rollup and the equity-peak baseline for the drawdown
+        breaker. The db query over-fetches because both books share it."""
         d = self._req("POST", f"/databases/{self.db}/query", json={
             "filter": {"property": "EntryType",
                        "select": {"equals": "day-summary"}},
             "sorts": [{"property": "Date", "direction": "descending"}],
-            "page_size": max(1, min(n, 100))})
-        return d.get("results", [])
+            "page_size": max(20, min(n * 4, 100))})
+        return self._mine(d.get("results", []))[:n]
 
     def trades_between(self, start: str, end: str) -> list[dict]:
-        """Trade pages with start <= Date <= end — turnover accounting."""
-        return self._query({"and": [
+        """This book's trade pages with start <= Date <= end."""
+        return self._mine(self._query({"and": [
             {"property": "EntryType", "select": {"equals": "trade"}},
             {"property": "Date", "date": {"on_or_after": start}},
-            {"property": "Date", "date": {"on_or_before": end}}]})
+            {"property": "Date", "date": {"on_or_before": end}}]}))
 
     def trade_pages(self, sym: str, side: str, day: str) -> list[dict]:
-        return self._query({"and": [
-            {"property": "Ticker", "title": {"equals": sym}},
+        pages = self._query({"and": [
             {"property": "Side", "select": {"equals": side}},
             {"property": "EntryType", "select": {"equals": "trade"}},
             {"property": "Date", "date": {"equals": day}}]})
+        return [p for p in self._mine(pages)
+                if self._page_ticker(p) == sym]
 
     def mark_fill(self, sym: str, day: str, qty: float,
                   price: float) -> None:
@@ -373,15 +438,16 @@ class NotionJournal:
         log(f"reconciled fill {sym}: {qty:g} @ {price:.2f}")
 
     def last_summary_state(self) -> dict:
-        """The STATE blob from the most recent day-summary page — the
-        equity/SPY baseline for the next run's P&L tracking. State lives
-        in Notion (not runner disk) so runs are machine-independent."""
+        """The STATE blob from this book's most recent day-summary — the
+        equity/SPY baseline for the next run's P&L tracking. Untagged old
+        rows count as B50; QV50 can never reset B50's baseline (or vice
+        versa) even though both books share one db."""
         d = self._req("POST", f"/databases/{self.db}/query", json={
             "filter": {"property": "EntryType",
                        "select": {"equals": "day-summary"}},
             "sorts": [{"property": "Date", "direction": "descending"}],
-            "page_size": 1})
-        res = d.get("results", [])
+            "page_size": 100})
+        res = self._mine(d.get("results", []))
         if not res:
             return {}
         rt = res[0]["properties"]["Outcome"]["rich_text"]

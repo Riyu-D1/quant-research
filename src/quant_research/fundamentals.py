@@ -155,6 +155,51 @@ def vq_features(facts: pd.DataFrame, shares: pd.DataFrame | None,
     return out
 
 
+def _shares_visible(shares: pd.DataFrame | None,
+                    days: pd.DatetimeIndex) -> np.ndarray:
+    """Latest-filed shares outstanding visible at each day (filed < D)."""
+    if shares is None or shares.empty:
+        return np.full(len(days), np.nan)
+    sh = shares.dropna(subset=["filed", "shares"]).sort_values("filed")
+    filed = sh["filed"].values.astype("datetime64[D]")
+    vals = sh["shares"].values.astype(float)
+    d64 = days.values.astype("datetime64[D]")
+    pos = np.searchsorted(filed, d64, side="left") - 1      # filed < D
+    return pd.Series(np.where(pos >= 0,
+                              vals[np.clip(pos, 0, len(vals) - 1)],
+                              np.nan)).ffill().values
+
+
+def qv_inputs(facts: pd.DataFrame, shares: pd.DataFrame | None,
+              days: pd.DatetimeIndex) -> dict:
+    """Point-in-time inputs behind the phase-11 QV ratios.
+
+    The daily paper book stores these slowly-moving filing inputs in its
+    snapshot and combines them with the signal day's close, so EBIT/TEV
+    uses a current market cap rather than a price frozen at snapshot build
+    time. Same visibility rule as qv_features: facts filed strictly
+    before D only."""
+    nan = np.full(len(days), np.nan)
+    out = {k: nan.copy() for k in
+           ("ebit", "assets", "cash", "debt", "gp", "ni", "shares")}
+    if facts.empty:
+        return out
+    g = {k: facts[facts["group"] == k] for k in
+         ("ebit", "assets", "cash", "debt", "gp", "cogs", "rev", "ni")}
+    gp = _ttm(g["gp"], days)
+    gp = np.where(np.isfinite(gp), gp,
+                  _ttm(g["rev"], days) - _ttm(g["cogs"], days))
+    out.update({
+        "ebit": _ttm(g["ebit"], days),
+        "assets": _latest_point(g["assets"], days),
+        "cash": _latest_point(g["cash"], days),
+        "debt": _latest_point(g["debt"], days),
+        "gp": gp,
+        "ni": _ttm(g["ni"], days),
+        "shares": _shares_visible(shares, days)})
+    return out
+
+
 def qv_features(facts: pd.DataFrame, shares: pd.DataFrame | None,
                 close: np.ndarray, days: pd.DatetimeIndex) -> dict:
     """One symbol -> {ebit_tev, gpa, roa} arrays on `days` (phase-11 tilt).
@@ -167,19 +212,12 @@ def qv_features(facts: pd.DataFrame, shares: pd.DataFrame | None,
     Same PIT rule as vq_features: only facts filed strictly before D."""
     nan = np.full(len(days), np.nan)
     out = {"ebit_tev": nan.copy(), "gpa": nan.copy(), "roa": nan.copy()}
-    if facts.empty:
-        return out
-    g = {k: facts[facts["group"] == k] for k in
-         ("ebit", "assets", "cash", "debt", "gp", "cogs", "rev", "ni")}
-    assets = _latest_point(g["assets"], days)
-    assets = np.where(assets > 0, assets, np.nan)
-    gp = _ttm(g["gp"], days)
-    gp = np.where(np.isfinite(gp), gp, _ttm(g["rev"], days) - _ttm(g["cogs"], days))
-    mcap = vq_mcap(shares, close, days)
-    tev = mcap + np.nan_to_num(_latest_point(g["debt"], days)) \
-        - np.nan_to_num(_latest_point(g["cash"], days))
+    inp = qv_inputs(facts, shares, days)
+    assets = np.where(inp["assets"] > 0, inp["assets"], np.nan)
+    mcap = inp["shares"] * close
+    tev = mcap + np.nan_to_num(inp["debt"]) - np.nan_to_num(inp["cash"])
     with np.errstate(divide="ignore", invalid="ignore"):
-        out["ebit_tev"] = _ttm(g["ebit"], days) / np.where(tev > 0, tev, np.nan)
-        out["gpa"] = gp / assets
-        out["roa"] = _ttm(g["ni"], days) / assets
+        out["ebit_tev"] = inp["ebit"] / np.where(tev > 0, tev, np.nan)
+        out["gpa"] = inp["gp"] / assets
+        out["roa"] = inp["ni"] / assets
     return out
